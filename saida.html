@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Saída</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico">P</div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">O</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Operador</div>
+        <div class="sb-eq">Caixa</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Principal</div>
+      <a href="dashboard.html" class="si">
+        <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+        <span class="si-l">Dashboard</span>
+      </a>
+      <a href="entrada.html" class="si">
+        <span class="si-i"><i data-lucide="log-in"></i></span>
+        <span class="si-l">Nova Entrada</span>
+      </a>
+      <a href="saida.html" class="si active">
+        <span class="si-i"><i data-lucide="log-out"></i></span>
+        <span class="si-l">Registrar Saída</span>
+      </a>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Saída de Veículo</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av" id="tb-av-top">O</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="card anim-fadeInUp">
+        <div class="card-body">
+          <div class="search-area">
+            <input type="text" id="searchInput" class="form-input" placeholder="Buscar placa..." maxlength="7">
+            <button class="btn btn-primary" id="btnSearch">BUSCAR</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card anim-fadeInUp">
+        <div class="card-header"><h3 class="card-title">Veículos no Pátio</h3><span class="badge badge-gold" id="activeCount">0</span></div>
+        <div class="tw">
+          <table class="tab">
+            <thead><tr><th>Placa</th><th>Entrada</th><th>Tempo</th><th>Ação</th></tr></thead>
+            <tbody id="activeTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Checkout -->
+  <div class="modal-overlay" id="modalCheckout">
+    <div class="modal">
+      <div class="checkout-summary">
+        <div class="checkout-label">Finalizar Estadia</div>
+        <div class="checkout-plate" id="checkPlate">---</div>
+        <div class="checkout-ticket" id="checkTicket">TICKET: ---</div>
+      </div>
+      <div class="checkout-info">
+        <div class="info-row"><span>Entrada:</span> <strong id="checkIn">--:--</strong></div>
+        <div class="info-row"><span>Permanência:</span> <strong id="checkDuration">0 min</strong></div>
+        <div class="info-row total-row"><span class="total-label">TOTAL A PAGAR:</span> <span class="total-value" id="checkTotal">R$ 0,00</span></div>
+
+        <div class="pay-grid">
+          <div class="pay-btn" data-pay="dinheiro" onclick="selectPay(this)"><span class="pay-icon"><i data-lucide="banknote"></i></span><span class="pay-label">Dinheiro</span></div>
+          <div class="pay-btn" data-pay="pix" onclick="selectPay(this)"><span class="pay-icon"><i data-lucide="qr-code"></i></span><span class="pay-label">PIX</span></div>
+          <div class="pay-btn" data-pay="cartao" onclick="selectPay(this)"><span class="pay-icon"><i data-lucide="credit-card"></i></span><span class="pay-label">Cartão</span></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeCheckout()">VOLTAR</button>
+        <button class="btn btn-primary btn-lg" id="btnFinalize" disabled>FINALIZAR SAÍDA</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bnav">
+    <div class="bnis">
+      <a href="dashboard.html" class="bni">
+        <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
+        <span class="bnlb">Dash</span>
+      </a>
+      <a href="entrada.html" class="bni">
+        <span class="bnico"><i data-lucide="log-in"></i></span>
+        <span class="bnlb">Entrada</span>
+      </a>
+      <a href="saida.html" class="bni active">
+        <span class="bnico"><i data-lucide="log-out"></i></span>
+        <span class="bnlb">Saída</span>
+      </a>
+    </div>
+  </nav>
+
+  <script>
+    const SUPABASE_URL = 'SEU_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'SUA_ANON_KEY';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null, tenantId = null, selectedEntry = null, selectedPayMode = null;
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    function openCheckout() { document.getElementById('modalCheckout').classList.add('show'); }
+    function closeCheckout() { document.getElementById('modalCheckout').classList.remove('show'); }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      currentUser = user; tenantId = user.tenant_id;
+      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+      loadActive();
+    }
+
+    async function loadActive() {
+      const { data } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).order('entrada', { ascending: true });
+      document.getElementById('activeCount').textContent = data.length;
+      const tbody = document.getElementById('activeTableBody');
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td><strong style="font-family: var(--font-display);">${item.placa}</strong></td>
+          <td>${new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+          <td><span class="badge badge-gold">${Math.floor(item.minutos_estacionado)} min</span></td>
+          <td><button class="btn btn-ghost btn-sm" onclick="startCheckout('${item.id}')">SAÍDA</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function startCheckout(id) {
+      const { data: entry } = await sb.from('valet_entries').select('*').eq('id', id).single();
+      selectedEntry = entry;
+      const agora = new Date().toISOString();
+      const { data: calc } = await sb.rpc('calcular_valor_estadia', { p_tenant_id: tenantId, p_entrada: entry.entrada, p_saida: agora });
+      const result = calc[0];
+      selectedEntry.calc = result; selectedEntry.saida = agora;
+
+      document.getElementById('checkPlate').textContent = entry.placa;
+      document.getElementById('checkTicket').textContent = `TICKET: ${entry.ticket_numero}`;
+      document.getElementById('checkIn').textContent = new Date(entry.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('checkDuration').textContent = `${result.minutos} min`;
+      document.getElementById('checkTotal').textContent = `R$ ${result.valor.toFixed(2).replace('.', ',')}`;
+      
+      selectedPayMode = null;
+      document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
+      document.getElementById('btnFinalize').disabled = true;
+      openCheckout();
+    }
+
+    function selectPay(el) {
+      document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedPayMode = el.dataset.pay;
+      document.getElementById('btnFinalize').disabled = false;
+    }
+
+    document.getElementById('btnFinalize').addEventListener('click', async () => {
+      const btn = document.getElementById('btnFinalize');
+      btn.classList.add('btn-loading');
+      const { error } = await sb.from('valet_entries').update({ saida: selectedEntry.saida, minutos_total: selectedEntry.calc.minutos, valor: selectedEntry.calc.valor, forma_pagamento: selectedPayMode, operador_saida_id: currentUser.id, status: 'finalizado' }).eq('id', selectedEntry.id);
+      if (error) alert('Erro: ' + error.message);
+      else { closeCheckout(); loadActive(); }
+      btn.classList.remove('btn-loading');
+    });
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    init();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

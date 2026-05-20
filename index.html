@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Acesso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main class="login-page">
+    <div class="login-container">
+      
+      <div class="login-logo">
+        <img src="imgs/logo.png" alt="PARKTOR — Gestão de Estacionamento">
+      </div>
+
+      <div class="login-card">
+        <h1 class="login-title">Bem-vindo</h1>
+        <p class="login-subtitle">Acesse sua conta para continuar</p>
+
+        <div class="alert alert-error" id="alertError">
+          <span>Usuário ou senha incorretos.</span>
+        </div>
+
+        <form id="loginForm" class="login-form">
+          <div class="form-group">
+            <label class="form-label">Usuário</label>
+            <input type="text" id="usuario" class="form-input" placeholder="seu usuário" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Senha</label>
+            <input type="password" id="senha" class="form-input" placeholder="••••••••" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="btnLogin">
+            <span>ENTRAR NO SISTEMA</span>
+          </button>
+        </form>
+
+        <div class="login-footer">
+          <a href="#">Esqueci minha senha</a>
+        </div>
+      </div>
+
+      <p class="login-version">
+        PARKTOR v1.2 &mdash; 2026
+      </p>
+
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const ROUTES = { root: 'root.html', admin: 'dashboard.html', operador: 'saida.html', manobrista: 'entrada.html' };
+
+    async function rotearUsuario(userId) {
+      const { data: user } = await sb.from('users').select('nivel_acesso, status, tenant_id').eq('id', userId).single();
+      if (!user || user.status !== 'ativo') { await sb.auth.signOut(); return; }
+      window.location.href = ROUTES[user.nivel_acesso] || 'dashboard.html';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const usuario = document.getElementById('usuario').value;
+      const senha = document.getElementById('senha').value;
+      const btn = document.getElementById('btnLogin');
+      const alert = document.getElementById('alertError');
+
+      alert.classList.remove('show');
+      btn.classList.add('btn-loading');
+
+      // 1. Buscar o e-mail associado ao username na tabela public.users
+      const { data: userData, error: userError } = await sb
+        .from('users')
+        .select('email')
+        .eq('username', usuario)
+        .single();
+
+      if (userError || !userData) {
+        btn.classList.remove('btn-loading');
+        alert.classList.add('show');
+        return;
+      }
+
+      const email = userData.email;
+
+      // 2. Autenticar usando o e-mail encontrado
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
+
+      if (error) {
+        btn.classList.remove('btn-loading');
+        alert.classList.add('show');
+        return;
+      }
+
+      await rotearUsuario(data.user.id);
+    });
+
+    lucide.createIcons();
+  </script>
+
+</body>
+</html>

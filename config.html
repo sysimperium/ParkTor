@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Configurações</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico">P</div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">A</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Admin</div>
+        <div class="sb-eq">Administrador</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Principal</div>
+      <a href="dashboard.html" class="si">
+        <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+        <span class="si-l">Dashboard</span>
+      </a>
+      <a href="entrada.html" class="si">
+        <span class="si-i"><i data-lucide="log-in"></i></span>
+        <span class="si-l">Nova Entrada</span>
+      </a>
+      <a href="saida.html" class="si">
+        <span class="si-i"><i data-lucide="log-out"></i></span>
+        <span class="si-l">Registrar Saída</span>
+      </a>
+      <div class="sb-sec">Gestão</div>
+      <a href="financeiro.html" class="si">
+        <span class="si-i"><i data-lucide="wallet"></i></span>
+        <span class="si-l">Financeiro</span>
+      </a>
+      <a href="config.html" class="si active">
+        <span class="si-i"><i data-lucide="settings"></i></span>
+        <span class="si-l">Configurações</span>
+      </a>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Configurações</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av" id="tb-av-top">A</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="pg-hd">
+        <div><h2 class="pg-t">Ajustes do Sistema</h2><p class="pg-s">Configure preços, carência e dados do estabelecimento.</p></div>
+      </div>
+
+      <div class="card anim-fadeInUp">
+        <div class="card-header"><h3 class="card-title">Valores e Regras</h3></div>
+        <div class="card-body">
+          <form id="formConfig" class="login-form">
+            <div class="config-grid">
+              <div class="form-group">
+                <label class="form-label">Valor Base (R$)</label>
+                <input type="number" id="cfgValorBase" class="form-input" step="0.50">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Adicional/Hora (R$)</label>
+                <input type="number" id="cfgValorAdic" class="form-input" step="0.50">
+              </div>
+            </div>
+            <div class="config-grid">
+              <div class="form-group">
+                <label class="form-label">Carência (min)</label>
+                <input type="number" id="cfgCarencia" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Total de Vagas</label>
+                <input type="number" id="cfgVagas" class="form-input">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Chave PIX Recebimento</label>
+              <input type="text" id="cfgPix" class="form-input" placeholder="Chave PIX">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full btn-lg">SALVAR ALTERAÇÕES</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card anim-fadeInUp">
+        <div class="card-header"><h3 class="card-title">Estabelecimento</h3></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Nome do Estacionamento</label>
+            <input type="text" id="cfgNome" class="form-input" readonly>
+          </div>
+          <div class="plan-info">
+            <p>PLANO ATUAL: <span id="txtPlano" class="plan-name">...</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bnav">
+    <div class="bnis">
+      <a href="dashboard.html" class="bni">
+        <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
+        <span class="bnlb">Dash</span>
+      </a>
+      <a href="entrada.html" class="bni">
+        <span class="bnico"><i data-lucide="log-in"></i></span>
+        <span class="bnlb">Entrada</span>
+      </a>
+      <a href="saida.html" class="bni">
+        <span class="bnico"><i data-lucide="log-out"></i></span>
+        <span class="bnlb">Saída</span>
+      </a>
+      <a href="config.html" class="bni active">
+        <span class="bnico"><i data-lucide="settings"></i></span>
+        <span class="bnlb">Config</span>
+      </a>
+    </div>
+  </nav>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co', SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentUser = null, tenantId = null;
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('*, tenants(*, planos(nome))').eq('id', session.user.id).single();
+      currentUser = user; tenantId = user.tenant_id;
+      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+      
+      const t = user.tenants;
+      document.getElementById('cfgValorBase').value = t.valor_hora;
+      document.getElementById('cfgValorAdic').value = t.valor_hora_adicional;
+      document.getElementById('cfgCarencia').value = t.carencia_minutos;
+      document.getElementById('cfgVagas').value = t.total_vagas;
+      document.getElementById('cfgNome').value = t.nome;
+      document.getElementById('cfgPix').value = t.pix_key || '';
+      document.getElementById('txtPlano').textContent = t.planos?.nome || 'Básico';
+    }
+
+    document.getElementById('formConfig').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const updates = { valor_hora: parseFloat(document.getElementById('cfgValorBase').value), valor_hora_adicional: parseFloat(document.getElementById('cfgValorAdic').value), carencia_minutos: parseInt(document.getElementById('cfgCarencia').value), total_vagas: parseInt(document.getElementById('cfgVagas').value), pix_key: document.getElementById('cfgPix').value };
+      const { error } = await sb.from('tenants').update(updates).eq('id', tenantId);
+      if (error) alert('Erro'); else alert('Sucesso!');
+    });
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    init();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

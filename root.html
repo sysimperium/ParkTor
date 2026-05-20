@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Root Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>body { display: none; }</style>
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico">P</div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Global Root</div>
+      </div>
+    </div>
+    <div class="sb-perf">
+      <div class="sb-av">R</div>
+      <div>
+        <div class="sb-nome">Root Admin</div>
+        <div class="sb-eq">Master Access</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Global</div>
+      <a href="root.html" class="si active">
+        <span class="si-i"><i data-lucide="crown"></i></span>
+        <span class="si-l">Tenants</span>
+      </a>
+      <a href="#" class="si">
+        <span class="si-i"><i data-lucide="qr-code"></i></span>
+        <span class="si-l">Planos</span>
+      </a>
+      <a href="#" class="si">
+        <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+        <span class="si-l">Relatórios</span>
+      </a>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Gestão de Estacionamentos</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av">R</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="sgrid anim-stagger">
+        <div class="scard">
+          <div class="sico gold"><i data-lucide="building-2"></i></div>
+          <div><div class="slb">Total Tenants</div><div class="svl" id="totalTenants">0</div></div>
+        </div>
+        <div class="scard">
+          <div class="sico green"><i data-lucide="wallet"></i></div>
+          <div><div class="slb">Fat. Global</div><div class="svl">R$ 0,00</div></div>
+        </div>
+      </div>
+
+      <div class="pg-hd">
+        <h2 class="pg-t">Clientes (Estacionamentos)</h2>
+        <button class="btn btn-primary" onclick="openModal()">+ NOVO TENANT</button>
+      </div>
+
+      <div class="tenant-grid" id="tenantGrid">
+        <div class="tenant-grid-loading">Carregando...</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL NOVO TENANT -->
+  <div class="modal-overlay" id="modalTenant">
+    <div class="modal-card anim-fadeInUp">
+      <div class="modal-header">
+        <h3 class="modal-title">Cadastrar Novo Estacionamento</h3>
+        <button class="btn-close" onclick="closeModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formNewTenant">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Nome do Estacionamento</label>
+            <input type="text" id="tenantNome" class="form-input" placeholder="Ex: Central Park" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Plano</label>
+            <select id="tenantPlano" class="form-input" required>
+              <option value="">Carregando planos...</option>
+            </select>
+          </div>
+
+          <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 15px;">Dados de Acesso do Administrador:</p>
+
+          <div class="form-group">
+            <label class="form-label">E-mail do Admin</label>
+            <input type="email" id="adminEmail" class="form-input" placeholder="admin@email.com" required>
+          </div>
+
+          <div class="config-grid">
+            <div class="form-group">
+              <label class="form-label">Usuário de Login</label>
+              <input type="text" id="adminUsername" class="form-input" placeholder="admin.central" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Senha Inicial</label>
+              <input type="password" id="adminSenha" class="form-input" placeholder="••••••••" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">CANCELAR</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveTenant">CRIAR ESTACIONAMENTO</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR TENANT -->
+  <div class="modal-overlay" id="modalEditTenant">
+    <div class="modal-card anim-fadeInUp">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Estacionamento</h3>
+        <button class="btn-close" onclick="closeEditModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formEditTenant">
+        <input type="hidden" id="editTenantId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Nome do Estacionamento</label>
+            <input type="text" id="editTenantNome" class="form-input" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Plano</label>
+            <select id="editTenantPlano" class="form-input" required></select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="editTenantStatus" class="form-input" required>
+              <option value="ativo">Ativo</option>
+              <option value="suspenso">Suspenso</option>
+              <option value="inativo">Inativo</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="deleteTenant()">EXCLUIR</button>
+          <button type="submit" class="btn btn-primary" id="btnUpdateTenant">SALVAR ALTERAÇÕES</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+
+    function openModal() { document.getElementById('modalTenant').classList.add('show'); loadPlanos('tenantPlano'); }
+    function closeModal() { document.getElementById('modalTenant').classList.remove('show'); }
+
+    function openEditModal(id, nome, planoId, status) {
+      document.getElementById('editTenantId').value = id;
+      document.getElementById('editTenantNome').value = nome;
+      document.getElementById('editTenantStatus').value = status;
+      document.getElementById('modalEditTenant').classList.add('show');
+      loadPlanos('editTenantPlano', planoId);
+    }
+    function closeEditModal() { document.getElementById('modalEditTenant').classList.remove('show'); }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
+      if (user?.nivel_acesso !== 'root') { window.location.href = 'dashboard.html'; return; }
+      loadTenants();
+    }
+
+    async function loadPlanos(selectId, selectedId = null) {
+      const { data: planos } = await sb.from('planos').select('*').eq('ativo', true);
+      const select = document.getElementById(selectId);
+      select.innerHTML = planos.map(p => `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${p.nome} - R$ ${p.valor}</option>`).join('');
+    }
+
+    async function loadTenants() {
+      const { data: tenants } = await sb.from('tenants').select('*, planos(nome)');
+      document.getElementById('totalTenants').textContent = tenants.length;
+      const grid = document.getElementById('tenantGrid');
+      grid.innerHTML = tenants.map(t => `
+        <div class="card anim-fadeInUp">
+          <div class="card-header"><h3 class="card-title">${t.nome}</h3><span class="badge ${t.status === 'ativo' ? 'badge-green' : (t.status === 'suspenso' ? 'badge-gold' : 'badge-red')}">${t.status}</span></div>
+          <div class="card-body tenant-card-body">
+            <p>Plano: <strong>${t.planos?.nome || 'Básico'}</strong></p>
+            <p>Vagas: <strong>${t.total_vagas}</strong></p>
+            <div class="tenant-actions">
+              <button class="btn btn-secondary btn-full btn-sm" onclick="openEditModal('${t.id}', '${t.nome}', '${t.plano_id}', '${t.status}')">EDITAR</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    document.getElementById('formEditTenant').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btnUpdateTenant');
+      btn.disabled = true;
+      btn.textContent = 'SALVANDO...';
+
+      const tenantId = document.getElementById('editTenantId').value;
+      const updates = {
+        nome: document.getElementById('editTenantNome').value,
+        plano_id: document.getElementById('editTenantPlano').value,
+        status: document.getElementById('editTenantStatus').value
+      };
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const response = await fetch('/api/update-tenant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId, updates, token: session.access_token })
+        });
+
+        if (!response.ok) throw new Error('Erro ao atualizar');
+
+        alert('Estacionamento atualizado!');
+        closeEditModal();
+        loadTenants();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'SALVAR ALTERAÇÕES';
+      }
+    });
+
+    async function deleteTenant() {
+      if (!confirm('Tem certeza? Isso não removerá os usuários, mas desativará o acesso ao pátio.')) return;
+      const id = document.getElementById('editTenantId').value;
+      const { error } = await sb.from('tenants').delete().eq('id', id);
+      if (error) alert('Erro ao excluir: ' + error.message);
+      else { alert('Excluído!'); closeEditModal(); loadTenants(); }
+    }
+
+    document.getElementById('formNewTenant').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveTenant');
+      btn.disabled = true;
+      btn.textContent = 'CRIANDO...';
+
+      const tenantNome = document.getElementById('tenantNome').value;
+      const tenantPlano = document.getElementById('tenantPlano').value;
+      const adminEmail = document.getElementById('adminEmail').value;
+      const adminUsername = document.getElementById('adminUsername').value;
+      const adminSenha = document.getElementById('adminSenha').value;
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        
+        // Chamada para a nossa Serverless Function na Vercel
+        const response = await fetch('/api/create-tenant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantNome,
+            tenantPlano,
+            adminEmail,
+            adminUsername,
+            adminSenha,
+            token: session.access_token // Enviamos o token para o backend validar que somos ROOT
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) throw new Error(result.error || 'Erro desconhecido');
+
+        alert('Estacionamento e Administrador criados com sucesso!');
+        closeModal();
+        loadTenants();
+      } catch (err) {
+        console.error(err);
+        alert('Falha na criação: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'CRIAR ESTACIONAMENTO';
+      }
+    });
+
+    async function checkAccess() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user, error } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
+      if (error || user?.nivel_acesso !== 'root') {
+        await sb.auth.signOut();
+        window.location.href = 'index.html';
+        return;
+      }
+      document.body.style.display = 'block';
+      init();
+    }
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    checkAccess();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

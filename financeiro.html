@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Financeiro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico">P</div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">A</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Admin</div>
+        <div class="sb-eq">Administrador</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Principal</div>
+      <a href="dashboard.html" class="si">
+        <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+        <span class="si-l">Dashboard</span>
+      </a>
+      <a href="entrada.html" class="si">
+        <span class="si-i"><i data-lucide="log-in"></i></span>
+        <span class="si-l">Nova Entrada</span>
+      </a>
+      <a href="saida.html" class="si">
+        <span class="si-i"><i data-lucide="log-out"></i></span>
+        <span class="si-l">Registrar Saída</span>
+      </a>
+      <div class="sb-sec">Gestão</div>
+      <a href="financeiro.html" class="si active">
+        <span class="si-i"><i data-lucide="wallet"></i></span>
+        <span class="si-l">Financeiro</span>
+      </a>
+      <a href="config.html" class="si">
+        <span class="si-i"><i data-lucide="settings"></i></span>
+        <span class="si-l">Configurações</span>
+      </a>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Financeiro</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av" id="tb-av-top">A</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="balance-hero anim-fadeInUp">
+        <div class="mini-label">Saldo do Mês</div>
+        <div class="balance-val" id="totalBalance">R$ 0,00</div>
+        <div class="mini-grid">
+          <div class="mini-box">
+            <div class="mini-label">Receitas</div>
+            <div class="mini-val" id="totalIncome">R$ 0,00</div>
+          </div>
+          <div class="mini-box">
+            <div class="mini-label">Despesas</div>
+            <div class="mini-val" id="totalExpense">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pg-hd">
+        <h2 class="pg-t">Lançamentos</h2>
+        <button class="btn btn-primary" onclick="openLanc()">+ NOVO</button>
+      </div>
+
+      <div class="card anim-fadeInUp">
+        <div id="transList">
+          <div class="empty-state">Carregando lançamentos...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Lançamento -->
+  <div class="modal-overlay" id="modalLanc">
+    <div class="modal">
+      <div class="modal-header"><h3 class="mt">Novo Lançamento</h3><button class="bfc" onclick="closeLanc()">×</button></div>
+      <div class="modal-body">
+        <form id="formLanc">
+          <div class="form-group">
+            <label class="form-label">Tipo</label>
+            <select id="lTipo" class="form-input">
+              <option value="receita">Receita</option>
+              <option value="despesa">Despesa</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição</label>
+            <input type="text" id="lDesc" class="form-input" placeholder="Ex: Pagamento Luz" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Valor (R$)</label>
+            <input type="number" id="lVal" class="form-input" step="0.01" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full btn-lg">SALVAR</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bnav">
+    <div class="bnis">
+      <a href="dashboard.html" class="bni">
+        <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
+        <span class="bnlb">Dash</span>
+      </a>
+      <a href="entrada.html" class="bni">
+        <span class="bnico"><i data-lucide="log-in"></i></span>
+        <span class="bnlb">Entrada</span>
+      </a>
+      <a href="saida.html" class="bni">
+        <span class="bnico"><i data-lucide="log-out"></i></span>
+        <span class="bnlb">Saída</span>
+      </a>
+      <a href="financeiro.html" class="bni active">
+        <span class="bnico"><i data-lucide="wallet"></i></span>
+        <span class="bnlb">Financ</span>
+      </a>
+    </div>
+  </nav>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co', SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentUser = null, tenantId = null;
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    function openLanc() { document.getElementById('modalLanc').classList.add('show'); }
+    function closeLanc() { document.getElementById('modalLanc').classList.remove('show'); }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      currentUser = user; tenantId = user.tenant_id;
+      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+      loadFinanceiro();
+    }
+
+    async function loadFinanceiro() {
+      const { data: entries } = await sb.from('valet_entries').select('valor, saida').eq('tenant_id', tenantId).eq('status', 'finalizado');
+      const { data: lancs } = await sb.from('lancamentos').select('*').eq('tenant_id', tenantId).order('data', { ascending: false });
+
+      let inc = 0, exp = 0, list = [];
+      entries.forEach(e => { inc += e.valor; list.push({ t: 'receita', d: 'Pátio Avulso', v: e.valor, dt: e.saida }); });
+      lancs.forEach(l => { if (l.tipo === 'receita') inc += l.valor; else exp += l.valor; list.push({ t: l.tipo, d: l.descricao, v: l.valor, dt: l.data }); });
+      list.sort((a, b) => new Date(b.dt) - new Date(a.dt));
+
+      document.getElementById('totalIncome').textContent = `R$ ${inc.toFixed(2)}`;
+      document.getElementById('totalExpense').textContent = `R$ ${exp.toFixed(2)}`;
+      document.getElementById('totalBalance').textContent = `R$ ${(inc - exp).toFixed(2)}`;
+      
+      const container = document.getElementById('transList');
+      container.innerHTML = list.map(i => `
+        <div class="trans-item">
+          <div class="trans-ico ${i.t === 'receita' ? 'ico-in' : 'ico-out'}"><i data-lucide="${i.t === 'receita' ? 'arrow-down-left' : 'arrow-up-right'}"></i></div>
+          <div class="trans-info"><div class="trans-tit">${i.d}</div><div class="trans-dat">${new Date(i.dt).toLocaleDateString()}</div></div>
+          <div class="trans-val" style="color: ${i.t === 'receita' ? 'var(--vm)' : 'var(--danger)'}">${i.t === 'receita' ? '+' : '-'} R$ ${i.v.toFixed(2)}</div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    document.getElementById('formLanc').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const { error } = await sb.from('lancamentos').insert([{ tenant_id: tenantId, tipo: document.getElementById('lTipo').value, descricao: document.getElementById('lDesc').value, valor: parseFloat(document.getElementById('lVal').value), usuario_id: currentUser.id }]);
+      if (error) alert('Erro'); else { closeLanc(); loadFinanceiro(); }
+    });
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    init();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

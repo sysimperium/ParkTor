@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Entrada</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico">P</div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">M</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Manobrista</div>
+        <div class="sb-eq">Operacional</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Principal</div>
+      <a href="dashboard.html" class="si">
+        <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+        <span class="si-l">Dashboard</span>
+      </a>
+      <a href="entrada.html" class="si active">
+        <span class="si-i"><i data-lucide="log-in"></i></span>
+        <span class="si-l">Nova Entrada</span>
+      </a>
+      <a href="saida.html" class="si">
+        <span class="si-i"><i data-lucide="log-out"></i></span>
+        <span class="si-l">Registrar Saída</span>
+      </a>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Entrada de Veículo</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av" id="tb-av-top">M</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="card plate-card anim-fadeInUp">
+        <h2 class="pg-t">Nova Entrada</h2>
+        <p class="pg-s">Digite a placa para registrar a entrada</p>
+
+        <input type="text" id="plateInput" class="form-input plate-input" placeholder="ABC1234" maxlength="7">
+
+        <button class="btn btn-primary btn-full btn-lg" id="btnConfirm">
+          <span>CONFIRMAR ENTRADA</span>
+        </button>
+      </div>
+
+      <div class="card anim-fadeInUp">
+        <div class="card-header"><h3 class="card-title">Histórico de Hoje</h3></div>
+        <div class="tw">
+          <table class="tab">
+            <thead><tr><th>Placa</th><th>Hora</th><th>Status</th></tr></thead>
+            <tbody id="historyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Confirmação -->
+  <div class="modal-overlay" id="modalConfirm">
+    <div class="modal">
+      <div class="modal-header"><h3 class="mt">Confirmar Entrada?</h3><button class="bfc" onclick="closeModal()">×</button></div>
+      <div class="modal-body modal-body-center">
+        <div class="modal-plate-display" id="modalPlate">---</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal()">CANCELAR</button>
+        <button class="btn btn-primary" id="btnFinalConfirm">CONFIRMAR</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bnav">
+    <div class="bnis">
+      <a href="dashboard.html" class="bni">
+        <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
+        <span class="bnlb">Dash</span>
+      </a>
+      <a href="entrada.html" class="bni active">
+        <span class="bnico"><i data-lucide="log-in"></i></span>
+        <span class="bnlb">Entrada</span>
+      </a>
+      <a href="saida.html" class="bni">
+        <span class="bnico"><i data-lucide="log-out"></i></span>
+        <span class="bnlb">Saída</span>
+      </a>
+    </div>
+  </nav>
+
+  <script>
+    const SUPABASE_URL = 'SEU_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'SUA_ANON_KEY';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null;
+    let tenantId = null;
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    function openModal() { document.getElementById('modalConfirm').classList.add('show'); }
+    function closeModal() { document.getElementById('modalConfirm').classList.remove('show'); }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      currentUser = user; tenantId = user.tenant_id;
+      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+      loadHistory();
+    }
+
+    async function loadHistory() {
+      const hoje = new Date().toISOString().split('T')[0];
+      const { data } = await sb.from('valet_entries').select('*').eq('tenant_id', tenantId).gte('entrada', hoje + 'T00:00:00').order('entrada', { ascending: false }).limit(10);
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td><strong style="font-family: var(--font-display);">${item.placa}</strong></td>
+          <td>${new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+          <td><span class="badge ${item.status === 'ativo' ? 'badge-gold' : 'badge-green'}">${item.status.toUpperCase()}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('btnConfirm').addEventListener('click', () => {
+      const plate = document.getElementById('plateInput').value.toUpperCase();
+      if (plate.length < 7) { alert('Placa incompleta'); return; }
+      document.getElementById('modalPlate').textContent = plate;
+      openModal();
+    });
+
+    document.getElementById('btnFinalConfirm').addEventListener('click', async () => {
+      const plate = document.getElementById('plateInput').value.toUpperCase();
+      const btn = document.getElementById('btnFinalConfirm');
+      btn.classList.add('btn-loading');
+
+      const { data: ticketNumero } = await sb.rpc('gerar_ticket_numero', { p_tenant_id: tenantId });
+      const { error } = await sb.from('valet_entries').insert([{ tenant_id: tenantId, placa: plate, manobrista_id: currentUser.id, ticket_numero: ticketNumero, status: 'ativo' }]);
+
+      if (error) alert('Erro: ' + error.message);
+      else {
+        document.getElementById('plateInput').value = '';
+        closeModal();
+        loadHistory();
+      }
+      btn.classList.remove('btn-loading');
+    });
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    init();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
