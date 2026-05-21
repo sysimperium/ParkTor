@@ -40,14 +40,17 @@
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
-      <a href="entrada.html" class="si" id="navEntrada">
-        <span class="si-i"><i data-lucide="log-in"></i></span>
-        <span class="si-l">Nova Entrada</span>
-      </a>
-      <a href="saida.html" class="si" id="navSaida">
-        <span class="si-i"><i data-lucide="log-out"></i></span>
-        <span class="si-l">Registrar Saída</span>
-      </a>
+      <!-- Links Operacionais (Ocultos para Admin via JS) -->
+      <div id="navOperacional">
+        <a href="entrada.html" class="si" id="navEntrada">
+          <span class="si-i"><i data-lucide="log-in"></i></span>
+          <span class="si-l">Nova Entrada</span>
+        </a>
+        <a href="saida.html" class="si" id="navSaida">
+          <span class="si-i"><i data-lucide="log-out"></i></span>
+          <span class="si-l">Registrar Saída</span>
+        </a>
+      </div>
 
       <div id="navGestao">
         <div class="sb-sec">Gestão</div>
@@ -211,6 +214,11 @@
 
       currentUser = user;
       tenantId = user.tenant_id;
+
+      // AJUSTE SIDEBAR ADMIN (PATCH 1.2.1)
+      if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'root') {
+        document.getElementById('navOperacional')?.remove();
+      }
 
       const firstName = user.nome.split(' ')[0];
       document.getElementById('userNameHello').textContent = firstName;

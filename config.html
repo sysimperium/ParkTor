@@ -38,23 +38,33 @@
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
-      <a href="entrada.html" class="si">
-        <span class="si-i"><i data-lucide="log-in"></i></span>
-        <span class="si-l">Nova Entrada</span>
-      </a>
-      <a href="saida.html" class="si">
-        <span class="si-i"><i data-lucide="log-out"></i></span>
-        <span class="si-l">Registrar Saída</span>
-      </a>
-      <div class="sb-sec">Gestão</div>
-      <a href="financeiro.html" class="si">
-        <span class="si-i"><i data-lucide="wallet"></i></span>
-        <span class="si-l">Financeiro</span>
-      </a>
-      <a href="config.html" class="si active">
-        <span class="si-i"><i data-lucide="settings"></i></span>
-        <span class="si-l">Configurações</span>
-      </a>
+      <!-- Links Operacionais (Ocultos para Admin via JS) -->
+      <div id="navOperacional">
+        <a href="entrada.html" class="si" id="navEntrada">
+          <span class="si-i"><i data-lucide="log-in"></i></span>
+          <span class="si-l">Nova Entrada</span>
+        </a>
+        <a href="saida.html" class="si" id="navSaida">
+          <span class="si-i"><i data-lucide="log-out"></i></span>
+          <span class="si-l">Registrar Saída</span>
+        </a>
+      </div>
+
+      <div id="navGestao">
+        <div class="sb-sec">Gestão</div>
+        <a href="financeiro.html" class="si">
+          <span class="si-i"><i data-lucide="wallet"></i></span>
+          <span class="si-l">Financeiro</span>
+        </a>
+        <a href="mensalistas.html" class="si">
+          <span class="si-i"><i data-lucide="calendar-days"></i></span>
+          <span class="si-l">Mensalistas</span>
+        </a>
+        <a href="config.html" class="si active">
+          <span class="si-i"><i data-lucide="settings"></i></span>
+          <span class="si-l">Configurações</span>
+        </a>
+      </div>
     </nav>
     <div class="sb-ft">
       <div class="si si-logout" onclick="logout()">
@@ -88,21 +98,24 @@
             <div class="config-grid">
               <div class="form-group">
                 <label class="form-label">Valor Base (R$)</label>
-                <input type="number" id="cfgValorBase" class="form-input" step="0.50">
+                <input type="number" id="cfgValorBase" class="form-input" step="0.50" disabled value="7.00">
+                <small style="color: var(--text-muted);">Fixo v1.2.1: R$ 7,00 por 2h</small>
               </div>
               <div class="form-group">
-                <label class="form-label">Adicional/Hora (R$)</label>
-                <input type="number" id="cfgValorAdic" class="form-input" step="0.50">
+                <label class="form-label">Excedente Tolerância (R$)</label>
+                <input type="number" id="cfgValorAdic" class="form-input" step="0.50" disabled value="3.00">
+                <small style="color: var(--text-muted);">Fixo v1.2.1: R$ 3,00 até 20min</small>
               </div>
             </div>
             <div class="config-grid">
               <div class="form-group">
                 <label class="form-label">Carência (min)</label>
-                <input type="number" id="cfgCarencia" class="form-input">
+                <input type="number" id="cfgCarencia" class="form-input" disabled value="20">
               </div>
               <div class="form-group">
                 <label class="form-label">Total de Vagas</label>
-                <input type="number" id="cfgVagas" class="form-input">
+                <input type="number" id="cfgVagas" class="form-input" required>
+                <small id="vagasLimitLabel" style="color: var(--gold-400); font-weight: 600;"></small>
               </div>
             </div>
             <div class="form-group">
@@ -233,13 +246,9 @@
         <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
         <span class="bnlb">Dash</span>
       </a>
-      <a href="entrada.html" class="bni">
-        <span class="bnico"><i data-lucide="log-in"></i></span>
-        <span class="bnlb">Entrada</span>
-      </a>
-      <a href="saida.html" class="bni">
-        <span class="bnico"><i data-lucide="log-out"></i></span>
-        <span class="bnlb">Saída</span>
+      <a href="mensalistas.html" class="bni">
+        <span class="bnico"><i data-lucide="calendar-days"></i></span>
+        <span class="bnlb">Mensal</span>
       </a>
       <a href="config.html" class="bni active">
         <span class="bnico"><i data-lucide="settings"></i></span>
@@ -251,7 +260,7 @@
   <script>
     const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co', SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
     const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    let currentUser = null, tenantId = null;
+    let currentUser = null, tenantId = null, planLimit = 9999;
 
     /* --- NOTIFICAÇÕES --- */
     function showAlert(title, text, type = 'warning') {
@@ -283,7 +292,7 @@
     async function checkAccess() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user, error } = await sb.from('users').select('*, tenants(*, planos(nome))').eq('id', session.user.id).single();
+      const { data: user, error } = await sb.from('users').select('*, tenants(*, planos(*))').eq('id', session.user.id).single();
       
       if (error || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) {
         window.location.href = 'index.html';
@@ -291,6 +300,12 @@
       }
 
       currentUser = user; tenantId = user.tenant_id;
+      
+      // AJUSTE SIDEBAR ADMIN (PATCH 1.2.1)
+      if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'root') {
+        document.getElementById('navOperacional')?.remove();
+      }
+
       document.body.style.display = 'block';
       renderUI();
       loadStaff();
@@ -305,13 +320,17 @@
       
       const t = currentUser.tenants;
       if (t) {
-        document.getElementById('cfgValorBase').value = t.valor_hora;
-        document.getElementById('cfgValorAdic').value = t.valor_hora_adicional;
-        document.getElementById('cfgCarencia').value = t.carencia_minutos;
+        document.getElementById('cfgValorBase').value = 7.00;
+        document.getElementById('cfgValorAdic').value = 3.00;
+        document.getElementById('cfgCarencia').value = 20;
         document.getElementById('cfgVagas').value = t.total_vagas;
         document.getElementById('cfgNome').value = t.nome;
         document.getElementById('cfgPix').value = t.pix_key || '';
         document.getElementById('txtPlano').textContent = t.planos?.nome || 'Básico';
+        
+        // LIMITAR VAGAS PELO PLANO (PATCH 1.2.1)
+        planLimit = t.planos?.limite_vagas || 9999;
+        document.getElementById('vagasLimitLabel').textContent = `Limite do Plano: ${planLimit} vagas`;
       }
     }
 
@@ -337,13 +356,19 @@
 
     document.getElementById('formConfig').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const novasVagas = parseInt(document.getElementById('cfgVagas').value);
+
+      // VALIDAÇÃO LIMITE DE VAGAS (PATCH 1.2.1)
+      if (novasVagas > planLimit) {
+        showAlert('Limite Excedido', `Seu plano permite no máximo ${planLimit} vagas.`, 'warning');
+        return;
+      }
+
       const updates = { 
-        valor_hora: parseFloat(document.getElementById('cfgValorBase').value), 
-        valor_hora_adicional: parseFloat(document.getElementById('cfgValorAdic').value), 
-        carencia_minutos: parseInt(document.getElementById('cfgCarencia').value), 
-        total_vagas: parseInt(document.getElementById('cfgVagas').value), 
+        total_vagas: novasVagas, 
         pix_key: document.getElementById('cfgPix').value 
       };
+      
       const { error } = await sb.from('tenants').update(updates).eq('id', tenantId);
       if (error) showAlert('Erro', 'Falha ao salvar configurações', 'danger');
       else showAlert('Sucesso', 'Configurações atualizadas!', 'success');
