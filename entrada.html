@@ -34,7 +34,7 @@
     </div>
     <nav class="sb-nav">
       <div class="sb-sec">Principal</div>
-      <a href="dashboard.html" class="si">
+      <a href="dashboard.html" class="si" id="navDash">
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
@@ -120,7 +120,7 @@
   <!-- BOTTOM NAV (Mobile) -->
   <nav class="bnav">
     <div class="bnis">
-      <a href="dashboard.html" class="bni">
+      <a href="dashboard.html" class="bni" id="mobNavDash">
         <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
         <span class="bnlb">Dash</span>
       </a>
@@ -175,11 +175,19 @@
       const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
       if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
+      // OPERADOR NÃO ACESSA ENTRADA
+      if (user.nivel_acesso === 'operador') {
+        window.location.href = 'saida.html';
+        return;
+      }
+
       currentUser = user;
       tenantId = user.tenant_id;
 
-      // RESTRIÇÃO: Manobrista não acessa Saída
+      // RESTRIÇÕES VISUAIS PARA MANOBRISTA
       if (user.nivel_acesso === 'manobrista') {
+        document.getElementById('navDash')?.remove();
+        document.getElementById('mobNavDash')?.remove();
         document.getElementById('navSaida')?.remove();
         document.getElementById('mobNavSaida')?.remove();
       }
@@ -243,11 +251,9 @@
       btn.classList.add('btn-loading');
 
       try {
-        // 1. Gerar número do ticket via RPC
         const { data: ticketNumero, error: rpcError } = await sb.rpc('gerar_ticket_numero', { p_tenant_id: tenantId });
         if (rpcError) throw rpcError;
 
-        // 2. Inserir entrada
         const { error: insertError } = await sb.from('valet_entries').insert([{
           tenant_id: tenantId,
           placa: plate,

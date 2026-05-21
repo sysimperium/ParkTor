@@ -34,11 +34,11 @@
     </div>
     <nav class="sb-nav">
       <div class="sb-sec">Principal</div>
-      <a href="dashboard.html" class="si">
+      <a href="dashboard.html" class="si" id="navDash">
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
-      <a href="entrada.html" class="si">
+      <a href="entrada.html" class="si" id="navEntrada">
         <span class="si-i"><i data-lucide="log-in"></i></span>
         <span class="si-l">Nova Entrada</span>
       </a>
@@ -112,7 +112,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeCheckout()">VOLTAR</button>
-        <button class="btn btn-primary btn-lg" id="btnFinalize" disabled>FINALIZAR SAÍDA</button>
+        <button class="btn btn-primary btn-lg" id="btnFinalize">FINALIZAR SAÍDA</button>
       </div>
     </div>
   </div>
@@ -131,11 +131,11 @@
 
   <nav class="bnav">
     <div class="bnis">
-      <a href="dashboard.html" class="bni">
+      <a href="dashboard.html" class="bni" id="mobNavDash">
         <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
         <span class="bnlb">Dash</span>
       </a>
-      <a href="entrada.html" class="bni">
+      <a href="entrada.html" class="bni" id="mobNavEntrada">
         <span class="bnico"><i data-lucide="log-in"></i></span>
         <span class="bnlb">Entrada</span>
       </a>
@@ -178,13 +178,22 @@
       const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
       if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
-      // RESTRIÇÃO: Manobrista não acessa Saída
+      // MANOBRISTA NÃO ACESSA SAÍDA
       if (user.nivel_acesso === 'manobrista') {
-        window.location.href = 'dashboard.html';
+        window.location.href = 'entrada.html';
         return;
       }
 
       currentUser = user; tenantId = user.tenant_id;
+
+      // RESTRIÇÕES VISUAIS PARA OPERADOR
+      if (user.nivel_acesso === 'operador') {
+        document.getElementById('navDash')?.remove();
+        document.getElementById('mobNavDash')?.remove();
+        document.getElementById('navEntrada')?.remove();
+        document.getElementById('mobNavEntrada')?.remove();
+      }
+
       document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
       document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
       document.getElementById('sb-av-sidebar').textContent = user.nome[0];
@@ -238,7 +247,6 @@
         
         selectedPayMode = null;
         document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
-        document.getElementById('btnFinalize').disabled = true;
         openCheckout();
       } catch (err) {
         showAlert('Erro', 'Falha ao calcular valor: ' + err.message, 'danger');
@@ -249,10 +257,15 @@
       document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
       el.classList.add('selected');
       selectedPayMode = el.dataset.pay;
-      document.getElementById('btnFinalize').disabled = false;
     }
 
     document.getElementById('btnFinalize').addEventListener('click', async () => {
+      // VALIDAÇÃO DE PAGAMENTO SELECIONADO
+      if (!selectedPayMode) {
+        showAlert('Forma de Pagamento', 'Por favor, selecione uma modalidade de pagamento antes de finalizar.', 'warning');
+        return;
+      }
+
       const btn = document.getElementById('btnFinalize');
       btn.classList.add('btn-loading');
       
