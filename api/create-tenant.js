@@ -58,15 +58,16 @@ module.exports = async (req, res) => {
 
     if (tenantError) throw tenantError;
 
-    // 7. Atualizar o profile do novo Admin na tabela public.users
-    const { error: profileError } = await supabaseAdmin.from('users').update({
+    // 7. Criar ou Atualizar o profile do novo Admin na tabela public.users
+    const { error: profileError } = await supabaseAdmin.from('users').upsert({
+      id: newAuthUser.user.id,
       tenant_id: newTenant.id,
       nome: 'Admin ' + tenantNome,
       username: adminUsername,
       email: adminEmail,
       nivel_acesso: 'admin',
       status: 'ativo'
-    }).eq('id', newAuthUser.user.id);
+    });
 
     if (profileError) throw profileError;
 

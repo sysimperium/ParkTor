@@ -35,8 +35,8 @@ module.exports = async (req, res) => {
 
     if (createError) throw createError;
 
-    // 3. Criar na tabela pública vinculando ao mesmo tenant do admin
-    const { error: profileError } = await supabaseAdmin.from('users').insert({
+    // 3. Criar ou Atualizar na tabela pública vinculando ao mesmo tenant do admin
+    const { error: profileError } = await supabaseAdmin.from('users').upsert({
       id: newAuthUser.user.id,
       tenant_id: adminData.tenant_id,
       nome,
