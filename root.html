@@ -175,10 +175,83 @@
     </div>
   </div>
 
+  <!-- MODAL DE ALERTA CUSTOMIZADO -->
+  <div class="modal-overlay" id="modalCustomAlert">
+    <div class="modal card modal-alert anim-fadeInUp">
+      <div class="modal-icon warning" id="alertIcon"><i data-lucide="alert-triangle"></i></div>
+      <h3 class="modal-title" id="alertTitle">Aviso</h3>
+      <p class="modal-text" id="alertText">Sua mensagem aqui.</p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn btn-primary" onclick="closeAlert()">ENTENDIDO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO CUSTOMIZADO -->
+  <div class="modal-overlay" id="modalCustomConfirm">
+    <div class="modal card modal-alert anim-fadeInUp">
+      <div class="modal-icon danger"><i data-lucide="help-circle"></i></div>
+      <h3 class="modal-title" id="confirmTitle">Confirmar Ação</h3>
+      <p class="modal-text" id="confirmText">Tem certeza que deseja continuar?</p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn btn-ghost" onclick="closeConfirm(false)">CANCELAR</button>
+        <button class="btn btn-primary" id="btnConfirmAction">CONFIRMAR</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
     const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    /* --- HELPERS PARA NOTIFICAÇÕES CUSTOMIZADAS --- */
+    function showAlert(title, text, type = 'warning') {
+      document.getElementById('alertTitle').innerText = title;
+      document.getElementById('alertText').innerText = text;
+      const iconDiv = document.getElementById('alertIcon');
+      iconDiv.className = `modal-icon ${type}`;
+      iconDiv.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')}"></i>`;
+      document.getElementById('modalCustomAlert').classList.add('show');
+      lucide.createIcons();
+    }
+    function closeAlert() { document.getElementById('modalCustomAlert').classList.remove('show'); }
+
+    let confirmResolve;
+    function showConfirm(title, text) {
+      document.getElementById('confirmTitle').innerText = title;
+      document.getElementById('confirmText').innerText = text;
+      document.getElementById('modalCustomConfirm').classList.add('show');
+      return new Promise((resolve) => {
+        confirmResolve = resolve;
+        document.getElementById('btnConfirmAction').onclick = () => {
+          closeConfirm(true);
+        };
+      });
+    }
+    function closeConfirm(result) {
+      document.getElementById('modalCustomConfirm').classList.remove('show');
+      if (confirmResolve) confirmResolve(result);
+    }
+
+    async function checkAccess() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+
+      const { data: user, error } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
+      
+      if (error || user?.nivel_acesso !== 'root') {
+        showAlert('Acesso Negado', 'Apenas administradores ROOT podem acessar esta página.', 'danger');
+        setTimeout(async () => {
+          await sb.auth.signOut();
+          window.location.href = 'index.html';
+        }, 2000);
+        return;
+      }
+
+      document.body.style.display = 'block';
+      init();
+    }
 
     function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
     function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
@@ -262,11 +335,11 @@
 
         if (!response.ok) throw new Error('Erro ao atualizar');
 
-        alert('Estacionamento atualizado!');
+        showAlert('Sucesso', 'Estacionamento atualizado com sucesso!', 'success');
         closeEditModal();
         loadTenants();
       } catch (err) {
-        alert(err.message);
+        showAlert('Erro', err.message, 'danger');
       } finally {
         btn.disabled = false;
         btn.textContent = 'SALVAR ALTERAÇÕES';
@@ -274,11 +347,19 @@
     });
 
     async function deleteTenant() {
-      if (!confirm('Tem certeza? Isso não removerá os usuários, mas desativará o acesso ao pátio.')) return;
+      const confirmAction = await showConfirm('Excluir Estacionamento', 'Tem certeza? Isso desativará o acesso ao pátio, mas não removerá os usuários.');
+      if (!confirmAction) return;
+
       const id = document.getElementById('editTenantId').value;
       const { error } = await sb.from('tenants').delete().eq('id', id);
-      if (error) alert('Erro ao excluir: ' + error.message);
-      else { alert('Excluído!'); closeEditModal(); loadTenants(); }
+      
+      if (error) {
+        showAlert('Erro ao excluir', error.message, 'danger');
+      } else {
+        showAlert('Sucesso', 'Estacionamento excluído!', 'success');
+        closeEditModal();
+        loadTenants();
+      }
     }
 
     document.getElementById('formNewTenant').addEventListener('submit', async (e) => {
@@ -296,7 +377,6 @@
       try {
         const { data: { session } } = await sb.auth.getSession();
         
-        // Chamada para a nossa Serverless Function na Vercel
         const response = await fetch('/api/create-tenant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -306,7 +386,7 @@
             adminEmail,
             adminUsername,
             adminSenha,
-            token: session.access_token // Enviamos o token para o backend validar que somos ROOT
+            token: session.access_token
           })
         });
 
@@ -314,34 +394,22 @@
 
         if (!response.ok) throw new Error(result.error || 'Erro desconhecido');
 
-        alert('Estacionamento e Administrador criados com sucesso!');
+        showAlert('Sucesso', 'Estacionamento e Administrador criados com sucesso!', 'success');
         closeModal();
         loadTenants();
       } catch (err) {
         console.error(err);
-        alert('Falha na criação: ' + err.message);
+        showAlert('Falha na criação', err.message, 'danger');
       } finally {
         btn.disabled = false;
         btn.textContent = 'CRIAR ESTACIONAMENTO';
       }
     });
 
-    async function checkAccess() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user, error } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
-      if (error || user?.nivel_acesso !== 'root') {
-        await sb.auth.signOut();
-        window.location.href = 'index.html';
-        return;
-      }
-      document.body.style.display = 'block';
-      init();
-    }
-
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
     checkAccess();
     lucide.createIcons();
   </script>
+
 </body>
 </html>
