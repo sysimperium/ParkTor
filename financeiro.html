@@ -133,7 +133,7 @@
     async function init() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
       
       if (error || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) {
         window.location.href = 'index.html';
@@ -166,7 +166,14 @@
         document.getElementById('totalDigital').textContent = `R$ ${(resumo.total_pix + resumo.total_cartao).toFixed(0)}`;
       }
 
-      const { data: list } = await sb.from('valet_entries').select('*').eq('tenant_id', tenantId).eq('status', 'finalizado').eq('saida::date', hoje).order('saida', { ascending: false }).limit(20);
+      const { data: list } = await sb.from('valet_entries')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'finalizado')
+        .gte('saida', hoje + 'T00:00:00')
+        .lte('saida', hoje + 'T23:59:59')
+        .order('saida', { ascending: false })
+        .limit(20);
       const listEl = document.getElementById('transList');
       if (!list || list.length === 0) { listEl.innerHTML = '<div class="empty-state">Nenhum lançamento hoje</div>'; return; }
       
