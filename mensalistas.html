@@ -38,6 +38,18 @@
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
+      
+      <div id="navOperacional">
+        <a href="entrada.html" class="si">
+          <span class="si-i"><i data-lucide="log-in"></i></span>
+          <span class="si-l">Nova Entrada</span>
+        </a>
+        <a href="saida.html" class="si">
+          <span class="si-i"><i data-lucide="log-out"></i></span>
+          <span class="si-l">Registrar Saída</span>
+        </a>
+      </div>
+
       <div id="navGestao">
         <div class="sb-sec">Gestão</div>
         <a href="financeiro.html" class="si">
@@ -75,12 +87,14 @@
     </header>
 
     <div class="pg">
-      <div class="card anim-fadeInUp" style="padding: 60px 20px; text-align: center;">
-        <div class="sico gold" style="margin: 0 auto 20px; width: 80px; height: 80px;">
-          <i data-lucide="construct" style="width: 40px; height: 40px;"></i>
+      <div class="card anim-fadeInUp" style="min-height: 300px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px; text-align: center;">
+        <div style="width: 80px; height: 80px; background: var(--bg-body); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold-400);">
+            <i data-lucide="construction" size="40"></i>
         </div>
-        <h2 class="pg-t">Em Desenvolvimento</h2>
-        <p class="pg-s">Esta funcionalidade estará disponível em breve na v1.3.</p>
+        <div>
+            <h2 class="pg-t">Em Desenvolvimento.</h2>
+            <p class="pg-s">Estamos preparando esta funcionalidade para você.</p>
+        </div>
       </div>
     </div>
   </main>
@@ -103,25 +117,29 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co', SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
     const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    let currentUser = null;
+    let currentUser = null, tenantId = null;
 
     function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
     function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
 
-    async function checkAccess() {
+    async function init() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
       const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
       
-      if (error || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) {
-        window.location.href = 'index.html';
-        return;
+      if (error) { window.location.href = 'index.html'; return; }
+
+      currentUser = user; tenantId = user.tenant_id;
+
+      // AJUSTE SIDEBAR ADMIN (PATCH 1.2.1)
+      if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'root') {
+        document.getElementById('navOperacional')?.remove();
+      } else {
+          document.getElementById('navGestao')?.remove();
       }
 
-      currentUser = user;
       document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
       document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
       document.getElementById('sb-av-sidebar').textContent = user.nome[0];
@@ -132,7 +150,7 @@
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
     
-    checkAccess();
+    init();
     lucide.createIcons();
   </script>
 </body>
