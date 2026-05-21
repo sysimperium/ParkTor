@@ -258,6 +258,20 @@
         document.getElementById('valCartao').textContent = `R$ ${resumo.total_cartao.toFixed(0)}`;
       }
 
+      // CÁLCULO TEMPO MÉDIO (PATCH 1.2.2)
+      const { data: avgData } = await sb.from('valet_entries')
+        .select('minutos_total')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'finalizado')
+        .gte('saida', hoje + 'T00:00:00')
+        .lte('saida', hoje + 'T23:59:59');
+      
+      if (avgData && avgData.length > 0) {
+        const sum = avgData.reduce((acc, curr) => acc + (curr.minutos_total || 0), 0);
+        const avg = Math.round(sum / avgData.length);
+        document.getElementById('statTime').textContent = `${avg} min`;
+      }
+
       const { data: activeList } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).limit(10);
       renderActiveTable(activeList);
     }
