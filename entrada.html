@@ -235,13 +235,13 @@
       const { data, error } = await sb.from('valet_entries')
         .select('*')
         .eq('tenant_id', tenantId)
-        .gte('entrada', hoje + 'T00:00:00')
+        .eq('status', 'ativo')
         .order('entrada', { ascending: false })
         .limit(10);
 
       const tbody = document.getElementById('historyTableBody');
       if (error || !data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">Nenhuma entrada hoje.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">Nenhum veículo no pátio.</td></tr>';
         return;
       }
 
@@ -267,6 +267,26 @@
       if (!validarPlaca(plate)) {
         showAlert('Placa Inválida', 'Por favor, digite uma placa válida (Ex: ABC1234 ou ABC1D23).', 'warning');
         return;
+      }
+
+      // VERIFICAÇÃO DE LOTAÇÃO (PATCH 1.2.2)
+      try {
+        const { data: tenant, error: tErr } = await sb.from('tenants').select('total_vagas').eq('id', tenantId).single();
+        if (tErr) throw tErr;
+
+        const { count, error: cErr } = await sb.from('valet_entries')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId)
+          .eq('status', 'ativo');
+        
+        if (cErr) throw cErr;
+
+        if (count >= tenant.total_vagas) {
+          showAlert('Pátio Lotado', `O limite de ${tenant.total_vagas} vagas foi atingido. É necessário registrar a saída de um veículo primeiro.`, 'danger');
+          return;
+        }
+      } catch (err) {
+        console.error('Erro ao verificar lotação:', err);
       }
 
       const confirmed = await showConfirm('Confirmar Entrada', `Deseja registrar a entrada da placa ${plate}?`);
