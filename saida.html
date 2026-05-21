@@ -87,32 +87,56 @@
     </header>
 
     <div class="pg">
-      <div class="card anim-fadeInUp">
-        <div class="card-body">
-          <div class="search-area">
-            <input type="text" id="searchInput" class="form-input" placeholder="Buscar placa..." maxlength="7" style="text-transform: uppercase;">
-            <button class="btn btn-primary" id="btnSearch">BUSCAR</button>
+      <!-- TABS -->
+      <div class="tabs-nav anim-fadeInUp">
+        <button class="tab-btn active" onclick="switchTab('patio')">VEÍCULOS NO PÁTIO</button>
+        <button class="tab-btn" onclick="switchTab('historico')">HISTÓRICO DE HOJE</button>
+      </div>
+
+      <!-- SEÇÃO PÁTIO -->
+      <div id="tab-patio" class="tab-content active">
+        <div class="card anim-fadeInUp">
+          <div class="card-body">
+            <div class="search-area">
+              <input type="text" id="searchInput" class="form-input" placeholder="Buscar placa..." maxlength="7" style="text-transform: uppercase;">
+              <button class="btn btn-primary" id="btnSearch">BUSCAR</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card anim-fadeInUp">
+          <div class="card-header"><h3 class="card-title">Veículos no Pátio</h3><span class="badge badge-gold" id="activeCount">0</span></div>
+          <div class="tw">
+            <table class="tab">
+              <thead><tr><th>Placa</th><th>Entrada</th><th>Tempo</th><th>Ação</th></tr></thead>
+              <tbody id="activeTableBody">
+                <tr><td colspan="4" style="text-align: center; padding: 20px;">Carregando...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <div class="card anim-fadeInUp">
-        <div class="card-header"><h3 class="card-title">Veículos no Pátio</h3><span class="badge badge-gold" id="activeCount">0</span></div>
-        <div class="tw">
-          <table class="tab">
-            <thead><tr><th>Placa</th><th>Entrada</th><th>Tempo</th><th>Ação</th></tr></thead>
-            <tbody id="activeTableBody">
-              <tr><td colspan="4" style="text-align: center; padding: 20px;">Carregando...</td></tr>
-            </tbody>
-          </table>
+      <!-- SEÇÃO HISTÓRICO -->
+      <div id="tab-historico" class="tab-content">
+        <div class="card anim-fadeInUp">
+          <div class="card-header"><h3 class="card-title">Saídas de Hoje</h3></div>
+          <div class="tw">
+            <table class="tab">
+              <thead><tr><th>Placa</th><th>Saída</th><th>Permanência</th><th>Valor</th><th>Pagto</th></tr></thead>
+              <tbody id="historyTableBody">
+                <tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma saída hoje.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
-  </main>
+    </main>
 
-  <!-- Modal Checkout -->
-  <div class="modal-overlay" id="modalCheckout">
-    <div class="modal card anim-fadeInUp" style="max-width: 440px;">
+    <!-- Modal Checkout -->
+    <div class="modal-overlay" id="modalCheckout">
+    <div class="modal card anim-fadeInUp" style="max-width: 480px;">
       <div class="checkout-summary">
         <div class="checkout-label">Finalizar Estadia</div>
         <div class="checkout-plate" id="checkPlate">---</div>
@@ -121,6 +145,15 @@
       <div class="checkout-info">
         <div class="info-row"><span>Entrada:</span> <strong id="checkIn">--:--</strong></div>
         <div class="info-row"><span>Permanência:</span> <strong id="checkDuration">0 min</strong></div>
+
+        <!-- HISTÓRICO DE ROTAÇÃO -->
+        <div class="rotation-history" id="rotationHistory">
+          <p class="rotation-title">Faixa de rotatividade utilizada:</p>
+          <div id="rotationList">
+            <!-- Gerado via JS -->
+          </div>
+        </div>
+
         <div class="info-row total-row"><span class="total-label">TOTAL A PAGAR:</span> <span class="total-value" id="checkTotal">R$ 0,00</span></div>
 
         <div class="pay-grid">
@@ -134,8 +167,7 @@
         <button class="btn btn-primary btn-lg" id="btnFinalize">FINALIZAR SAÍDA</button>
       </div>
     </div>
-  </div>
-
+    </div>
   <!-- MODAIS DE AVISO CUSTOMIZADOS -->
   <div class="modal-overlay" id="modalCustomAlert">
     <div class="modal card modal-alert anim-fadeInUp">
