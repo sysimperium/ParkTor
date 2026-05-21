@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
+  <style>body { display: none; }</style>
 </head>
 <body>
 
@@ -28,7 +29,7 @@
       <div class="sb-av" id="sb-av-sidebar">O</div>
       <div>
         <div class="sb-nome" id="userNameSidebar">Operador</div>
-        <div class="sb-eq">Caixa</div>
+        <div class="sb-eq" id="userRoleSidebar">Caixa</div>
       </div>
     </div>
     <nav class="sb-nav">
@@ -70,7 +71,7 @@
       <div class="card anim-fadeInUp">
         <div class="card-body">
           <div class="search-area">
-            <input type="text" id="searchInput" class="form-input" placeholder="Buscar placa..." maxlength="7">
+            <input type="text" id="searchInput" class="form-input" placeholder="Buscar placa..." maxlength="7" style="text-transform: uppercase;">
             <button class="btn btn-primary" id="btnSearch">BUSCAR</button>
           </div>
         </div>
@@ -81,7 +82,9 @@
         <div class="tw">
           <table class="tab">
             <thead><tr><th>Placa</th><th>Entrada</th><th>Tempo</th><th>Ação</th></tr></thead>
-            <tbody id="activeTableBody"></tbody>
+            <tbody id="activeTableBody">
+              <tr><td colspan="4" style="text-align: center; padding: 20px;">Carregando...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -90,7 +93,7 @@
 
   <!-- Modal Checkout -->
   <div class="modal-overlay" id="modalCheckout">
-    <div class="modal">
+    <div class="modal card anim-fadeInUp" style="max-width: 440px;">
       <div class="checkout-summary">
         <div class="checkout-label">Finalizar Estadia</div>
         <div class="checkout-plate" id="checkPlate">---</div>
@@ -114,6 +117,18 @@
     </div>
   </div>
 
+  <!-- MODAIS DE AVISO CUSTOMIZADOS -->
+  <div class="modal-overlay" id="modalCustomAlert">
+    <div class="modal card modal-alert anim-fadeInUp">
+      <div class="modal-icon warning" id="alertIcon"><i data-lucide="alert-triangle"></i></div>
+      <h3 class="modal-title" id="alertTitle">Aviso</h3>
+      <p class="modal-text" id="alertText">Sua mensagem aqui.</p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn btn-primary" onclick="closeAlert()">ENTENDIDO</button>
+      </div>
+    </div>
+  </div>
+
   <nav class="bnav">
     <div class="bnis">
       <a href="dashboard.html" class="bni">
@@ -132,34 +147,67 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = 'SEU_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'SUA_ANON_KEY';
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null, tenantId = null, selectedEntry = null, selectedPayMode = null;
+
+    /* --- NOTIFICAÇÕES --- */
+    function showAlert(title, text, type = 'warning') {
+      document.getElementById('alertTitle').innerText = title;
+      document.getElementById('alertText').innerText = text;
+      const iconDiv = document.getElementById('alertIcon');
+      iconDiv.className = `modal-icon ${type}`;
+      iconDiv.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')}"></i>`;
+      document.getElementById('modalCustomAlert').classList.add('show');
+      lucide.createIcons();
+    }
+    function closeAlert() { document.getElementById('modalCustomAlert').classList.remove('show'); }
 
     function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
     function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
     function openCheckout() { document.getElementById('modalCheckout').classList.add('show'); }
     function closeCheckout() { document.getElementById('modalCheckout').classList.remove('show'); }
 
-    async function init() {
+    async function checkAccess() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      
+      const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
+
+      // RESTRIÇÃO: Manobrista não acessa Saída
+      if (user.nivel_acesso === 'manobrista') {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
       currentUser = user; tenantId = user.tenant_id;
       document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
+      document.getElementById('tb-av-top').textContent = user.nome[0];
+      
+      document.body.style.display = 'block';
       loadActive();
     }
 
     async function loadActive() {
-      const { data } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).order('entrada', { ascending: true });
-      document.getElementById('activeCount').textContent = data.length;
+      const { data, error } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).order('entrada', { ascending: true });
       const tbody = document.getElementById('activeTableBody');
+      
+      if (error || !data || data.length === 0) {
+        document.getElementById('activeCount').textContent = '0';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Pátio vazio</td></tr>';
+        return;
+      }
+
+      document.getElementById('activeCount').textContent = data.length;
       tbody.innerHTML = data.map(item => `
         <tr>
-          <td><strong style="font-family: var(--font-display);">${item.placa}</strong></td>
+          <td><strong style="font-family: var(--font-display); letter-spacing: 1px;">${item.placa}</strong></td>
           <td>${new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
           <td><span class="badge badge-gold">${Math.floor(item.minutos_estacionado)} min</span></td>
           <td><button class="btn btn-ghost btn-sm" onclick="startCheckout('${item.id}')">SAÍDA</button></td>
@@ -168,23 +216,33 @@
     }
 
     async function startCheckout(id) {
-      const { data: entry } = await sb.from('valet_entries').select('*').eq('id', id).single();
+      const { data: entry, error } = await sb.from('valet_entries').select('*').eq('id', id).single();
+      if (error) { showAlert('Erro', 'Falha ao carregar dados do veículo', 'danger'); return; }
+
       selectedEntry = entry;
       const agora = new Date().toISOString();
-      const { data: calc } = await sb.rpc('calcular_valor_estadia', { p_tenant_id: tenantId, p_entrada: entry.entrada, p_saida: agora });
-      const result = calc[0];
-      selectedEntry.calc = result; selectedEntry.saida = agora;
-
-      document.getElementById('checkPlate').textContent = entry.placa;
-      document.getElementById('checkTicket').textContent = `TICKET: ${entry.ticket_numero}`;
-      document.getElementById('checkIn').textContent = new Date(entry.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('checkDuration').textContent = `${result.minutos} min`;
-      document.getElementById('checkTotal').textContent = `R$ ${result.valor.toFixed(2).replace('.', ',')}`;
       
-      selectedPayMode = null;
-      document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
-      document.getElementById('btnFinalize').disabled = true;
-      openCheckout();
+      try {
+        const { data: calc, error: rpcError } = await sb.rpc('calcular_valor_estadia', { p_tenant_id: tenantId, p_entrada: entry.entrada, p_saida: agora });
+        if (rpcError) throw rpcError;
+        
+        const result = calc[0];
+        selectedEntry.calc = result; 
+        selectedEntry.saida = agora;
+
+        document.getElementById('checkPlate').textContent = entry.placa;
+        document.getElementById('checkTicket').textContent = `TICKET: ${entry.ticket_numero}`;
+        document.getElementById('checkIn').textContent = new Date(entry.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('checkDuration').textContent = `${result.minutos} min`;
+        document.getElementById('checkTotal').textContent = `R$ ${result.valor.toFixed(2).replace('.', ',')}`;
+        
+        selectedPayMode = null;
+        document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('btnFinalize').disabled = true;
+        openCheckout();
+      } catch (err) {
+        showAlert('Erro', 'Falha ao calcular valor: ' + err.message, 'danger');
+      }
     }
 
     function selectPay(el) {
@@ -197,14 +255,39 @@
     document.getElementById('btnFinalize').addEventListener('click', async () => {
       const btn = document.getElementById('btnFinalize');
       btn.classList.add('btn-loading');
-      const { error } = await sb.from('valet_entries').update({ saida: selectedEntry.saida, minutos_total: selectedEntry.calc.minutos, valor: selectedEntry.calc.valor, forma_pagamento: selectedPayMode, operador_saida_id: currentUser.id, status: 'finalizado' }).eq('id', selectedEntry.id);
-      if (error) alert('Erro: ' + error.message);
-      else { closeCheckout(); loadActive(); }
+      
+      const { error } = await sb.from('valet_entries').update({ 
+        saida: selectedEntry.saida, 
+        minutos_total: selectedEntry.calc.minutos, 
+        valor: selectedEntry.calc.valor, 
+        forma_pagamento: selectedPayMode, 
+        operador_saida_id: currentUser.id, 
+        status: 'finalizado' 
+      }).eq('id', selectedEntry.id);
+
+      if (error) {
+        showAlert('Erro', 'Falha ao finalizar saída: ' + error.message, 'danger');
+      } else {
+        closeCheckout();
+        showAlert('Sucesso', 'Saída registrada com sucesso!', 'success');
+        loadActive();
+      }
       btn.classList.remove('btn-loading');
     });
 
+    // Busca rápida por placa
+    document.getElementById('btnSearch').addEventListener('click', () => {
+      const term = document.getElementById('searchInput').value.toUpperCase().trim();
+      const rows = document.querySelectorAll('#activeTableBody tr');
+      rows.forEach(row => {
+        const plate = row.querySelector('strong')?.textContent || '';
+        row.style.display = plate.includes(term) ? '' : 'none';
+      });
+    });
+
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
-    init();
+    
+    checkAccess();
     lucide.createIcons();
   </script>
 </body>
