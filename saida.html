@@ -368,10 +368,9 @@
             });
             currentTotal += 3.00;
           } else {
-            let nextFullBlockEnd = new Date(lastTime.getTime() + 120 * 60000);
             history.push({
-              label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${nextFullBlockEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
-              sub: '2Hr -> R$ 7,00',
+              label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${finalEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
+              sub: 'Próxima Faixa -> R$ 7,00',
               valor: 7.00
             });
             currentTotal += 7.00;
