@@ -1291,3 +1291,19 @@ select.form-input option {
   .cnt { margin-left: 0 !important; }
   body { background: #fff; color: #000; }
 }
+
+/* TABS */
+.tabs-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+.tab-btn { background: none; border: none; padding: 10px 20px; color: var(--text-secondary); font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+.tab-btn.active { background: var(--gold-400); color: var(--bg-card); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ROTATION HISTORY */
+.rotation-history { margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px dashed var(--gold-400); margin-bottom: 20px; }
+.rotation-title { font-size: 0.8rem; font-weight: 700; color: var(--gold-400); text-transform: uppercase; margin-bottom: 10px; }
+.rotation-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.rotation-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.rotation-label { font-size: 0.9rem; color: var(--text-primary); }
+.rotation-sub { font-size: 0.85rem; color: var(--gold-400); font-weight: 600; }
+

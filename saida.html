@@ -191,38 +191,22 @@
     function openCheckout() { document.getElementById('modalCheckout').classList.add('show'); }
     function closeCheckout() { document.getElementById('modalCheckout').classList.remove('show'); }
 
-    async function checkAccess() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) { window.location.href = 'index.html'; return; }
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       
-      const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
-      if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
+      const btn = document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`);
+      const content = document.getElementById(`tab-${tab}`);
+      
+      if (btn) btn.classList.add('active');
+      if (content) content.classList.add('active');
+      
+      if (tab === 'patio') loadActive();
+      if (tab === 'historico') loadHistory();
+    }
 
-      // MANOBRISTA NÃO ACESSA SAÍDA
-      if (user.nivel_acesso === 'manobrista') {
-        window.location.href = 'entrada.html';
-        return;
-      }
-
-      currentUser = user; tenantId = user.tenant_id;
-
-      // AJUSTE SIDEBAR ADMIN (PATCH 1.2.1)
-      if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'root') {
-        document.getElementById('navOperacional')?.remove();
-      }
-
-      // RESTRIÇÕES VISUAIS PARA OPERADOR
-      if (user.nivel_acesso === 'operador') {
-        document.getElementById('navDash')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('navEntrada')?.remove();
-        document.getElementById('mobNavEntrada')?.remove();
-        document.getElementById('navGestao')?.remove();
-      }
-
-      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
-      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
-      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
+    async function checkAccess() {
+...
       document.getElementById('tb-av-top').textContent = user.nome[0];
       
       document.body.style.display = 'block';
@@ -230,24 +214,94 @@
     }
 
     async function loadActive() {
-      const { data, error } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).order('entrada', { ascending: true });
-      const tbody = document.getElementById('activeTableBody');
-      
+...
+      `).join('');
+    }
+
+    async function loadHistory() {
+      const hoje = new Date().toISOString().split('T')[0];
+      const { data, error } = await sb.from('valet_entries')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'finalizado')
+        .gte('saida', hoje + 'T00:00:00')
+        .order('saida', { ascending: false });
+
+      const tbody = document.getElementById('historyTableBody');
       if (error || !data || data.length === 0) {
-        document.getElementById('activeCount').textContent = '0';
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Pátio vazio</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma saída hoje</td></tr>';
         return;
       }
 
-      document.getElementById('activeCount').textContent = data.length;
       tbody.innerHTML = data.map(item => `
         <tr>
           <td><strong style="font-family: var(--font-display); letter-spacing: 1px;">${item.placa}</strong></td>
-          <td>${new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td><span class="badge badge-gold">${Math.floor(item.minutos_estacionado)} min</span></td>
-          <td><button class="btn btn-ghost btn-sm" onclick="startCheckout('${item.id}')">SAÍDA</button></td>
+          <td>${new Date(item.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${item.minutos_total} min</td>
+          <td>R$ ${item.valor.toFixed(2).replace('.', ',')}</td>
+          <td><span class="badge badge-blue">${item.forma_pagamento.toUpperCase()}</span></td>
         </tr>
       `).join('');
+    }
+
+    function calcularRotationHistory(entradaStr, saidaStr) {
+      const entrada = new Date(entradaStr);
+      const saida = new Date(saidaStr);
+      const totalMinutos = Math.floor((saida - entrada) / 60000);
+      
+      if (totalMinutos <= 20) return { total: 0, history: [{ label: 'Permanência dentro da tolerância', sub: 'Isento', valor: 0 }], minutos: totalMinutos };
+
+      let history = [];
+      let currentTotal = 0;
+      
+      // Primeiro bloco: 140 min (2h 20m) - 7.00
+      let firstBlockEnd = new Date(entrada.getTime() + 140 * 60000);
+      let displayEnd = firstBlockEnd > saida ? saida : firstBlockEnd;
+      
+      history.push({
+        label: `Das ${entrada.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${displayEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ${totalMinutos > 140 ? '(incluindo os 20min de tolerância)' : ''}`,
+        sub: '2Hr -> R$ 7,00',
+        valor: 7.00
+      });
+      currentTotal = 7.00;
+
+      if (totalMinutos > 140) {
+        let remainingMin = totalMinutos - 140;
+        let lastTime = firstBlockEnd;
+        
+        while (remainingMin > 120) {
+          let nextBlockEnd = new Date(lastTime.getTime() + 120 * 60000);
+          history.push({
+            label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${nextBlockEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
+            sub: '2Hr -> R$ 7,00',
+            valor: 7.00
+          });
+          currentTotal += 7.00;
+          remainingMin -= 120;
+          lastTime = nextBlockEnd;
+        }
+        
+        if (remainingMin > 0) {
+          let finalEnd = new Date(lastTime.getTime() + remainingMin * 60000);
+          if (remainingMin <= 20) {
+            history.push({
+              label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${finalEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
+              sub: `Excedente R$ 3,00`,
+              valor: 3.00
+            });
+            currentTotal += 3.00;
+          } else {
+            let nextFullBlockEnd = new Date(lastTime.getTime() + 120 * 60000);
+            history.push({
+              label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${nextFullBlockEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
+              sub: '2Hr -> R$ 7,00',
+              valor: 7.00
+            });
+            currentTotal += 7.00;
+          }
+        }
+      }
+      return { total: currentTotal, history, minutos: totalMinutos };
     }
 
     async function startCheckout(id) {
@@ -257,26 +311,27 @@
       selectedEntry = entry;
       const agora = new Date().toISOString();
       
-      try {
-        const { data: calc, error: rpcError } = await sb.rpc('calcular_valor_estadia', { p_tenant_id: tenantId, p_entrada: entry.entrada, p_saida: agora });
-        if (rpcError) throw rpcError;
-        
-        const result = calc[0];
-        selectedEntry.calc = result; 
-        selectedEntry.saida = agora;
+      const calc = calcularRotationHistory(entry.entrada, agora);
+      selectedEntry.calc = { minutos: calc.minutos, valor: calc.total }; 
+      selectedEntry.saida = agora;
 
-        document.getElementById('checkPlate').textContent = entry.placa;
-        document.getElementById('checkTicket').textContent = `TICKET: ${entry.ticket_numero}`;
-        document.getElementById('checkIn').textContent = new Date(entry.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('checkDuration').textContent = `${result.minutos} min`;
-        document.getElementById('checkTotal').textContent = `R$ ${result.valor.toFixed(2).replace('.', ',')}`;
-        
-        selectedPayMode = null;
-        document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
-        openCheckout();
-      } catch (err) {
-        showAlert('Erro', 'Falha ao calcular valor: ' + err.message, 'danger');
-      }
+      document.getElementById('checkPlate').textContent = entry.placa;
+      document.getElementById('checkTicket').textContent = `TICKET: ${entry.ticket_numero}`;
+      document.getElementById('checkIn').textContent = new Date(entry.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('checkDuration').textContent = `${calc.minutos} min`;
+      document.getElementById('checkTotal').textContent = `R$ ${calc.total.toFixed(2).replace('.', ',')}`;
+      
+      const listEl = document.getElementById('rotationList');
+      listEl.innerHTML = calc.history.map(h => `
+        <div class="rotation-item">
+          <div class="rotation-label">${h.label}</div>
+          <div class="rotation-sub">${h.sub}</div>
+        </div>
+      `).join('');
+
+      selectedPayMode = null;
+      document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
+      openCheckout();
     }
 
     function selectPay(el) {
