@@ -204,9 +204,20 @@
     }
 
     async function loadPlanos(selectId, selectedId = null) {
-      const { data: planos } = await sb.from('planos').select('*').eq('ativo', true);
       const select = document.getElementById(selectId);
-      select.innerHTML = planos.map(p => `<option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>${p.nome} - R$ ${p.valor}</option>`).join('');
+      const { data: planos, error } = await sb.from('planos').select('*').eq('ativo', true);
+      
+      if (error || !planos || planos.length === 0) {
+        select.innerHTML = '<option value="">Nenhum plano ativo encontrado</option>';
+        console.error('Erro ao carregar planos:', error);
+        return;
+      }
+
+      select.innerHTML = planos.map(p => `
+        <option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>
+          Plano ${p.nome} - R$ ${p.valor.toFixed(0)} - ${p.descricao}
+        </option>
+      `).join('');
     }
 
     async function loadTenants() {
