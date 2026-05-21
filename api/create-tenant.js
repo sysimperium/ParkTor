@@ -29,7 +29,16 @@ module.exports = async (req, res) => {
       throw new Error('Permissão negada: Apenas o ROOT pode criar novos estacionamentos.');
     }
 
-    // 4. Criar o usuário no Auth (sem precisar confirmar e-mail)
+    // 4. Buscar os detalhes do plano para aplicar os limites
+    const { data: planoData, error: planoError } = await supabaseAdmin
+      .from('planos')
+      .select('limite_vagas')
+      .eq('id', tenantPlano)
+      .single();
+
+    if (planoError) throw new Error('Plano não encontrado');
+
+    // 5. Criar o Usuário no Auth (sem precisar confirmar e-mail)
     const { data: newAuthUser, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
       email: adminEmail,
       password: adminSenha,
@@ -39,16 +48,17 @@ module.exports = async (req, res) => {
 
     if (createAuthError) throw createAuthError;
 
-    // 5. Criar o Tenant
+    // 6. Criar o Tenant com o limite de vagas do plano
     const { data: newTenant, error: tenantError } = await supabaseAdmin.from('tenants').insert({
       nome: tenantNome,
       plano_id: tenantPlano,
+      total_vagas: planoData.limite_vagas, // Aplica o limite do plano
       status: 'ativo'
     }).select().single();
 
     if (tenantError) throw tenantError;
 
-    // 6. Atualizar o profile do novo Admin na tabela public.users
+    // 7. Atualizar o profile do novo Admin na tabela public.users
     const { error: profileError } = await supabaseAdmin.from('users').update({
       tenant_id: newTenant.id,
       nome: 'Admin ' + tenantNome,
