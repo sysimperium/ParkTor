@@ -94,7 +94,7 @@
     </header>
 
     <div class="pg">
-      <!-- Seletor de Período (PATCH 1.2.7) -->
+      <!-- Seletor de Período -->
       <div class="card anim-fadeInUp" style="margin-bottom: 20px;">
         <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px;">
           <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)"><i data-lucide="chevron-left"></i></button>
@@ -267,52 +267,41 @@
     function showAlert(t,m,i='warning'){ document.getElementById('alertTitle').innerText=t; document.getElementById('alertText').innerText=m; document.getElementById('modalCustomAlert').classList.add('show'); lucide.createIcons(); }
     function closeAlert(){ document.getElementById('modalCustomAlert').classList.remove('show'); }
 
+    // Função de Soma de Meses Robusta (Evita pular meses no 31º dia)
+    function addMonthsSafe(dateStr, months) {
+      const d = new Date(dateStr + 'T12:00:00Z');
+      const day = d.getUTCDate();
+      d.setUTCMonth(d.getUTCMonth() + months);
+      if (d.getUTCDate() !== day) d.setUTCDate(0);
+      return d.toISOString().split('T')[0];
+    }
+
     async function deleteExpense(id, desc, status, recorrencia, categoria) {
       if (status === 'pago') {
-        showAlert('Ação Bloqueada', 'Não é possível excluir uma despesa que já foi PAGA. Reabra o lançamento primeiro.', 'danger');
+        showAlert('Ação Bloqueada', 'Não é possível excluir uma despesa PAGA. Reabra primeiro.', 'danger');
         return;
       }
-
       let deleteMode = 'unica';
       if (recorrencia !== 'unica') {
         const choice = await showConfirm('Excluir Recorrência', `Deseja excluir apenas este lançamento de "${desc}" ou este e todos os próximos meses?`);
-        if (choice === null) return; // Cancelou
+        if (choice === null) return;
         deleteMode = choice ? 'futuras' : 'unica';
       } else {
-        const confirmed = await showConfirm('Confirmar Exclusão', `Deseja realmente excluir a despesa "${desc}"?`);
+        const confirmed = await showConfirm('Confirmar Exclusão', `Deseja excluir a despesa "${desc}"?`);
         if (!confirmed) return;
       }
-
       let query = sb.from('expenses').delete().eq('id', id);
-      
       if (deleteMode === 'futuras') {
-        // Pega a data da despesa atual para apagar as maiores que ela
-        const { data: current } = await sb.from('expenses').select('data_vencimento').eq('id', id).single();
-        
-        // Verifica se há alguma paga no futuro antes de apagar
-        const { data: paidFuture } = await sb.from('expenses')
-          .select('id')
-          .eq('tenant_id', tenantId)
-          .eq('descricao', desc)
-          .eq('categoria', categoria)
-          .eq('status', 'pago')
-          .gt('data_vencimento', current.data_vencimento);
-
+        const { data: curr } = await sb.from('expenses').select('data_vencimento').eq('id', id).single();
+        const { data: paidFuture } = await sb.from('expenses').select('id').eq('tenant_id', tenantId).eq('descricao', desc).eq('categoria', categoria).eq('status', 'pago').gt('data_vencimento', curr.data_vencimento);
         if (paidFuture && paidFuture.length > 0) {
-          showAlert('Ação Bloqueada', 'Existem lançamentos futuros desta série que já estão PAGOS. Exclua-os individualmente.', 'danger');
+          showAlert('Bloqueado', 'Existem lançamentos futuros pagos nesta série. Exclua individualmente.', 'danger');
           return;
         }
-
-        query = sb.from('expenses').delete()
-          .eq('tenant_id', tenantId)
-          .eq('descricao', desc)
-          .eq('categoria', categoria)
-          .eq('status', 'pendente')
-          .gte('data_vencimento', current.data_vencimento);
+        query = sb.from('expenses').delete().eq('tenant_id', tenantId).eq('descricao', desc).eq('categoria', categoria).eq('status', 'pendente').gte('data_vencimento', curr.data_vencimento);
       }
-
       const { error } = await query;
-      if (error) showAlert('Erro ao Excluir', error.message, 'danger');
+      if (error) showAlert('Erro', error.message, 'danger');
       else { showAlert('Sucesso', 'Exclusão realizada!', 'success'); loadFinance(); }
     }
 
@@ -324,40 +313,18 @@
       const btnContainer = modal.querySelector('button').parentElement;
       const originalBtn = modal.querySelector('button');
       originalBtn.style.display = 'none';
-
-      const isRecurrent = title.includes('Recorrência');
-
+      const isRec = title.includes('Recorrência');
       const confirmBtn = document.createElement('button');
-      confirmBtn.className = 'btn btn-primary';
-      confirmBtn.innerText = isRecurrent ? 'ESTE E FUTUROS' : 'CONFIRMAR';
-      confirmBtn.onclick = () => { cleanup(); confirmResolve(isRecurrent ? true : true); };
-
-      const onlyThisBtn = isRecurrent ? document.createElement('button') : null;
-      if (onlyThisBtn) {
-        onlyThisBtn.className = 'btn btn-ghost';
-        onlyThisBtn.innerText = 'APENAS ESTE';
-        onlyThisBtn.onclick = () => { cleanup(); confirmResolve(false); };
-      }
-
+      confirmBtn.className = 'btn btn-primary'; confirmBtn.innerText = isRec ? 'ESTE E FUTUROS' : 'CONFIRMAR';
+      confirmBtn.onclick = () => { cleanup(); confirmResolve(true); };
+      const onlyBtn = isRec ? document.createElement('button') : null;
+      if (onlyBtn) { onlyBtn.className = 'btn btn-ghost'; onlyBtn.innerText = 'APENAS ESTE'; onlyBtn.onclick = () => { cleanup(); confirmResolve(false); }; }
       const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'btn btn-ghost';
-      cancelBtn.innerText = 'CANCELAR';
+      cancelBtn.className = 'btn btn-ghost'; cancelBtn.innerText = 'CANCELAR';
       cancelBtn.onclick = () => { cleanup(); confirmResolve(null); };
-
-      btnContainer.appendChild(cancelBtn);
-      if (onlyThisBtn) btnContainer.appendChild(onlyThisBtn);
-      btnContainer.appendChild(confirmBtn);
-      
+      btnContainer.appendChild(cancelBtn); if (onlyBtn) btnContainer.appendChild(onlyBtn); btnContainer.appendChild(confirmBtn);
       modal.classList.add('show');
-
-      function cleanup() {
-        modal.classList.remove('show');
-        cancelBtn.remove();
-        if (onlyThisBtn) onlyThisBtn.remove();
-        confirmBtn.remove();
-        originalBtn.style.display = 'block';
-      }
-
+      function cleanup() { modal.classList.remove('show'); cancelBtn.remove(); if(onlyBtn) onlyBtn.remove(); confirmBtn.remove(); originalBtn.style.display = 'block'; }
       return new Promise((resolve) => { confirmResolve = resolve; });
     }
 
@@ -378,17 +345,12 @@
       const { data: user } = await sb.from('users').select('*').eq('id', session.user.id).single();
       if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
       currentUser = user; tenantId = user.tenant_id;
-      
+      const agora = new Date();
+      document.getElementById('filterMonth').value = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
       document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
       document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
       document.getElementById('sb-av-sidebar').textContent = user.nome[0];
       document.getElementById('tb-av-top').textContent = user.nome[0];
-      
-      // Inicializar Filtro de Mês (PATCH 1.2.7)
-      const agora = new Date();
-      const mesStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
-      document.getElementById('filterMonth').value = mesStr;
-
       document.body.style.display = 'block';
       loadFinance();
     }
@@ -404,109 +366,76 @@
     async function loadFinance() {
       const monthVal = document.getElementById('filterMonth').value;
       const [year, month] = monthVal.split('-');
-      
-      // Atualizar Display (PATCH 1.2.7)
-      const date = new Date(year, month - 1, 1);
-      const displayStr = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-      document.getElementById('displayPeriod').textContent = displayStr;
+      const d = new Date(year, month - 1, 1);
+      document.getElementById('displayPeriod').textContent = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-      const primeiroDia = new Date(year, month - 1, 1).toISOString();
-      const ultimoDia = new Date(year, month, 0, 23, 59, 59).toISOString();
-      const dataFiltroExp = `${year}-${month}`; // Para o filtro DATE no banco
+      const firstISO = new Date(year, month - 1, 1).toISOString();
+      const lastObj = new Date(year, month, 0, 23, 59, 59);
+      const lastISO = lastObj.toISOString();
+      const lastDay = lastObj.getDate();
 
-      // 1. CARREGAR RECEITAS
-      const { data: income } = await sb.from('valet_entries').select('valor, placa, saida, forma_pagamento').eq('tenant_id', tenantId).eq('status', 'finalizado').gte('saida', primeiroDia).lte('saida', ultimoDia).order('saida', { ascending: false });
-      const totalIncome = income?.reduce((a, c) => a + (c.valor || 0), 0) || 0;
-      document.getElementById('totalMonthIncome').textContent = `R$ ${totalIncome.toFixed(2).replace('.', ',')}`;
-
-      document.getElementById('incomeList').innerHTML = income && income.length > 0 ? income.slice(0, 10).map(t => `
+      const { data: income } = await sb.from('valet_entries').select('valor, placa, saida, forma_pagamento').eq('tenant_id', tenantId).eq('status', 'finalizado').gte('saida', firstISO).lte('saida', lastISO);
+      const totInc = income?.reduce((a, c) => a + (c.valor || 0), 0) || 0;
+      document.getElementById('totalMonthIncome').textContent = `R$ ${totInc.toFixed(2).replace('.', ',')}`;
+      document.getElementById('incomeList').innerHTML = income?.slice(0, 10).map(t => `
         <div class="expense-row">
-          <div class="expense-info">
-            <div class="expense-desc">Placa: ${t.placa}</div>
-            <div class="expense-date">${new Date(t.saida).toLocaleString('pt-BR')} — ${t.forma_pagamento.toUpperCase()}</div>
-          </div>
+          <div class="expense-info"><div class="expense-desc">Placa: ${t.placa}</div><div class="expense-date">${new Date(t.saida).toLocaleString('pt-BR')}</div></div>
           <div style="font-weight: 700; color: var(--green);">+ R$ ${t.valor.toFixed(2)}</div>
         </div>
-      `).join('') : '<div class="empty-state">Sem receitas neste mês</div>';
+      `).join('') || '<div class="empty-state">Sem receitas</div>';
 
-      // 2. CARREGAR DESPESAS (Filtro por mês/ano do campo data_vencimento)
-      const { data: expenses } = await sb.from('expenses')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .gte('data_vencimento', `${year}-${month}-01`)
-        .lte('data_vencimento', `${year}-${month}-31`)
-        .order('data_vencimento', { ascending: true });
-      
-      const totalPaid = expenses?.filter(e => e.status === 'pago').reduce((a, c) => a + (c.valor || 0), 0) || 0;
-      const totalPending = expenses?.filter(e => e.status === 'pendente').reduce((a, c) => a + (c.valor || 0), 0) || 0;
-
-      document.getElementById('totalPaidExpense').textContent = `R$ ${totalPaid.toFixed(2).replace('.', ',')}`;
-      document.getElementById('totalPendingExpense').textContent = `R$ ${totalPending.toFixed(2).replace('.', ',')}`;
+      const { data: expenses } = await sb.from('expenses').select('*').eq('tenant_id', tenantId).gte('data_vencimento', `${year}-${month}-01`).lte('data_vencimento', `${year}-${month}-${lastDay}`).order('data_vencimento', { ascending: true });
+      const totPaid = expenses?.filter(e => e.status === 'pago').reduce((a, c) => a + (c.valor || 0), 0) || 0;
+      const totPend = expenses?.filter(e => e.status === 'pendente').reduce((a, c) => a + (c.valor || 0), 0) || 0;
+      document.getElementById('totalPaidExpense').textContent = `R$ ${totPaid.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalPendingExpense').textContent = `R$ ${totPend.toFixed(2).replace('.', ',')}`;
 
       document.getElementById('expenseList').innerHTML = expenses?.map(e => {
-        const [ano, mes, dia] = e.data_vencimento.split('-');
-        const dataFormatada = `${dia}/${mes}/${ano}`;
+        const [y, m, d] = e.data_vencimento.split('-');
         const isPago = e.status === 'pago';
         return `
           <div class="expense-row" style="opacity: ${isPago ? '0.7' : '1'}">
             <div class="expense-info">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div class="expense-cat">${e.categoria}</div>
-                <span class="badge ${isPago ? 'badge-green' : 'badge-gold'}" style="font-size: 0.6rem; padding: 2px 6px;">${e.status.toUpperCase()}</span>
-              </div>
+              <div style="display: flex; align-items: center; gap: 8px;"><div class="expense-cat">${e.categoria}</div><span class="badge ${isPago ? 'badge-green' : 'badge-gold'}">${e.status.toUpperCase()}</span></div>
               <div class="expense-desc">${e.descricao} ${e.recorrencia === 'parcelada' ? `(${e.parcela_atual}/${e.total_parcelas})` : ''}</div>
-              <div class="expense-date">Venc: ${dataFormatada}</div>
+              <div class="expense-date">Venc: ${d}/${m}/${y}</div>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
               <div class="expense-val" style="color: ${isPago ? 'var(--text-muted)' : 'var(--red)'}">- R$ ${e.valor.toFixed(2).replace('.', ',')}</div>
-              <button class="btn ${isPago ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="toggleExpenseStatus('${e.id}', '${e.status}')" style="padding: 5px 10px; font-size: 0.7rem;">
-                ${isPago ? 'REABRIR' : 'BAIXAR'}
-              </button>
-              <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}', '${e.status}', '${e.recorrencia}', '${e.categoria}')" style="color: var(--red); padding: 5px;">
-                <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
-              </button>
+              <button class="btn ${isPago ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="toggleExpenseStatus('${e.id}', '${e.status}')">${isPago ? 'REABRIR' : 'BAIXAR'}</button>
+              <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}', '${e.status}', '${e.recorrencia}', '${e.categoria}')"><i data-lucide="trash-2"></i></button>
             </div>
           </div>
         `;
-      }).join('') || '<div class="empty-state">Sem despesas este mês</div>';
+      }).join('') || '<div class="empty-state">Sem despesas</div>';
 
-      const cashBalance = totalIncome - totalPaid;
-      const profitEl = document.getElementById('netProfit');
-      profitEl.textContent = `R$ ${cashBalance.toFixed(2).replace('.', ',')}`;
-      profitEl.style.color = cashBalance >= 0 ? 'var(--gold-400)' : 'var(--red)';
+      const cash = totInc - totPaid;
+      const profEl = document.getElementById('netProfit');
+      profEl.textContent = `R$ ${cash.toFixed(2).replace('.', ',')}`;
+      profEl.style.color = cash >= 0 ? 'var(--gold-400)' : 'var(--red)';
       lucide.createIcons();
     }
 
-    async function toggleExpenseStatus(id, currentStatus) {
-      const newStatus = currentStatus === 'pago' ? 'pendente' : 'pago';
-      const { error } = await sb.from('expenses').update({ status: newStatus }).eq('id', id);
-      if (error) showAlert('Erro', error.message, 'danger');
-      else loadFinance();
+    async function toggleExpenseStatus(id, stat) {
+      const { error } = await sb.from('expenses').update({ status: stat === 'pago' ? 'pendente' : 'pago' }).eq('id', id);
+      if (!error) loadFinance();
     }
 
     document.getElementById('formExpense').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btnSaveExpense');
       btn.disabled = true; btn.textContent = 'SALVANDO...';
-      const desc = document.getElementById('expDesc').value;
-      const cat = document.getElementById('expCat').value;
-      const val = parseFloat(document.getElementById('expVal').value);
-      const date = document.getElementById('expDate').value;
-      const tipo = document.getElementById('expTipo').value;
-      const rec = document.getElementById('expRec').value;
-      const parc = parseInt(document.getElementById('expParc').value) || 1;
+      const desc = document.getElementById('expDesc').value, cat = document.getElementById('expCat').value, val = parseFloat(document.getElementById('expVal').value);
+      const date = document.getElementById('expDate').value, tipo = document.getElementById('expTipo').value, rec = document.getElementById('expRec').value, parc = parseInt(document.getElementById('expParc').value) || 1;
       let payloads = [];
-      if (rec === 'unica') {
-        payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: date, tipo, recorrencia: 'unica', status: 'pendente' });
-      } else if (rec === 'parcelada') {
+      if (rec === 'unica') payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: date, tipo, recorrencia: 'unica' });
+      else if (rec === 'parcelada') {
         for (let i = 1; i <= parc; i++) {
-          const d = new Date(date + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + (i - 1));
-          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'parcelada', parcela_atual: i, total_parcelas: parc, status: 'pendente' });
+          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: addMonthsSafe(date, i - 1), tipo, recorrencia: 'parcelada', parcela_atual: i, total_parcelas: parc });
         }
       } else if (rec === 'mensal') {
         for (let i = 0; i < 12; i++) {
-          const d = new Date(date + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + i);
-          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'mensal', status: 'pendente' });
+          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: addMonthsSafe(date, i), tipo, recorrencia: 'mensal' });
         }
       }
       const { error } = await sb.from('expenses').insert(payloads);
@@ -517,7 +446,6 @@
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
     init();
-    lucide.createIcons();
   </script>
 </body>
 </html>
