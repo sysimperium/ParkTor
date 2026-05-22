@@ -236,6 +236,55 @@
     function showAlert(t,m,i='warning'){ document.getElementById('alertTitle').innerText=t; document.getElementById('alertText').innerText=m; document.getElementById('modalCustomAlert').classList.add('show'); lucide.createIcons(); }
     function closeAlert(){ document.getElementById('modalCustomAlert').classList.remove('show'); }
 
+    async function deleteExpense(id, desc) {
+      const confirmed = await showConfirm('Excluir Despesa', `Deseja realmente excluir a despesa "${desc}"?`);
+      if (!confirmed) return;
+
+      const { error } = await sb.from('expenses').delete().eq('id', id);
+      
+      if (error) {
+        showAlert('Erro ao Excluir', error.message, 'danger');
+      } else {
+        showAlert('Sucesso', 'Despesa removida!', 'success');
+        loadFinance();
+      }
+    }
+
+    let confirmResolve;
+    function showConfirm(title, text) {
+      document.getElementById('alertTitle').innerText = title;
+      document.getElementById('alertText').innerText = text;
+      const modal = document.getElementById('modalCustomAlert');
+      
+      // Transformar o modal de alerta em um confirm temporariamente
+      const btnContainer = modal.querySelector('button').parentElement;
+      const originalBtn = modal.querySelector('button');
+      originalBtn.style.display = 'none';
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.className = 'btn btn-primary';
+      confirmBtn.innerText = 'EXCLUIR';
+      confirmBtn.onclick = () => { cleanup(); confirmResolve(true); };
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn btn-ghost';
+      cancelBtn.innerText = 'CANCELAR';
+      cancelBtn.onclick = () => { cleanup(); confirmResolve(false); };
+
+      btnContainer.appendChild(cancelBtn);
+      btnContainer.appendChild(confirmBtn);
+      modal.classList.add('show');
+
+      function cleanup() {
+        modal.classList.remove('show');
+        cancelBtn.remove();
+        confirmBtn.remove();
+        originalBtn.style.display = 'block';
+      }
+
+      return new Promise((resolve) => { confirmResolve = resolve; });
+    }
+
     function switchFinTab(tab, btn) {
       document.querySelectorAll('.fin-content').forEach(c => c.classList.remove('active'));
       document.querySelectorAll('.fin-tab-btn').forEach(b => b.classList.remove('active'));
@@ -295,7 +344,12 @@
             <div class="expense-desc">${e.descricao} ${e.recorrencia === 'parcelada' ? `(${e.parcela_atual}/${e.total_parcelas})` : ''}</div>
             <div class="expense-date">Venc: ${new Date(e.data_vencimento).toLocaleDateString('pt-BR')}</div>
           </div>
-          <div class="expense-val">- R$ ${e.valor.toFixed(2).replace('.', ',')}</div>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="expense-val">- R$ ${e.valor.toFixed(2).replace('.', ',')}</div>
+            <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}')" style="color: var(--red); padding: 5px;">
+              <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+            </button>
+          </div>
         </div>
       `).join('') || '<div class="empty-state">Sem despesas este mês</div>';
 
