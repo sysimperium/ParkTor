@@ -48,11 +48,13 @@ module.exports = async (req, res) => {
 
     if (createAuthError) throw createAuthError;
 
-    // 6. Criar o Tenant com o limite de vagas do plano
+    // 6. Criar o Tenant com o limite de vagas do plano e valores padrão (PATCH 1.2.7)
     const { data: newTenant, error: tenantError } = await supabaseAdmin.from('tenants').insert({
       nome: tenantNome,
       plano_id: tenantPlano,
       total_vagas: planoData.limite_vagas, // Aplica o limite do plano
+      valor_diaria: 40.00, // Valor padrão inicial
+      custo_fixo_mensal: 0.00, // Valor padrão inicial
       status: 'ativo'
     }).select().single();
 
