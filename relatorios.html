@@ -300,6 +300,36 @@
 
     let currentUser = null, tenantId = null, charts = {};
 
+    function switchRepTab(tab) {
+      document.querySelectorAll('.rep-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.rep-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.rep-tab-btn[onclick="switchRepTab('${tab}')"]`).classList.add('active');
+      document.getElementById(`rep-${tab}`).classList.add('active');
+    }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+      if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
+
+      currentUser = user; tenantId = user.tenant_id;
+      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
+      document.getElementById('tb-av-top').textContent = user.nome[0];
+      
+      const hoje = new Date().toISOString().split('T')[0];
+      document.getElementById('repDataInicio').value = hoje;
+      document.getElementById('repDataFim').value = hoje;
+
+      document.body.style.display = 'block';
+      generateReports();
+    }
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+
     function switchSubTab(targetId, btn) {
       document.querySelectorAll('.sub-rep-content').forEach(c => c.style.display = 'none');
       document.querySelectorAll('#rep-financeiro .rep-tab-btn').forEach(b => b.classList.remove('active'));
