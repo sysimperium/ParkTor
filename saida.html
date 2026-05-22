@@ -87,6 +87,17 @@
     </header>
 
     <div class="pg">
+      <!-- Status do Caixa (PATCH 1.2.3) -->
+      <div class="card anim-fadeInUp" id="cashierStatusCard" style="margin-bottom: 20px; border-left: 4px solid var(--red);">
+        <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
+          <div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 600;">Status do Caixa</div>
+            <div id="cashierStatusText" style="font-size: 1.1rem; font-weight: 700; color: var(--red);">FECHADO</div>
+          </div>
+          <button class="btn btn-primary" id="btnCashierAction" onclick="toggleCashier()">ABRIR CAIXA</button>
+        </div>
+      </div>
+
       <!-- TABS -->
       <div class="tabs-nav anim-fadeInUp">
         <button class="tab-btn active" onclick="switchTab('patio')">VEÍCULOS NO PÁTIO</button>
@@ -120,12 +131,37 @@
       <!-- SEÇÃO HISTÓRICO -->
       <div id="tab-historico" class="tab-content">
         <div class="card anim-fadeInUp">
-          <div class="card-header"><h3 class="card-title">Saídas de Hoje</h3></div>
+          <div class="card-body">
+            <div class="filter-grid">
+              <div class="form-group">
+                <label class="form-label">Data Inicial</label>
+                <input type="date" id="histDataInicio" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Data Final</label>
+                <input type="date" id="histDataFim" class="form-input">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Placa</label>
+                <input type="text" id="histPlaca" class="form-input" placeholder="ABC1234" maxlength="7" style="text-transform: uppercase;">
+              </div>
+              <div class="form-group" style="display: flex; align-items: flex-end;">
+                <button class="btn btn-primary btn-full" onclick="loadHistory()">FILTRAR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card anim-fadeInUp">
+          <div class="card-header">
+            <h3 class="card-title">Histórico de Saídas</h3>
+            <button class="btn btn-ghost btn-sm" onclick="exportIsentos()"><i data-lucide="download"></i> RELATÓRIO ISENTOS</button>
+          </div>
           <div class="tw">
             <table class="tab">
               <thead><tr><th>Placa</th><th>Saída</th><th>Permanência</th><th>Valor</th><th>Pagto</th></tr></thead>
               <tbody id="historyTableBody">
-                <tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma saída hoje.</td></tr>
+                <tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>
               </tbody>
             </table>
           </div>
@@ -156,10 +192,21 @@
 
         <div class="info-row total-row"><span class="total-label">TOTAL A PAGAR:</span> <span class="total-value" id="checkTotal">R$ 0,00</span></div>
 
-        <div class="pay-grid">
-          <div class="pay-btn" data-pay="dinheiro" onclick="selectPay(this)"><span class="pay-icon"><i data-lucide="banknote"></i></span><span class="pay-label">Dinheiro</span></div>
-          <div class="pay-btn" data-pay="pix" onclick="selectPay(this)"><span class="pay-icon"><i data-lucide="qr-code"></i></span><span class="pay-label">PIX</span></div>
-          <div class="pay-btn" data-pay="cartao" onclick="selectPay(this)"><span class="pay-icon"><i data-lucide="credit-card"></i></span><span class="pay-label">Cartão</span></div>
+        <!-- Múltiplos Pagamentos (PATCH 1.2.3) -->
+        <div id="multiPaySection" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+          <p class="rotation-title">Formas de Pagamento:</p>
+          <div id="paymentList" style="margin-bottom: 10px;">
+            <!-- Pagamentos adicionados aqui -->
+          </div>
+          <div class="pay-grid">
+            <div class="pay-btn" data-pay="dinheiro" onclick="addPayment('dinheiro')"><span class="pay-icon"><i data-lucide="banknote"></i></span><span class="pay-label">Dinheiro</span></div>
+            <div class="pay-btn" data-pay="pix" onclick="addPayment('pix')"><span class="pay-icon"><i data-lucide="qr-code"></i></span><span class="pay-label">PIX</span></div>
+            <div class="pay-btn" data-pay="cartao" onclick="addPayment('cartao')"><span class="pay-icon"><i data-lucide="credit-card"></i></span><span class="pay-label">Cartão</span></div>
+          </div>
+        </div>
+
+        <div class="info-row" id="checkRemainingRow" style="margin-top: 10px; font-weight: 600; color: var(--red); display: none;">
+          <span>Restante:</span> <strong id="checkRemaining">R$ 0,00</strong>
         </div>
       </div>
       <div class="modal-footer">
@@ -204,7 +251,60 @@
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let currentUser = null, tenantId = null, selectedEntry = null, selectedPayMode = null;
+    let currentUser = null, tenantId = null, selectedEntry = null, selectedPayments = [], currentCashier = null;
+
+    async function checkCashierStatus() {
+      const { data, error } = await sb.from('cashier_sessions')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'aberto')
+        .maybeSingle();
+      
+      const card = document.getElementById('cashierStatusCard');
+      const text = document.getElementById('cashierStatusText');
+      const btn = document.getElementById('btnCashierAction');
+
+      if (data) {
+        currentCashier = data;
+        card.style.borderLeftColor = 'var(--green)';
+        text.textContent = 'ABERTO';
+        text.style.color = 'var(--green)';
+        btn.textContent = 'FECHAR CAIXA';
+        btn.className = 'btn btn-ghost';
+      } else {
+        currentCashier = null;
+        card.style.borderLeftColor = 'var(--red)';
+        text.textContent = 'FECHADO';
+        text.style.color = 'var(--red)';
+        btn.textContent = 'ABRIR CAIXA';
+        btn.className = 'btn btn-primary';
+      }
+    }
+
+    async function toggleCashier() {
+      if (currentCashier) {
+        // Fechar
+        const { error } = await sb.from('cashier_sessions')
+          .update({ status: 'fechado', fechamento: new Date().toISOString() })
+          .eq('id', currentCashier.id);
+        
+        if (error) showAlert('Erro', 'Falha ao fechar caixa: ' + error.message, 'danger');
+        else {
+          showAlert('Sucesso', 'Caixa fechado com sucesso!', 'success');
+          checkCashierStatus();
+        }
+      } else {
+        // Abrir
+        const { error } = await sb.from('cashier_sessions')
+          .insert([{ tenant_id: tenantId, user_id: currentUser.id, status: 'aberto' }]);
+        
+        if (error) showAlert('Erro', 'Falha ao abrir caixa: ' + error.message, 'danger');
+        else {
+          showAlert('Sucesso', 'Caixa aberto com sucesso!', 'success');
+          checkCashierStatus();
+        }
+      }
+    }
 
     /* --- NOTIFICAÇÕES --- */
     function showAlert(title, text, type = 'warning') {
@@ -272,6 +372,7 @@
       document.getElementById('tb-av-top').textContent = user.nome[0];
 
       document.body.style.display = 'block';
+      checkCashierStatus();
       loadActive();
     }
     async function loadActive() {
@@ -297,12 +398,33 @@
 
     async function loadHistory() {
       const hoje = new Date().toISOString().split('T')[0];
-      const { data, error } = await sb.from('valet_entries')
+      
+      let dataInicio = document.getElementById('histDataInicio').value;
+      let dataFim = document.getElementById('histDataFim').value;
+      const placa = document.getElementById('histPlaca').value.toUpperCase().trim();
+
+      // Se não houver filtros, padrão é hoje (PATCH 1.2.3)
+      if (!dataInicio && !dataFim && !placa) {
+        dataInicio = hoje;
+        dataFim = hoje;
+        document.getElementById('histDataInicio').value = hoje;
+        document.getElementById('histDataFim').value = hoje;
+      }
+
+      let query = sb.from('valet_entries')
         .select('*')
         .eq('tenant_id', tenantId)
-        .eq('status', 'finalizado')
-        .gte('saida', hoje + 'T00:00:00')
-        .order('saida', { ascending: false });
+        .eq('status', 'finalizado');
+
+      if (placa) {
+        // Se houver placa, ignora datas conforme solicitado (PATCH 1.2.3)
+        query = query.ilike('placa', `%${placa}%`);
+      } else {
+        if (dataInicio) query = query.gte('saida', `${dataInicio}T00:00:00`);
+        if (dataFim) query = query.lte('saida', `${dataFim}T23:59:59`);
+      }
+
+      const { data, error } = await query.order('saida', { ascending: false });
 
       const tbody = document.getElementById('historyTableBody');
       if (error || !data || data.length === 0) {
@@ -326,7 +448,7 @@
       const saida = new Date(saidaStr);
       const totalMinutos = Math.floor((saida - entrada) / 60000);
       
-      if (totalMinutos <= 20) return { total: 0, history: [{ label: 'Permanência dentro da tolerância', sub: 'Isento', valor: 0 }], minutos: totalMinutos };
+      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Permanência dentro da tolerância', sub: 'Isento', valor: 0 }], minutos: totalMinutos };
 
       let history = [];
       let currentTotal = 0;
@@ -406,45 +528,157 @@
       `).join('');
 
       selectedPayMode = null;
-      document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
+      selectedPayments = [];
+      renderPayments();
       openCheckout();
     }
 
-    function selectPay(el) {
-      document.querySelectorAll('.pay-btn').forEach(b => b.classList.remove('selected'));
-      el.classList.add('selected');
-      selectedPayMode = el.dataset.pay;
+    function addPayment(mode) {
+      if (!selectedEntry) return;
+      const total = selectedEntry.calc.valor;
+      const paid = selectedPayments.reduce((acc, p) => acc + p.valor, 0);
+      const remaining = Math.max(0, total - paid);
+
+      if (remaining === 0 && total > 0) {
+        showAlert('Valor Total Atingido', 'O valor total já foi coberto pelos pagamentos.', 'warning');
+        return;
+      }
+
+      selectedPayments.push({ mode, valor: remaining });
+      renderPayments();
     }
 
+    function removePayment(index) {
+      selectedPayments.splice(index, 1);
+      renderPayments();
+    }
+
+    function updatePaymentValor(index, valor) {
+      selectedPayments[index].valor = parseFloat(valor) || 0;
+      updateRemaining();
+    }
+
+    function renderPayments() {
+      const listEl = document.getElementById('paymentList');
+      listEl.innerHTML = selectedPayments.map((p, i) => `
+        <div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+          <span class="badge badge-blue" style="width: 80px;">${p.mode.toUpperCase()}</span>
+          <input type="number" class="form-input" value="${p.valor.toFixed(2)}" step="0.01" onchange="updatePaymentValor(${i}, this.value)" style="flex: 1;">
+          <button class="btn btn-ghost btn-sm" onclick="removePayment(${i})"><i data-lucide="trash-2"></i></button>
+        </div>
+      `).join('');
+      lucide.createIcons();
+      updateRemaining();
+    }
+
+    function updateRemaining() {
+      const total = selectedEntry ? selectedEntry.calc.valor : 0;
+      const paid = selectedPayments.reduce((acc, p) => acc + p.valor, 0);
+      const remaining = total - paid;
+      
+      const row = document.getElementById('checkRemainingRow');
+      const text = document.getElementById('checkRemaining');
+      
+      if (total === 0) {
+        row.style.display = 'none';
+        return;
+      }
+
+      if (Math.abs(remaining) > 0.01) {
+        row.style.display = 'flex';
+        text.textContent = `R$ ${remaining.toFixed(2).replace('.', ',')}`;
+        text.style.color = remaining > 0 ? 'var(--red)' : 'var(--green)';
+      } else {
+        row.style.display = 'none';
+      }
+    }
+
+
     document.getElementById('btnFinalize').addEventListener('click', async () => {
-      // VALIDAÇÃO DE PAGAMENTO SELECIONADO (AJUSTE PATCH 1.2.1)
-      if (!selectedPayMode) {
-        showAlert('Pagamento Obrigatório', 'Você deve selecionar uma forma de pagamento (Dinheiro, PIX ou Cartão) para finalizar.', 'warning');
+      // VALIDAÇÃO DE CAIXA ABERTO (PATCH 1.2.3)
+      if (!currentCashier) {
+        showAlert('Caixa Fechado', 'Você precisa abrir o caixa para registrar saídas.', 'danger');
+        return;
+      }
+
+      const total = selectedEntry.calc.valor;
+      const paid = selectedPayments.reduce((acc, p) => acc + p.valor, 0);
+
+      if (total > 0 && Math.abs(total - paid) > 0.01) {
+        showAlert('Pagamento Incompleto', 'O valor total pago deve ser igual ao valor da estadia.', 'warning');
+        return;
+      }
+
+      // Se o valor for 0, permite sem pagamentos
+      if (total > 0 && selectedPayments.length === 0) {
+        showAlert('Pagamento Obrigatório', 'Selecione ao menos uma forma de pagamento.', 'warning');
         return;
       }
 
       const btn = document.getElementById('btnFinalize');
       btn.classList.add('btn-loading');
       
-      const { error } = await sb.from('valet_entries').update({ 
-        saida: selectedEntry.saida, 
-        minutos_total: selectedEntry.calc.minutos, 
-        valor: selectedEntry.calc.valor, 
-        forma_pagamento: selectedPayMode, 
-        operador_saida_id: currentUser.id, 
-        status: 'finalizado' 
-      }).eq('id', selectedEntry.id);
+      const mainPayMode = selectedPayments.length > 0 ? (selectedPayments.length > 1 ? 'Múltiplo' : selectedPayments[0].mode) : 'isento';
 
-      if (error) {
-        showAlert('Erro', 'Falha ao finalizar saída: ' + error.message, 'danger');
-      } else {
+      try {
+        const { error } = await sb.from('valet_entries').update({ 
+          saida: selectedEntry.saida, 
+          minutos_total: selectedEntry.calc.minutos, 
+          valor: selectedEntry.calc.valor, 
+          forma_pagamento: mainPayMode, 
+          operador_saida_id: currentUser.id, 
+          cashier_session_id: currentCashier.id,
+          status: 'finalizado' 
+        }).eq('id', selectedEntry.id);
+
+        if (error) throw error;
+
+        // Salva pagamentos detalhados (PATCH 1.2.3)
+        if (selectedPayments.length > 0) {
+          const paymentsToInsert = selectedPayments.map(p => ({
+            tenant_id: tenantId,
+            entry_id: selectedEntry.id,
+            forma_pagamento: p.mode,
+            valor: p.valor
+          }));
+          const { error: pErr } = await sb.from('valet_payments').insert(paymentsToInsert);
+          if (pErr) console.error('Erro ao salvar pagamentos detalhados:', pErr);
+        }
+
         closeCheckout();
         showAlert('Sucesso', 'Saída registrada com sucesso!', 'success');
         loadActive();
+      } catch (err) {
+        showAlert('Erro', 'Falha ao finalizar saída: ' + err.message, 'danger');
+      } finally {
+        btn.classList.remove('btn-loading');
       }
-      btn.classList.remove('btn-loading');
     });
 
+    async function exportIsentos() {
+      const { data, error } = await sb.from('valet_entries')
+        .select('placa, entrada, saida, minutos_total')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'finalizado')
+        .eq('valor', 0)
+        .order('saida', { ascending: false });
+      
+      if (error || !data || data.length === 0) {
+        showAlert('Informação', 'Nenhuma saída isenta encontrada para exportar.', 'warning');
+        return;
+      }
+
+      let csv = 'Placa;Entrada;Saida;Minutos\n';
+      data.forEach(row => {
+        csv += `${row.placa};${new Date(row.entrada).toLocaleString()};${new Date(row.saida).toLocaleString()};${row.minutos_total}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `isento_placas_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
     // Busca rápida por placa
     document.getElementById('btnSearch').addEventListener('click', () => {
       const term = document.getElementById('searchInput').value.toUpperCase().trim();
