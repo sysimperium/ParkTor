@@ -9,12 +9,13 @@
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.users (id, email, nome, username, status)
+  INSERT INTO public.users (id, email, nome, username, nivel_acesso, status)
   VALUES (
     new.id, 
     new.email, 
     COALESCE(new.raw_user_meta_data->>'nome', 'Novo Usuário'),
-    COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)), -- Usa o e-mail como fallback para username
+    COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
+    'operador', -- Nível padrão para evitar erro de NOT NULL (PATCH 1.2.8)
     'ativo'
   )
   ON CONFLICT (id) DO NOTHING;
