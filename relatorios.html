@@ -158,23 +158,76 @@
         <div class="pillar-info">
           <p><strong>Pilar Financeiro:</strong> Análise de faturamento, ticket médio e fluxo de caixa. Essencial para conciliação e visão de lucratividade.</p>
         </div>
-        <div class="dash-grid">
-          <div class="card">
-            <div class="card-header"><h3 class="card-title">Faturamento por Forma</h3></div>
-            <div class="card-body">
-              <div class="chart-container"><canvas id="chartPayMethods"></canvas></div>
+
+        <!-- SUB-ABAS FINANCEIRO -->
+        <div class="rep-tabs" style="background: rgba(0,0,0,0.1); padding: 5px; border-radius: 10px; margin-bottom: 20px;">
+          <button class="rep-tab-btn active" style="padding: 8px 15px; font-size: 0.8rem;" onclick="switchSubTab('fin-geral', this)">Visão Geral</button>
+          <button class="rep-tab-btn" style="padding: 8px 15px; font-size: 0.8rem;" onclick="switchSubTab('fin-ticket', this)">Análise de Ticket Médio</button>
+          <button class="rep-tab-btn" style="padding: 8px 15px; font-size: 0.8rem;" onclick="switchSubTab('fin-caixa', this)">Sangrias/Reforços</button>
+        </div>
+
+        <div id="fin-geral" class="sub-rep-content active">
+          <div class="dash-grid">
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Faturamento por Forma</h3></div>
+              <div class="card-body">
+                <div class="chart-container"><canvas id="chartPayMethods"></canvas></div>
+              </div>
             </div>
-          </div>
-          <div class="card">
-            <div class="card-header"><h3 class="card-title">Tendência de Ganhos</h3></div>
-            <div class="card-body">
-              <div class="chart-container"><canvas id="chartRevenueTrend"></canvas></div>
+            <div class="card">
+              <div class="card-header"><h3 class="card-title">Tendência de Ganhos</h3></div>
+              <div class="card-body">
+                <div class="chart-container"><canvas id="chartRevenueTrend"></canvas></div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="sgrid" style="margin-top: 20px;">
-          <div class="scard"><div class="sico gold"><i data-lucide="banknote"></i></div><div><div class="slb">Ticket Médio</div><div class="svl" id="valAvgTicket">R$ 0,00</div></div></div>
-          <div class="scard"><div class="sico green"><i data-lucide="arrow-up-right"></i></div><div><div class="slb">Sangrias/Reforços</div><div class="svl">R$ 0,00</div></div></div>
+
+        <div id="fin-ticket" class="sub-rep-content" style="display: none;">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">Diagnóstico de Ticket Médio</h3></div>
+            <div class="card-body">
+              <div class="sgrid">
+                <div class="scard"><div class="sico gold"><i data-lucide="banknote"></i></div><div><div class="slb">Seu Ticket Médio</div><div class="svl" id="valAvgTicketDiag">R$ 0,00</div></div></div>
+                <div class="scard"><div class="sico blue"><i data-lucide="refresh-cw"></i></div><div><div class="slb">Status de Eficiência</div><div class="svl" id="statusEficiencia">...</div></div></div>
+              </div>
+              
+              <div class="pillar-info" style="margin-top: 20px; border-left-color: var(--info);">
+                <h4 style="margin-bottom: 10px; font-size: 0.9rem;">Análise Estratégica:</h4>
+                <div id="analiseTicketContent" class="pg-s" style="line-height: 1.6; color: var(--text-primary);">
+                  Carregando análise baseada nos dados do período...
+                </div>
+              </div>
+
+              <div class="config-grid" style="margin-top: 20px;">
+                <div class="card" style="background: rgba(0,0,0,0.1);">
+                  <div class="card-body">
+                    <h5 class="slb">Ponto de Equilíbrio</h5>
+                    <p class="pg-s" id="txtBreakeven">O custo por carro hoje é de <strong>R$ 0,00</strong>. Seu lucro médio por veículo é <strong>R$ 0,00</strong>.</p>
+                  </div>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.1);">
+                  <div class="card-body">
+                    <h5 class="slb">Recomendação ADM</h5>
+                    <p class="pg-s" id="txtRecomendacao">Seu foco deve ser em volume e rotatividade rápida.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="fin-caixa" class="sub-rep-content" style="display: none;">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">Auditoria de Sangrias e Reforços</h3></div>
+            <div class="card-body">
+              <p class="pg-s">Em desenvolvimento: Controle de movimentações manuais de dinheiro em espécie.</p>
+              <div class="sgrid" style="margin-top: 20px;">
+                <div class="scard"><div class="sico red"><i data-lucide="arrow-down-right"></i></div><div><div class="slb">Total Sangrias</div><div class="svl">R$ 0,00</div></div></div>
+                <div class="scard"><div class="sico green"><i data-lucide="arrow-up-right"></i></div><div><div class="slb">Total Reforços</div><div class="svl">R$ 0,00</div></div></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -247,31 +300,12 @@
 
     let currentUser = null, tenantId = null, charts = {};
 
-    function switchRepTab(tab) {
-      document.querySelectorAll('.rep-tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.rep-content').forEach(c => c.classList.remove('active'));
-      document.querySelector(`.rep-tab-btn[onclick="switchRepTab('${tab}')"]`).classList.add('active');
-      document.getElementById(`rep-${tab}`).classList.add('active');
-    }
-
-    async function init() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
-      if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
-
-      currentUser = user; tenantId = user.tenant_id;
-      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
-      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
-      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
-      document.getElementById('tb-av-top').textContent = user.nome[0];
+    function switchSubTab(targetId, btn) {
+      document.querySelectorAll('.sub-rep-content').forEach(c => c.style.display = 'none');
+      document.querySelectorAll('#rep-financeiro .rep-tab-btn').forEach(b => b.classList.remove('active'));
       
-      const hoje = new Date().toISOString().split('T')[0];
-      document.getElementById('repDataInicio').value = hoje;
-      document.getElementById('repDataFim').value = hoje;
-
-      document.body.style.display = 'block';
-      generateReports();
+      document.getElementById(targetId).style.display = 'block';
+      btn.classList.add('active');
     }
 
     async function generateReports() {
@@ -287,9 +321,68 @@
       if (error) return;
 
       processFinanceiro(entries);
+      processTicketMedio(entries);
       processOperacional(entries);
       processAuditoria(entries);
       processPerformance(entries);
+    }
+
+    function processTicketMedio(data) {
+      // Excluir isentos do cálculo do ticket médio (opcional, mas recomendado para precisão)
+      const paidEntries = data.filter(d => d.valor > 0);
+      const totalRevenue = paidEntries.reduce((a, c) => a + (c.valor || 0), 0);
+      const avg = paidEntries.length ? totalRevenue / paidEntries.length : 0;
+      
+      document.getElementById('valAvgTicketDiag').textContent = `R$ ${avg.toFixed(2).replace('.', ',')}`;
+
+      // Lógica de Diagnóstico Estratégico
+      const valorBase = 7.00;
+      const valorDiaria = currentUser.tenants?.valor_diaria || 40.00;
+      const totalVagas = currentUser.tenants?.total_vagas || 50;
+      const giro = data.length / totalVagas;
+      const custoMensal = currentUser.tenants?.custo_fixo_mensal || 0;
+      
+      // Cálculo de Custo por Carro (Simulado mensalmente)
+      // Se custoMensal = 5000 e entram 1000 carros/mês -> R$ 5,00 por carro
+      // Aqui adaptamos para o volume proporcional do período filtrado
+      const custoPorCarro = data.length > 0 ? (custoMensal / 30 * (new Date(document.getElementById('repDataFim').value) - new Date(document.getElementById('repDataInicio').value) + 86400000) / 86400000) / data.length : 0;
+      const lucroMedio = avg - custoPorCarro;
+
+      let analiseHtml = "";
+      let eficienciaStatus = "MÉDIA";
+      let recomendacao = "";
+
+      // 1. Comparação Tabela (Piso/Teto)
+      if (avg <= valorBase * 1.2) {
+        analiseHtml += "<p>• <strong>Ticket Baixo:</strong> Seu valor médio está muito próximo da entrada mínima. Público de passagem rápida.</p>";
+      } else if (avg >= valorDiaria * 0.5) {
+        analiseHtml += "<p>• <strong>Ticket Alto:</strong> Os clientes permanecem por longos períodos, aproximando-se da diária.</p>";
+        eficienciaStatus = "ALTA";
+      }
+
+      // 2. Giro vs Eficiência
+      if (giro >= 2.0 && avg < valorBase * 2) {
+        analiseHtml += "<p>• <strong>Giro Eficiente:</strong> Você compensa o ticket baixo com alto volume de troca de vagas. Cenário ideal para centros comerciais.</p>";
+        eficienciaStatus = "OTIMIZADA";
+      } else if (giro < 0.5 && avg < valorBase * 2) {
+        analiseHtml += "<p>• <strong>Alerta de Ineficiência:</strong> Baixo giro e ticket baixo. Pátio ocioso e pouco rentável.</p>";
+        eficienciaStatus = "BAIXA";
+      }
+
+      // 4. Ponto de Equilíbrio
+      document.getElementById('txtBreakeven').innerHTML = `O custo estimado por carro é de <strong>R$ ${custoPorCarro.toFixed(2)}</strong>. Seu lucro médio real por veículo é <strong>R$ ${lucroMedio.toFixed(2)}</strong>.`;
+
+      if (lucroMedio < 2.00) {
+        recomendacao = "Sua margem está perigosamente baixa. Considere revisar o valor da primeira hora ou reduzir custos fixos.";
+      } else if (eficienciaStatus === "BAIXA") {
+        recomendacao = "Foco total em captação de clientes. Seu pátio tem espaço sobrando que não está gerando receita.";
+      } else {
+        recomendacao = "Operação saudável. Tente converter clientes recorrentes em mensalistas para garantir receita fixa.";
+      }
+
+      document.getElementById('statusEficiencia').textContent = eficienciaStatus;
+      document.getElementById('analiseTicketContent').innerHTML = analiseHtml || "<p>Dados insuficientes para análise profunda. Continue operando para gerar histórico.</p>";
+      document.getElementById('txtRecomendacao').textContent = recomendacao;
     }
 
     function processFinanceiro(data) {

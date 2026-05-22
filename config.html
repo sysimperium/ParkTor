@@ -122,6 +122,18 @@
                 <small id="vagasLimitLabel" style="color: var(--gold-400); font-weight: 600;"></small>
               </div>
             </div>
+            <div class="config-grid">
+              <div class="form-group">
+                <label class="form-label">Valor da Diária (R$)</label>
+                <input type="number" id="cfgValorDiaria" class="form-input" step="1.00" value="40.00">
+                <small style="color: var(--text-muted);">Usado para cálculo de Ticket Médio</small>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Custo Fixo Mensal (R$)</label>
+                <input type="number" id="cfgCustoFixo" class="form-input" step="10.00" placeholder="Ex: 5000.00">
+                <small style="color: var(--text-muted);">Soma de Aluguel, Luz, Salários, etc.</small>
+              </div>
+            </div>
             <div class="form-group">
               <label class="form-label">Chave PIX Recebimento</label>
               <input type="text" id="cfgPix" class="form-input" placeholder="Chave PIX">
@@ -330,6 +342,8 @@
         document.getElementById('cfgVagas').value = t.total_vagas;
         document.getElementById('cfgNome').value = t.nome;
         document.getElementById('cfgPix').value = t.pix_key || '';
+        document.getElementById('cfgValorDiaria').value = t.valor_diaria || 40.00;
+        document.getElementById('cfgCustoFixo').value = t.custo_fixo_mensal || '';
         document.getElementById('txtPlano').textContent = t.planos?.nome || 'Básico';
         
         // LIMITAR VAGAS PELO PLANO (PATCH 1.2.1)
@@ -375,7 +389,9 @@
 
       const updates = { 
         total_vagas: novasVagas, 
-        pix_key: document.getElementById('cfgPix').value 
+        pix_key: document.getElementById('cfgPix').value,
+        valor_diaria: parseFloat(document.getElementById('cfgValorDiaria').value),
+        custo_fixo_mensal: parseFloat(document.getElementById('cfgCustoFixo').value) || 0
       };
       
       try {
