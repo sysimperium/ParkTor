@@ -87,14 +87,8 @@ CREATE POLICY "Users can manage their own tenant's payments"
 ON public.valet_payments FOR ALL TO authenticated 
 USING (tenant_id IN (SELECT tenant_id FROM public.users WHERE id = auth.uid()));
 
--- 4. ADICIONAR COLUNA DE ID DA SESSÃO EM VALET_ENTRIES (Opcional, mas recomendado)
-DO $$ 
-BEGIN 
-  IF NOT EXISTS (SELECT 1 FROM pf_columns WHERE table_name = 'valet_entries' AND column_name = 'cashier_session_id') THEN
-    -- Ignorando erro se pf_columns não existir, usando abordagem direta
-    ALTER TABLE public.valet_entries ADD COLUMN IF NOT EXISTS cashier_session_id UUID REFERENCES public.cashier_sessions(id);
-  END IF;
-END $$;
+-- 4. ADICIONAR COLUNA DE ID DA SESSÃO EM VALET_ENTRIES (PATCH 1.2.3)
+ALTER TABLE public.valet_entries ADD COLUMN IF NOT EXISTS cashier_session_id UUID REFERENCES public.cashier_sessions(id);
 
 -- 5. ATUALIZAR VIEW DE RESUMO DO DIA PARA CONSIDERAR MÚLTIPLOS PAGAMENTOS (Se necessário)
 -- Como não tenho a definição original, vou apenas preparar a estrutura.
