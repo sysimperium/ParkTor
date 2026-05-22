@@ -337,21 +337,27 @@
       const totalExpense = expenses?.reduce((a, c) => a + (c.valor || 0), 0) || 0;
       document.getElementById('totalMonthExpense').textContent = `R$ ${totalExpense.toFixed(2).replace('.', ',')}`;
 
-      document.getElementById('expenseList').innerHTML = expenses?.map(e => `
-        <div class="expense-row">
-          <div class="expense-info">
-            <div class="expense-cat">${e.categoria}</div>
-            <div class="expense-desc">${e.descricao} ${e.recorrencia === 'parcelada' ? `(${e.parcela_atual}/${e.total_parcelas})` : ''}</div>
-            <div class="expense-date">Venc: ${new Date(e.data_vencimento).toLocaleDateString('pt-BR')}</div>
+      document.getElementById('expenseList').innerHTML = expenses?.map(e => {
+        // Exibição amigável sem usar objeto Date que muda o fuso (PATCH 1.2.7)
+        const [ano, mes, dia] = e.data_vencimento.split('-');
+        const dataFormatada = `${dia}/${mes}/${ano}`;
+
+        return `
+          <div class="expense-row">
+            <div class="expense-info">
+              <div class="expense-cat">${e.categoria}</div>
+              <div class="expense-desc">${e.descricao} ${e.recorrencia === 'parcelada' ? `(${e.parcela_atual}/${e.total_parcelas})` : ''}</div>
+              <div class="expense-date">Venc: ${dataFormatada}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <div class="expense-val">- R$ ${e.valor.toFixed(2).replace('.', ',')}</div>
+              <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}')" style="color: var(--red); padding: 5px;">
+                <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+              </button>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 15px;">
-            <div class="expense-val">- R$ ${e.valor.toFixed(2).replace('.', ',')}</div>
-            <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}')" style="color: var(--red); padding: 5px;">
-              <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
-            </button>
-          </div>
-        </div>
-      `).join('') || '<div class="empty-state">Sem despesas este mês</div>';
+        `;
+      }).join('') || '<div class="empty-state">Sem despesas este mês</div>';
 
       // 3. CALCULAR LUCRO LÍQUIDO
       const profit = totalIncome - totalExpense;
@@ -380,15 +386,15 @@
         payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: date, tipo, recorrencia: 'unica' });
       } else if (rec === 'parcelada') {
         for (let i = 1; i <= parc; i++) {
-          const d = new Date(date + 'T00:00:00'); // Usa meia-noite local para o cálculo de meses (PATCH 1.2.7)
-          d.setMonth(d.getMonth() + (i - 1));
+          const d = new Date(date + 'T12:00:00Z'); // Força UTC-Z para cálculo de parcelas (PATCH 1.2.7)
+          d.setUTCMonth(d.getUTCMonth() + (i - 1));
           payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'parcelada', parcela_atual: i, total_parcelas: parc });
         }
       } else if (rec === 'mensal') {
         // Lançar os próximos 12 meses por padrão para longa duração
         for (let i = 0; i < 12; i++) {
-          const d = new Date(date + 'T00:00:00'); // Usa meia-noite local para o cálculo de meses (PATCH 1.2.7)
-          d.setMonth(d.getMonth() + i);
+          const d = new Date(date + 'T12:00:00Z'); // Força UTC-Z para cálculo de parcelas (PATCH 1.2.7)
+          d.setUTCMonth(d.getUTCMonth() + i);
           payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'mensal' });
         }
       }
