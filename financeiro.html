@@ -428,14 +428,14 @@
       const desc = document.getElementById('expDesc').value, cat = document.getElementById('expCat').value, val = parseFloat(document.getElementById('expVal').value);
       const date = document.getElementById('expDate').value, tipo = document.getElementById('expTipo').value, rec = document.getElementById('expRec').value, parc = parseInt(document.getElementById('expParc').value) || 1;
       let payloads = [];
-      if (rec === 'unica') payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: date, tipo, recorrencia: 'unica' });
+      if (rec === 'unica') payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: date, tipo, recorrencia: 'unica', status: 'pendente' });
       else if (rec === 'parcelada') {
         for (let i = 1; i <= parc; i++) {
-          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: addMonthsSafe(date, i - 1), tipo, recorrencia: 'parcelada', parcela_atual: i, total_parcelas: parc });
+          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: addMonthsSafe(date, i - 1), tipo, recorrencia: 'parcelada', parcela_atual: i, total_parcelas: parc, status: 'pendente' });
         }
       } else if (rec === 'mensal') {
         for (let i = 0; i < 12; i++) {
-          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: addMonthsSafe(date, i), tipo, recorrencia: 'mensal' });
+          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: addMonthsSafe(date, i), tipo, recorrencia: 'mensal', status: 'pendente' });
         }
       }
       const { error } = await sb.from('expenses').insert(payloads);
