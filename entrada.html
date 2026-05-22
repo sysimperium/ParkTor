@@ -518,8 +518,10 @@
         
         showAlert('Sucesso', 'Entrada registrada com sucesso!', 'success');
         loadHistory();
-        // Disparar Impressão (PATCH 1.2.5)
-        setTimeout(() => printTicket(plate, entryTime), 500);
+        // Disparar Impressão (PATCH 1.2.5) — Agora Opcional (PATCH 1.2.9)
+        if (currentUser.tenants?.print_enabled !== false) {
+          setTimeout(() => printTicket(plate, entryTime), 500);
+        }
       }
       btn.classList.remove('btn-loading');
     });

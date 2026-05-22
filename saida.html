@@ -579,7 +579,9 @@
         }
 
         showAlert('Sucesso', 'Saída concluída!', 'success');
-        await printReceipt(selectedEntry, selectedPayments, mainPayMode);
+        if (currentUser.tenants?.print_enabled !== false) {
+          await printReceipt(selectedEntry, selectedPayments, mainPayMode);
+        }
         closeCheckout(); loadActive();
       } catch (err) { showAlert('Erro', err.message, 'danger'); }
       finally { btn.classList.remove('btn-loading'); }
