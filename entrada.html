@@ -379,6 +379,23 @@
         return;
       }
 
+      // VERIFICAÇÃO DE LOTAÇÃO (PATCH 1.2.6)
+      try {
+        const { data: tenant } = await sb.from('tenants').select('total_vagas').eq('id', tenantId).single();
+        const { count: activeCount } = await sb.from('valet_entries')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId)
+          .eq('status', 'ativo');
+        
+        const totalVagas = tenant?.total_vagas || 0;
+        if (activeCount >= totalVagas) {
+          showAlert('Pátio Lotado', `Não há vagas disponíveis (${activeCount}/${totalVagas}). Registre uma saída primeiro.`, 'warning');
+          return;
+        }
+      } catch (err) {
+        console.error('Erro ao verificar lotação:', err);
+      }
+
       // VERIFICAÇÃO DE PLACA DUPLICADA NO PÁTIO (PATCH 1.2.3)
       try {
         const { data: duplicate, error: dErr } = await sb.from('valet_entries')
