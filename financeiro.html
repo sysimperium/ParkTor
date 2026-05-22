@@ -326,13 +326,15 @@
         payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: date, tipo, recorrencia: 'unica' });
       } else if (rec === 'parcelada') {
         for (let i = 1; i <= parc; i++) {
-          const d = new Date(date); d.setMonth(d.getMonth() + (i - 1));
+          const d = new Date(date + 'T12:00:00'); // Força meio-dia para evitar erro de fuso (PATCH 1.2.7)
+          d.setMonth(d.getMonth() + (i - 1));
           payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'parcelada', parcela_atual: i, total_parcelas: parc });
         }
       } else if (rec === 'mensal') {
         // Lançar os próximos 12 meses por padrão para longa duração
         for (let i = 0; i < 12; i++) {
-          const d = new Date(date); d.setMonth(d.getMonth() + i);
+          const d = new Date(date + 'T12:00:00'); // Força meio-dia para evitar erro de fuso (PATCH 1.2.7)
+          d.setMonth(d.getMonth() + i);
           payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'mensal' });
         }
       }
