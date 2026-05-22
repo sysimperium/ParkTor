@@ -45,7 +45,8 @@ module.exports = async (req, res) => {
       email_confirm: true,
       user_metadata: { 
         nome: 'Admin ' + tenantNome,
-        username: adminUsername // Adicionado para o trigger capturar (PATCH 1.2.8)
+        username: adminUsername,
+        nivel_acesso: 'admin' // Enviando o nível real para o trigger (PATCH 1.2.8)
       }
     });
 
