@@ -48,7 +48,13 @@
         <p style="font-size: 7pt; margin: 1mm 0;">RECIBO DE ESTADIA</p>
       </div>
       
-      <div class="rec-plate" id="recPlate">---</div>
+      <!-- Placa Real no Recibo de Saída (PATCH 1.3.0) -->
+      <div class="plate-preview-container" style="transform: scale(0.8); margin: 0;">
+        <div id="recPlateVisual" class="real-plate classic">
+          <div class="plate-header-text">BRASIL</div>
+          <div class="plate-text" id="recPlate">---</div>
+        </div>
+      </div>
       
       <div class="rec-info">
         <div class="rec-row"><span>DATA:</span> <strong id="recDate">--/--/----</strong></div>
@@ -261,7 +267,14 @@
         <button class="btn-close" onclick="closeCheckout()"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <div class="checkout-plate" id="checkPlate">ABC-1234</div>
+        <!-- Placa Real no Checkout (PATCH 1.3.0) -->
+        <div class="plate-preview-container">
+          <div id="checkPlateVisual" class="real-plate classic">
+            <div class="plate-header-text">BRASIL</div>
+            <div class="plate-text" id="checkPlateText">---</div>
+          </div>
+        </div>
+        
         <div class="info-row"><span>Entrada:</span> <strong id="checkIn">--:--</strong></div>
         <div class="info-row"><span>Permanência:</span> <strong id="checkDuration">0 min</strong></div>
 
@@ -474,7 +487,20 @@
       selectedEntry.saida = agora;
       selectedEntry.calc = calcularRotationHistory(data.entrada, agora);
 
-      document.getElementById('checkPlate').textContent = data.placa;
+      // Lógica da Placa Real (PATCH 1.3.0)
+      const plate = data.placa.toUpperCase();
+      const visual = document.getElementById('checkPlateVisual');
+      document.getElementById('checkPlateText').textContent = plate;
+      
+      const isMercosul = /[A-Z]/.test(plate[4]);
+      if (isMercosul && plate.length >= 5) {
+        visual.className = 'real-plate mercosul';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+      } else {
+        visual.className = 'real-plate classic';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+      }
+
       document.getElementById('checkIn').textContent = new Date(data.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       document.getElementById('checkDuration').textContent = `${selectedEntry.calc.minutos} min`;
       document.getElementById('checkTotal').textContent = `R$ ${selectedEntry.calc.total.toFixed(2).replace('.', ',')}`;
@@ -563,8 +589,21 @@
       const { jsPDF } = window.jspdf;
       const agora = new Date(); const entrada = new Date(entryData.entrada);
       
-      document.getElementById('recPlate').textContent = entryData.placa;
-      document.getElementById('recPlateCopy').textContent = entryData.placa;
+      // Ajustar Visual da Placa no Recibo (PATCH 1.3.0)
+      const plate = entryData.placa.toUpperCase();
+      const visual = document.getElementById('recPlateVisual');
+      document.getElementById('recPlate').textContent = plate;
+      document.getElementById('recPlateCopy').textContent = plate;
+      
+      const isMercosul = /[A-Z]/.test(plate[4]);
+      if (isMercosul && plate.length >= 5) {
+        visual.className = 'real-plate mercosul';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+      } else {
+        visual.className = 'real-plate classic';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+      }
+
       document.getElementById('recDate').textContent = entrada.toLocaleDateString('pt-BR');
       
       const fmt = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });

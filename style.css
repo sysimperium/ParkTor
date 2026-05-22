@@ -1341,4 +1341,88 @@ select.form-input option {
   }
 }
 
+/* ============ COMPONENTE PLACA REAL (PATCH 1.3.0) ============ */
+.plate-preview-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.real-plate {
+  width: 240px;
+  height: 80px;
+  background: #fff;
+  border: 4px solid #333;
+  border-radius: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Modelo Mercosul */
+.real-plate.mercosul {
+  border-color: #003399;
+}
+.real-plate.mercosul::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 20px;
+  background: #003399;
+  display: flex;
+  align-items: center;
+}
+.real-plate.mercosul .plate-header-text {
+  position: absolute;
+  top: 2px;
+  left: 0; right: 0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  z-index: 2;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Modelo Antigo (Cinza) */
+.real-plate.classic {
+  background: #c0c0c0;
+  border-color: #555;
+}
+.real-plate.classic::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 18px;
+  background: #333;
+}
+.real-plate.classic .plate-header-text {
+  position: absolute;
+  top: 2px;
+  left: 0; right: 0;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  z-index: 2;
+  text-transform: uppercase;
+}
+
+.plate-text {
+  font-family: 'Inter', sans-serif; /* Fallback, ideally use a monospaced bold font */
+  font-weight: 900;
+  font-size: 36px;
+  color: #000;
+  letter-spacing: 2px;
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+.real-plate.mercosul .plate-text { color: #000; }
+.real-plate.classic .plate-text { color: #000; }
+
 
