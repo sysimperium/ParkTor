@@ -9,10 +9,80 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="stylesheet" href="style.css">
-  <style>body { display: none; }</style>
+  <style>
+    body { display: none; }
+    /* Estilos do Recibo PDF (PATCH 1.2.9) */
+    #receiptPrint {
+      width: 58mm;
+      padding: 4mm;
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New', Courier, monospace;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .rec-header { border-bottom: 1px dashed #000; padding-bottom: 2mm; margin-bottom: 3mm; }
+    .rec-logo { max-width: 30mm; max-height: 15mm; margin-bottom: 2mm; filter: grayscale(100%); }
+    .rec-plate { font-size: 18pt; font-weight: bold; margin: 2mm 0; border: 1.5pt solid #000; padding: 1mm; }
+    .rec-info { font-size: 9pt; text-align: left; margin-bottom: 3mm; }
+    .rec-row { display: flex; justify-content: space-between; margin-bottom: 1mm; }
+    .rec-history { font-size: 8pt; text-align: left; background: #f9f9f9; padding: 2mm; margin-bottom: 3mm; border-radius: 2mm; }
+    .rec-total { font-size: 14pt; font-weight: bold; border-top: 1px solid #000; padding-top: 2mm; margin-top: 2mm; }
+    .rec-divider { border-top: 1px dashed #000; margin: 5mm 0; }
+    .rec-footer { font-size: 8pt; text-align: center; }
+    .rec-cashier { font-size: 8pt; text-align: left; }
+  </style>
 </head>
 <body>
+
+  <!-- Container Oculto para Recibo de Saída -->
+  <div style="position: absolute; left: -9999px; top: -9999px;">
+    <div id="receiptPrint">
+      <div class="rec-header">
+        <img id="recLogo" class="ticket-logo" style="display: none; margin: 0 auto;">
+        <h3 id="recEstName" style="margin: 0; font-size: 12pt;">PARKTOR</h3>
+        <p style="font-size: 7pt; margin: 1mm 0;">RECIBO DE ESTADIA</p>
+      </div>
+      
+      <div class="rec-plate" id="recPlate">---</div>
+      
+      <div class="rec-info">
+        <div class="rec-row"><span>DATA:</span> <strong id="recDate">--/--/----</strong></div>
+        <div class="rec-row"><span>ENTRADA:</span> <strong id="recIn">00:00:00</strong></div>
+        <div class="rec-row"><span>SAÍDA:</span> <strong id="recOut">00:00:00</strong></div>
+        <div class="rec-row"><span>PERMANÊNCIA:</span> <strong id="recDuration">0 min</strong></div>
+      </div>
+
+      <div id="recHistoryContent" class="rec-history">
+        <div style="font-weight: 700; margin-bottom: 1mm; font-size: 7pt;">DETALHES DA TARIFA:</div>
+      </div>
+
+      <div class="rec-row rec-total">
+        <span>PAGO:</span> <span id="recTotal">R$ 0,00</span>
+      </div>
+
+      <p style="font-size: 7pt; margin-top: 3mm;">Obrigado e volte sempre!</p>
+
+      <!-- CANHOTO DO CAIXA -->
+      <div class="rec-divider"></div>
+      <div class="rec-cashier">
+        <p style="font-weight: 700; text-align: center; margin-bottom: 2mm;">VIA DO CAIXA (CONFERÊNCIA)</p>
+        <div class="rec-row"><span>PLACA:</span> <strong id="recPlateCopy">---</strong></div>
+        <div class="rec-row"><span>ENTRADA:</span> <span id="recInCopy">--:--</span></div>
+        <div class="rec-row"><span>SAÍDA:</span> <span id="recOutCopy">--:--</span></div>
+        <div class="rec-row"><span>VALOR:</span> <strong id="recTotalCopy">R$ 0,00</strong></div>
+        <div class="rec-row"><span>FORMA:</span> <span id="recPayCopy">---</span></div>
+        <div class="rec-row" style="margin-top: 2mm;"><span>OPERADOR:</span> <span id="recOpCopy">---</span></div>
+      </div>
+      <div class="rec-footer" style="margin-top: 5mm;">
+        <p style="font-size: 6pt;">ParkTor v1.2.9 - Controle de Saída</p>
+      </div>
+    </div>
+  </div>
 
   <div class="overlay" id="overlay" onclick="closeMenu()"></div>
 
@@ -37,7 +107,7 @@
       <div class="sb-av" id="sb-av-sidebar">O</div>
       <div>
         <div class="sb-nome" id="userNameSidebar">Operador</div>
-        <div class="sb-eq" id="userRoleSidebar">Caixa</div>
+        <div class="sb-eq" id="userRoleSidebar">CAIXA</div>
       </div>
     </div>
     <nav class="sb-nav">
@@ -46,17 +116,14 @@
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
-      <!-- Links Operacionais (Ocultos para Admin via JS) -->
-      <div id="navOperacional">
-        <a href="entrada.html" class="si" id="navEntrada">
-          <span class="si-i"><i data-lucide="log-in"></i></span>
-          <span class="si-l">Nova Entrada</span>
-        </a>
-        <a href="saida.html" class="si active">
-          <span class="si-i"><i data-lucide="log-out"></i></span>
-          <span class="si-l">Registrar Saída</span>
-        </a>
-      </div>
+      <a href="entrada.html" class="si" id="navEntrada">
+        <span class="si-i"><i data-lucide="log-in"></i></span>
+        <span class="si-l">Nova Entrada</span>
+      </a>
+      <a href="saida.html" class="si active">
+        <span class="si-i"><i data-lucide="log-out"></i></span>
+        <span class="si-l">Registrar Saída</span>
+      </a>
 
       <div id="navGestao">
         <div class="sb-sec">Gestão</div>
@@ -91,7 +158,7 @@
     <header class="topbar">
       <div class="tb-e">
         <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
-        <div class="tb-t">Saída de Veículo</div>
+        <div class="tb-t">Parktor — Saída</div>
       </div>
       <div class="tb-d">
         <div class="tb-av" id="tb-av-top">O</div>
@@ -99,7 +166,7 @@
     </header>
 
     <div class="pg">
-      <!-- Status do Caixa (PATCH 1.2.3) -->
+      <!-- Status do Caixa -->
       <div class="card anim-fadeInUp" id="cashierStatusCard" style="margin-bottom: 20px; border-left: 4px solid var(--red);">
         <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
           <div>
@@ -120,20 +187,24 @@
       <div id="tab-patio" class="tab-content active">
         <div class="card anim-fadeInUp">
           <div class="card-body">
-            <div class="search-area">
-              <input type="text" id="searchInput" class="form-input" placeholder="Buscar placa..." maxlength="7" style="text-transform: uppercase;">
-              <button class="btn btn-primary" id="btnSearch">BUSCAR</button>
+            <div class="search-box">
+              <span class="search-ico"><i data-lucide="search"></i></span>
+              <input type="text" id="searchInput" class="form-input" placeholder="Buscar placa no pátio..." maxlength="7" style="text-transform: uppercase;">
+              <button class="btn btn-primary" id="btnSearch">FILTRAR</button>
             </div>
           </div>
         </div>
 
         <div class="card anim-fadeInUp">
-          <div class="card-header"><h3 class="card-title">Veículos no Pátio</h3><span class="badge badge-gold" id="activeCount">0</span></div>
+          <div class="card-header">
+            <h3 class="card-title">Veículos Estacionados</h3>
+            <span class="badge badge-gold" id="activeCount">0</span>
+          </div>
           <div class="tw">
             <table class="tab">
-              <thead><tr><th>Placa</th><th>Entrada</th><th>Tempo</th><th>Ação</th></tr></thead>
+              <thead><tr><th>Placa</th><th>Entrada</th><th>Permanência</th><th>Ação</th></tr></thead>
               <tbody id="activeTableBody">
-                <tr><td colspan="4" style="text-align: center; padding: 20px;">Carregando...</td></tr>
+                <tr><td colspan="4" style="text-align: center; padding: 20px;">Carregando pátio...</td></tr>
               </tbody>
             </table>
           </div>
@@ -180,36 +251,31 @@
         </div>
       </div>
     </div>
-    </main>
+  </main>
 
-    <!-- Modal Checkout -->
-    <div class="modal-overlay" id="modalCheckout">
-    <div class="modal card anim-fadeInUp" style="max-width: 480px;">
-      <div class="checkout-summary">
-        <div class="checkout-label">Finalizar Estadia</div>
-        <div class="checkout-plate" id="checkPlate">---</div>
-        <div class="checkout-ticket" id="checkTicket">TICKET: ---</div>
+  <!-- MODAL CHECKOUT -->
+  <div class="modal-overlay" id="modalCheckout">
+    <div class="modal-card anim-fadeInUp">
+      <div class="modal-header">
+        <h3 class="modal-title">Finalizar Estadia</h3>
+        <button class="btn-close" onclick="closeCheckout()"><i data-lucide="x"></i></button>
       </div>
-      <div class="checkout-info">
+      <div class="modal-body">
+        <div class="checkout-plate" id="checkPlate">ABC-1234</div>
         <div class="info-row"><span>Entrada:</span> <strong id="checkIn">--:--</strong></div>
         <div class="info-row"><span>Permanência:</span> <strong id="checkDuration">0 min</strong></div>
 
-        <!-- HISTÓRICO DE ROTAÇÃO -->
-        <div class="rotation-history" id="rotationHistory">
-          <p class="rotation-title">Faixa de rotatividade utilizada:</p>
-          <div id="rotationList">
-            <!-- Gerado via JS -->
-          </div>
+        <div id="rotationHistory" class="rotation-history">
+          <p class="rotation-title">Histórico de Cobrança:</p>
+          <div id="rotationList"></div>
         </div>
 
         <div class="info-row total-row"><span class="total-label">TOTAL A PAGAR:</span> <span class="total-value" id="checkTotal">R$ 0,00</span></div>
 
-        <!-- Múltiplos Pagamentos (PATCH 1.2.3) -->
+        <!-- Múltiplos Pagamentos -->
         <div id="multiPaySection" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
           <p class="rotation-title">Formas de Pagamento:</p>
-          <div id="paymentList" style="margin-bottom: 10px;">
-            <!-- Pagamentos adicionados aqui -->
-          </div>
+          <div id="paymentList" style="margin-bottom: 10px;"></div>
           <div class="pay-grid">
             <div class="pay-btn" data-pay="dinheiro" onclick="addPayment('dinheiro')"><span class="pay-icon"><i data-lucide="banknote"></i></span><span class="pay-label">Dinheiro</span></div>
             <div class="pay-btn" data-pay="pix" onclick="addPayment('pix')"><span class="pay-icon"><i data-lucide="qr-code"></i></span><span class="pay-label">PIX</span></div>
@@ -226,13 +292,14 @@
         <button class="btn btn-primary btn-lg" id="btnFinalize">FINALIZAR SAÍDA</button>
       </div>
     </div>
-    </div>
-  <!-- MODAIS DE AVISO CUSTOMIZADOS -->
+  </div>
+
+  <!-- AVISOS -->
   <div class="modal-overlay" id="modalCustomAlert">
     <div class="modal card modal-alert anim-fadeInUp">
       <div class="modal-icon warning" id="alertIcon"><i data-lucide="alert-triangle"></i></div>
       <h3 class="modal-title" id="alertTitle">Aviso</h3>
-      <p class="modal-text" id="alertText">Sua mensagem aqui.</p>
+      <p class="modal-text" id="alertText">Mensagem</p>
       <div style="display: flex; gap: 10px; justify-content: center;">
         <button class="btn btn-primary" onclick="closeAlert()">ENTENDIDO</button>
       </div>
@@ -265,90 +332,6 @@
 
     let currentUser = null, tenantId = null, selectedEntry = null, selectedPayments = [], currentCashier = null;
 
-    async function checkCashierStatus() {
-      const { data, error } = await sb.from('cashier_sessions')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('status', 'aberto')
-        .maybeSingle();
-      
-      const card = document.getElementById('cashierStatusCard');
-      const text = document.getElementById('cashierStatusText');
-      const btn = document.getElementById('btnCashierAction');
-
-      if (data) {
-        currentCashier = data;
-        card.style.borderLeftColor = 'var(--green)';
-        text.textContent = 'ABERTO';
-        text.style.color = 'var(--green)';
-        btn.textContent = 'FECHAR CAIXA';
-        btn.className = 'btn btn-ghost';
-      } else {
-        currentCashier = null;
-        card.style.borderLeftColor = 'var(--red)';
-        text.textContent = 'FECHADO';
-        text.style.color = 'var(--red)';
-        btn.textContent = 'ABRIR CAIXA';
-        btn.className = 'btn btn-primary';
-      }
-    }
-
-    async function toggleCashier() {
-      if (currentCashier) {
-        // Fechar
-        const { error } = await sb.from('cashier_sessions')
-          .update({ status: 'fechado', fechamento: new Date().toISOString() })
-          .eq('id', currentCashier.id);
-        
-        if (error) showAlert('Erro', 'Falha ao fechar caixa: ' + error.message, 'danger');
-        else {
-          showAlert('Sucesso', 'Caixa fechado com sucesso!', 'success');
-          checkCashierStatus();
-        }
-      } else {
-        // Abrir
-        const { error } = await sb.from('cashier_sessions')
-          .insert([{ tenant_id: tenantId, user_id: currentUser.id, status: 'aberto' }]);
-        
-        if (error) showAlert('Erro', 'Falha ao abrir caixa: ' + error.message, 'danger');
-        else {
-          showAlert('Sucesso', 'Caixa aberto com sucesso!', 'success');
-          checkCashierStatus();
-        }
-      }
-    }
-
-    /* --- NOTIFICAÇÕES --- */
-    function showAlert(title, text, type = 'warning') {
-      document.getElementById('alertTitle').innerText = title;
-      document.getElementById('alertText').innerText = text;
-      const iconDiv = document.getElementById('alertIcon');
-      iconDiv.className = `modal-icon ${type}`;
-      iconDiv.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')}"></i>`;
-      document.getElementById('modalCustomAlert').classList.add('show');
-      lucide.createIcons();
-    }
-    function closeAlert() { document.getElementById('modalCustomAlert').classList.remove('show'); }
-
-    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
-    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
-    function openCheckout() { document.getElementById('modalCheckout').classList.add('show'); }
-    function closeCheckout() { document.getElementById('modalCheckout').classList.remove('show'); }
-
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      
-      const btn = document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`);
-      const content = document.getElementById(`tab-${tab}`);
-      
-      if (btn) btn.classList.add('active');
-      if (content) content.classList.add('active');
-      
-      if (tab === 'patio') loadActive();
-      if (tab === 'historico') loadHistory();
-    }
-
     async function checkAccess() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
@@ -356,20 +339,34 @@
       const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
       if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
-      // MANOBRISTA NÃO ACESSA SAÍDA
       if (user.nivel_acesso === 'manobrista') {
-        window.location.href = 'entrada.html';
-        return;
+        window.location.href = 'entrada.html'; return;
       }
 
       currentUser = user; tenantId = user.tenant_id;
 
-      // AJUSTE SIDEBAR ADMIN (PATCH 1.2.1)
+      if (user.tenants) {
+        document.getElementById('recEstName').textContent = user.tenants.nome;
+        if (user.tenants.logo_url) {
+          const rLogo = document.getElementById('recLogo');
+          rLogo.src = user.tenants.logo_url;
+          rLogo.style.display = 'inline-block';
+        }
+        document.getElementById('sb-tenant-name').textContent = user.tenants.nome;
+        if (user.tenants.logo_url) document.getElementById('sb-tenant-logo').src = user.tenants.logo_url;
+      }
+
+      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
+      document.getElementById('tb-av-top').textContent = user.nome[0];
+
+      // AJUSTE SIDEBAR ADMIN
       if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'root') {
         document.getElementById('navOperacional')?.remove();
       }
 
-      // RESTRIÇÕES VISUAIS PARA OPERADOR
+      // RESTRIÇÕES OPERADOR
       if (user.nivel_acesso === 'operador') {
         document.getElementById('navDash')?.remove();
         document.getElementById('mobNavDash')?.remove();
@@ -378,32 +375,48 @@
         document.getElementById('navGestao')?.remove();
       }
 
-      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
-      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
-      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
-      document.getElementById('tb-av-top').textContent = user.nome[0];
-
-      if (currentUser.tenants) {
-        document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
-        if (currentUser.tenants.logo_url) {
-          document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
-        }
-      }
-
       document.body.style.display = 'block';
       checkCashierStatus();
       loadActive();
     }
+
+    async function checkCashierStatus() {
+      const { data } = await sb.from('cashier_sessions').select('*').eq('tenant_id', tenantId).eq('status', 'aberto').maybeSingle();
+      const card = document.getElementById('cashierStatusCard');
+      const text = document.getElementById('cashierStatusText');
+      const btn = document.getElementById('btnCashierAction');
+      if (data) {
+        currentCashier = data;
+        card.style.borderLeftColor = 'var(--green)';
+        text.textContent = 'ABERTO'; text.style.color = 'var(--green)';
+        btn.textContent = 'FECHAR CAIXA'; btn.className = 'btn btn-ghost';
+      } else {
+        currentCashier = null;
+        card.style.borderLeftColor = 'var(--red)';
+        text.textContent = 'FECHADO'; text.style.color = 'var(--red)';
+        btn.textContent = 'ABRIR CAIXA'; btn.className = 'btn btn-primary';
+      }
+    }
+
+    async function toggleCashier() {
+      if (currentCashier) {
+        await sb.from('cashier_sessions').update({ status: 'fechado', fechamento: new Date().toISOString() }).eq('id', currentCashier.id);
+        showAlert('Sucesso', 'Caixa fechado!', 'success');
+      } else {
+        await sb.from('cashier_sessions').insert([{ tenant_id: tenantId, user_id: currentUser.id, status: 'aberto' }]);
+        showAlert('Sucesso', 'Caixa aberto!', 'success');
+      }
+      checkCashierStatus();
+    }
+
     async function loadActive() {
       const { data, error } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).order('entrada', { ascending: true });
       const tbody = document.getElementById('activeTableBody');
-      
       if (error || !data || data.length === 0) {
         document.getElementById('activeCount').textContent = '0';
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Pátio vazio</td></tr>';
         return;
       }
-
       document.getElementById('activeCount').textContent = data.length;
       tbody.innerHTML = data.map(item => `
         <tr>
@@ -413,170 +426,79 @@
           <td><button class="btn btn-ghost btn-sm" onclick="startCheckout('${item.id}')">SAÍDA</button></td>
         </tr>
       `).join('');
-    }
-
-    async function loadHistory() {
-      const hoje = new Date().toISOString().split('T')[0];
-      
-      let dataInicio = document.getElementById('histDataInicio').value;
-      let dataFim = document.getElementById('histDataFim').value;
-      const placa = document.getElementById('histPlaca').value.toUpperCase().trim();
-
-      // Se não houver filtros, padrão é hoje (PATCH 1.2.3)
-      if (!dataInicio && !dataFim && !placa) {
-        dataInicio = hoje;
-        dataFim = hoje;
-        document.getElementById('histDataInicio').value = hoje;
-        document.getElementById('histDataFim').value = hoje;
-      }
-
-      let query = sb.from('valet_entries')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('status', 'finalizado');
-
-      if (placa) {
-        // Se houver placa, ignora datas conforme solicitado (PATCH 1.2.3)
-        query = query.ilike('placa', `%${placa}%`);
-      } else {
-        if (dataInicio) query = query.gte('saida', `${dataInicio}T00:00:00`);
-        if (dataFim) query = query.lte('saida', `${dataFim}T23:59:59`);
-      }
-
-      const { data, error } = await query.order('saida', { ascending: false });
-
-      const tbody = document.getElementById('historyTableBody');
-      if (error || !data || data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma saída hoje</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = data.map(item => `
-        <tr>
-          <td><strong style="font-family: var(--font-display); letter-spacing: 1px;">${item.placa}</strong></td>
-          <td>${new Date(item.saida).toLocaleDateString('pt-BR')}</td>
-          <td>${new Date(item.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td>${item.minutos_total} min</td>
-          <td>R$ ${item.valor.toFixed(2).replace('.', ',')}</td>
-          <td><span class="badge badge-blue">${item.forma_pagamento.toUpperCase()}</span></td>
-        </tr>
-      `).join('');
+      document.getElementById('searchInput').focus();
     }
 
     function calcularRotationHistory(entradaStr, saidaStr) {
       const entrada = new Date(entradaStr);
       const saida = new Date(saidaStr);
       const totalMinutos = Math.floor((saida - entrada) / 60000);
+      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Tolerância 5min', valor: 0 }], minutos: totalMinutos };
       
-      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Permanência dentro da tolerância', sub: 'Isento', valor: 0 }], minutos: totalMinutos };
+      let history = []; let currentTotal = 0;
+      const valorBase = 7.00; const valorAdic = 3.00; const intervaloBase = 120; const tolerancia = 20;
 
-      let history = [];
-      let currentTotal = 0;
-      
-      // Primeiro bloco: 140 min (2h 20m) - 7.00
-      let firstBlockEnd = new Date(entrada.getTime() + 140 * 60000);
-      let displayEnd = firstBlockEnd > saida ? saida : firstBlockEnd;
-      
-      history.push({
-        label: `Das ${entrada.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${displayEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ${totalMinutos > 140 ? '(incluindo os 20min de tolerância)' : ''}`,
-        sub: '2Hr -> R$ 7,00',
-        valor: 7.00
-      });
-      currentTotal = 7.00;
+      const blocosCompletos = Math.floor(totalMinutos / intervaloBase);
+      const minutosRestantes = totalMinutos % intervaloBase;
 
-      if (totalMinutos > 140) {
-        let remainingMin = totalMinutos - 140;
-        let lastTime = firstBlockEnd;
-        
-        while (remainingMin > 120) {
-          let nextBlockEnd = new Date(lastTime.getTime() + 120 * 60000);
-          history.push({
-            label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${nextBlockEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
-            sub: '2Hr -> R$ 7,00',
-            valor: 7.00
-          });
-          currentTotal += 7.00;
-          remainingMin -= 120;
-          lastTime = nextBlockEnd;
-        }
-        
-        if (remainingMin > 0) {
-          let finalEnd = new Date(lastTime.getTime() + remainingMin * 60000);
-          if (remainingMin <= 20) {
-            history.push({
-              label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${finalEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
-              sub: `Excedente R$ 3,00`,
-              valor: 3.00
-            });
-            currentTotal += 3.00;
-          } else {
-            history.push({
-              label: `Das ${lastTime.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} ás ${finalEnd.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
-              sub: 'Próxima Faixa -> R$ 7,00',
-              valor: 7.00
-            });
-            currentTotal += 7.00;
-          }
+      if (blocosCompletos > 0) {
+        for (let i = 1; i <= blocosCompletos; i++) {
+          history.push({ label: `Bloco ${i} (2h)`, valor: valorBase });
+          currentTotal += valorBase;
         }
       }
+
+      if (minutosRestantes > 0) {
+        if (minutosRestantes <= tolerancia) {
+          history.push({ label: `Excedente (${minutosRestantes}min)`, valor: valorAdic });
+          currentTotal += valorAdic;
+        } else {
+          history.push({ label: `Próximo Bloco (frações)`, valor: valorBase });
+          currentTotal += valorBase;
+        }
+      }
+
+      if (currentTotal < valorBase && totalMinutos > 5) {
+        currentTotal = valorBase;
+        history = [{ label: 'Tarifa Mínima (1º Bloco)', valor: valorBase }];
+      }
+
       return { total: currentTotal, history, minutos: totalMinutos };
     }
 
     async function startCheckout(id) {
-      const { data: entry, error } = await sb.from('valet_entries').select('*').eq('id', id).single();
-      if (error) { showAlert('Erro', 'Falha ao carregar dados do veículo', 'danger'); return; }
-
-      selectedEntry = entry;
+      const { data, error } = await sb.from('valet_entries').select('*').eq('id', id).single();
+      if (error) return;
+      selectedEntry = data;
       const agora = new Date().toISOString();
-      
-      const calc = calcularRotationHistory(entry.entrada, agora);
-      selectedEntry.calc = { minutos: calc.minutos, valor: calc.total }; 
       selectedEntry.saida = agora;
+      selectedEntry.calc = calcularRotationHistory(data.entrada, agora);
 
-      document.getElementById('checkPlate').textContent = entry.placa;
-      document.getElementById('checkTicket').textContent = `TICKET: ${entry.ticket_numero}`;
-      document.getElementById('checkIn').textContent = new Date(entry.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('checkDuration').textContent = `${calc.minutos} min`;
-      document.getElementById('checkTotal').textContent = `R$ ${calc.total.toFixed(2).replace('.', ',')}`;
-      
-      const listEl = document.getElementById('rotationList');
-      listEl.innerHTML = calc.history.map(h => `
-        <div class="rotation-item">
-          <div class="rotation-label">${h.label}</div>
-          <div class="rotation-sub">${h.sub}</div>
-        </div>
+      document.getElementById('checkPlate').textContent = data.placa;
+      document.getElementById('checkIn').textContent = new Date(data.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('checkDuration').textContent = `${selectedEntry.calc.minutos} min`;
+      document.getElementById('checkTotal').textContent = `R$ ${selectedEntry.calc.total.toFixed(2).replace('.', ',')}`;
+
+      document.getElementById('rotationList').innerHTML = selectedEntry.calc.history.map(h => `
+        <div class="rotation-item"><div class="rotation-label">${h.label}</div><div class="rotation-sub">R$ ${h.valor.toFixed(2)}</div></div>
       `).join('');
 
-      selectedPayMode = null;
       selectedPayments = [];
       renderPayments();
       openCheckout();
     }
 
     function addPayment(mode) {
-      if (!selectedEntry) return;
-      const total = selectedEntry.calc.valor;
+      const total = selectedEntry.calc.total;
       const paid = selectedPayments.reduce((acc, p) => acc + p.valor, 0);
       const remaining = Math.max(0, total - paid);
-
-      if (remaining === 0 && total > 0) {
-        showAlert('Valor Total Atingido', 'O valor total já foi coberto pelos pagamentos.', 'warning');
-        return;
-      }
-
+      if (remaining === 0 && total > 0) return;
       selectedPayments.push({ mode, valor: remaining });
       renderPayments();
     }
 
-    function removePayment(index) {
-      selectedPayments.splice(index, 1);
-      renderPayments();
-    }
-
-    function updatePaymentValor(index, valor) {
-      selectedPayments[index].valor = parseFloat(valor) || 0;
-      updateRemaining();
-    }
+    function removePayment(index) { selectedPayments.splice(index, 1); renderPayments(); }
+    function updatePaymentValor(index, valor) { selectedPayments[index].valor = parseFloat(valor) || 0; updateRemaining(); }
 
     function renderPayments() {
       const listEl = document.getElementById('paymentList');
@@ -592,125 +514,135 @@
     }
 
     function updateRemaining() {
-      const total = selectedEntry ? selectedEntry.calc.valor : 0;
+      const total = selectedEntry ? selectedEntry.calc.total : 0;
       const paid = selectedPayments.reduce((acc, p) => acc + p.valor, 0);
       const remaining = total - paid;
-      
       const row = document.getElementById('checkRemainingRow');
       const text = document.getElementById('checkRemaining');
-      
-      if (total === 0) {
-        row.style.display = 'none';
-        return;
-      }
-
-      if (Math.abs(remaining) > 0.01) {
+      if (total === 0 || Math.abs(remaining) < 0.01) { row.style.display = 'none'; }
+      else {
         row.style.display = 'flex';
         text.textContent = `R$ ${remaining.toFixed(2).replace('.', ',')}`;
         text.style.color = remaining > 0 ? 'var(--red)' : 'var(--green)';
-      } else {
-        row.style.display = 'none';
       }
     }
 
-
     document.getElementById('btnFinalize').addEventListener('click', async () => {
-      // VALIDAÇÃO DE CAIXA ABERTO (PATCH 1.2.3)
-      if (!currentCashier) {
-        showAlert('Caixa Fechado', 'Você precisa abrir o caixa para registrar saídas.', 'danger');
-        return;
-      }
-
-      const total = selectedEntry.calc.valor;
+      if (!currentCashier) { showAlert('Caixa Fechado', 'Abra o caixa primeiro.', 'danger'); return; }
+      const total = selectedEntry.calc.total;
       const paid = selectedPayments.reduce((acc, p) => acc + p.valor, 0);
+      if (total > 0 && Math.abs(total - paid) > 0.01) { showAlert('Erro', 'Valor incorreto.', 'warning'); return; }
 
-      if (total > 0 && Math.abs(total - paid) > 0.01) {
-        showAlert('Pagamento Incompleto', 'O valor total pago deve ser igual ao valor da estadia.', 'warning');
-        return;
-      }
-
-      // Se o valor for 0, permite sem pagamentos
-      if (total > 0 && selectedPayments.length === 0) {
-        showAlert('Pagamento Obrigatório', 'Selecione ao menos uma forma de pagamento.', 'warning');
-        return;
-      }
-
-      const btn = document.getElementById('btnFinalize');
-      btn.classList.add('btn-loading');
-      
       const mainPayMode = selectedPayments.length > 0 ? (selectedPayments.length > 1 ? 'Múltiplo' : selectedPayments[0].mode) : 'isento';
+      const btn = document.getElementById('btnFinalize'); btn.classList.add('btn-loading');
 
       try {
-        const { error } = await sb.from('valet_entries').update({ 
-          saida: selectedEntry.saida, 
-          minutos_total: selectedEntry.calc.minutos, 
-          valor: selectedEntry.calc.valor, 
-          forma_pagamento: mainPayMode, 
-          operador_saida_id: currentUser.id, 
+        const { error } = await sb.from('valet_entries').update({
+          saida: selectedEntry.saida,
+          minutos_total: selectedEntry.calc.minutos,
+          valor: total,
+          forma_pagamento: mainPayMode,
+          operador_saida_id: currentUser.id,
           cashier_session_id: currentCashier.id,
-          status: 'finalizado' 
+          status: 'finalizado'
         }).eq('id', selectedEntry.id);
 
         if (error) throw error;
-
-        // Salva pagamentos detalhados (PATCH 1.2.3)
         if (selectedPayments.length > 0) {
-          const paymentsToInsert = selectedPayments.map(p => ({
-            tenant_id: tenantId,
-            entry_id: selectedEntry.id,
-            forma_pagamento: p.mode,
-            valor: p.valor
-          }));
-          const { error: pErr } = await sb.from('valet_payments').insert(paymentsToInsert);
-          if (pErr) console.error('Erro ao salvar pagamentos detalhados:', pErr);
+          await sb.from('valet_payments').insert(selectedPayments.map(p => ({ tenant_id: tenantId, entry_id: selectedEntry.id, forma_pagamento: p.mode, valor: p.valor })));
         }
 
-        closeCheckout();
-        showAlert('Sucesso', 'Saída registrada com sucesso!', 'success');
-        loadActive();
-      } catch (err) {
-        showAlert('Erro', 'Falha ao finalizar saída: ' + err.message, 'danger');
-      } finally {
-        btn.classList.remove('btn-loading');
-      }
+        showAlert('Sucesso', 'Saída concluída!', 'success');
+        await printReceipt(selectedEntry, selectedPayments, mainPayMode);
+        closeCheckout(); loadActive();
+      } catch (err) { showAlert('Erro', err.message, 'danger'); }
+      finally { btn.classList.remove('btn-loading'); }
     });
 
-    async function exportIsentos() {
-      const { data, error } = await sb.from('valet_entries')
-        .select('placa, entrada, saida, minutos_total')
-        .eq('tenant_id', tenantId)
-        .eq('status', 'finalizado')
-        .eq('valor', 0)
-        .order('saida', { ascending: false });
+    async function printReceipt(entryData, payments, mainPayMode) {
+      const { jsPDF } = window.jspdf;
+      const agora = new Date(); const entrada = new Date(entryData.entrada);
       
-      if (error || !data || data.length === 0) {
-        showAlert('Informação', 'Nenhuma saída isenta encontrada para exportar.', 'warning');
-        return;
-      }
+      document.getElementById('recPlate').textContent = entryData.placa;
+      document.getElementById('recPlateCopy').textContent = entryData.placa;
+      document.getElementById('recDate').textContent = entrada.toLocaleDateString('pt-BR');
+      
+      const fmt = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('recIn').textContent = fmt(entrada);
+      document.getElementById('recInCopy').textContent = fmt(entrada);
+      document.getElementById('recOut').textContent = fmt(agora);
+      document.getElementById('recOutCopy').textContent = fmt(agora);
+      
+      document.getElementById('recDuration').textContent = `${entryData.calc.minutos} min`;
+      document.getElementById('recTotal').textContent = `R$ ${entryData.calc.total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('recTotalCopy').textContent = `R$ ${entryData.calc.total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('recPayCopy').textContent = mainPayMode.toUpperCase();
+      document.getElementById('recOpCopy').textContent = currentUser.nome;
 
-      let csv = 'Placa;Entrada;Saida;Minutos\n';
-      data.forEach(row => {
-        csv += `${row.placa};${new Date(row.entrada).toLocaleString()};${new Date(row.saida).toLocaleString()};${row.minutos_total}\n`;
-      });
+      const histEl = document.getElementById('recHistoryContent');
+      histEl.innerHTML = '<div style="font-weight: 700; margin-bottom: 1mm; font-size: 7pt;">DETALHES DA TARIFA:</div>' + 
+        entryData.calc.history.map(h => `<div style="display: flex; justify-content: space-between; margin-bottom: 0.5mm;"><span>${h.label}</span><strong>R$ ${h.valor.toFixed(2)}</strong></div>`).join('');
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `isento_placas_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
+      const receiptEl = document.getElementById('receiptPrint');
+      const canvas = await html2canvas(receiptEl, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      const pdf = new jsPDF({ unit: 'mm', format: [58, (canvas.height * 58) / canvas.width] });
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 58, (canvas.height * 58) / canvas.width);
+      
+      const url = URL.createObjectURL(pdf.output('blob'));
+      const win = window.open(url, '_blank');
+      if (win) { win.onload = () => { win.print(); setTimeout(() => URL.revokeObjectURL(url), 60000); }; }
     }
-    // Busca rápida por placa
+
     document.getElementById('btnSearch').addEventListener('click', () => {
       const term = document.getElementById('searchInput').value.toUpperCase().trim();
       const rows = document.querySelectorAll('#activeTableBody tr');
-      rows.forEach(row => {
-        const plate = row.querySelector('strong')?.textContent || '';
-        row.style.display = plate.includes(term) ? '' : 'none';
-      });
+      rows.forEach(row => { row.style.display = row.querySelector('strong')?.textContent.includes(term) ? '' : 'none'; });
     });
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
-    
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    function showAlert(title, text, type = 'warning') {
+      document.getElementById('alertTitle').innerText = title;
+      document.getElementById('alertText').innerText = text;
+      document.getElementById('modalCustomAlert').classList.add('show');
+    }
+    function closeAlert() { document.getElementById('modalCustomAlert').classList.remove('show'); }
+    function openCheckout() { document.getElementById('modalCheckout').classList.add('show'); }
+    function closeCheckout() { document.getElementById('modalCheckout').classList.remove('show'); }
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+      document.getElementById(`tab-${tab}`).classList.add('active');
+      if (tab === 'patio') loadActive();
+      if (tab === 'historico') loadHistory();
+    }
+
+    async function loadHistory() {
+      const hoje = new Date().toISOString().split('T')[0];
+      let dataInicio = document.getElementById('histDataInicio').value;
+      let dataFim = document.getElementById('histDataFim').value;
+      const placa = document.getElementById('histPlaca').value.toUpperCase().trim();
+      if (!dataInicio && !dataFim && !placa) { dataInicio = hoje; dataFim = hoje; document.getElementById('histDataInicio').value = hoje; document.getElementById('histDataFim').value = hoje; }
+      let query = sb.from('valet_entries').select('*').eq('tenant_id', tenantId).eq('status', 'finalizado');
+      if (placa) { query = query.ilike('placa', `%${placa}%`); } 
+      else { if (dataInicio) query = query.gte('saida', `${dataInicio}T00:00:00`); if (dataFim) query = query.lte('saida', `${dataFim}T23:59:59`); }
+      const { data } = await query.order('saida', { ascending: false });
+      const tbody = document.getElementById('historyTableBody');
+      if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>'; return; }
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td><strong>${item.placa}</strong></td>
+          <td>${new Date(item.saida).toLocaleDateString('pt-BR')}</td>
+          <td>${new Date(item.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+          <td>${item.minutos_total} min</td>
+          <td>R$ ${item.valor.toFixed(2).replace('.', ',')}</td>
+          <td><span class="badge badge-blue">${item.forma_pagamento.toUpperCase()}</span></td>
+        </tr>
+      `).join('');
+    }
+
     checkAccess();
     lucide.createIcons();
   </script>
