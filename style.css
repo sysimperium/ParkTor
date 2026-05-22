@@ -1307,3 +1307,38 @@ select.form-input option {
 .rotation-label { font-size: 0.9rem; color: var(--text-primary); }
 .rotation-sub { font-size: 0.85rem; color: var(--gold-400); font-weight: 600; }
 
+/* ============ PATCH 1.2.3 STYLES ============ */
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+#cashierStatusCard {
+  transition: all 0.3s ease;
+}
+
+.payment-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  align-items: center;
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.badge-blue {
+  background: var(--info-bg);
+  color: #60a5fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
