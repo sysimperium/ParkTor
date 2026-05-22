@@ -43,7 +43,10 @@ module.exports = async (req, res) => {
       email: adminEmail,
       password: adminSenha,
       email_confirm: true,
-      user_metadata: { nome: 'Admin ' + tenantNome }
+      user_metadata: { 
+        nome: 'Admin ' + tenantNome,
+        username: adminUsername // Adicionado para o trigger capturar (PATCH 1.2.8)
+      }
     });
 
     if (createAuthError) throw createAuthError;

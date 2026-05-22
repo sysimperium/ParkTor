@@ -30,7 +30,10 @@ module.exports = async (req, res) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { nome }
+      user_metadata: { 
+        nome,
+        username // Adicionado para o trigger capturar (PATCH 1.2.8)
+      }
     });
 
     if (createError) throw createError;
