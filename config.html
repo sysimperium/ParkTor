@@ -408,15 +408,22 @@
 
         const { data: { publicUrl } } = sb.storage.from('public').getPublicUrl(filePath);
 
-        // Atualizar Tabela Tenants
-        const { error: updateError } = await sb.from('tenants').update({ logo_url: publicUrl }).eq('id', tenantId);
+        // ATUALIZAÇÃO DIRETA VIA CLIENTE SUPABASE (PATCH 1.2.6)
+        // Isso garante que o banco de dados receba a nova URL imediatamente
+        const { error: updateError } = await sb.from('tenants')
+          .update({ logo_url: publicUrl })
+          .eq('id', tenantId);
+        
         if (updateError) throw updateError;
 
-        preview.innerHTML = `<img src="${publicUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
-        showAlert('Sucesso', 'Logotipo atualizado com sucesso!', 'success');
+        // Atualizar o estado local do objeto tenant para o renderUI funcionar
+        if (currentUser.tenants) currentUser.tenants.logo_url = publicUrl;
+
+        preview.innerHTML = `<img src="${publicUrl}?t=${Date.now()}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+        showAlert('Sucesso', 'Logotipo atualizado e salvo!', 'success');
       } catch (err) {
-        console.error(err);
-        showAlert('Erro no Upload', 'Não foi possível enviar a imagem. Verifique se o bucket "public" existe no seu Supabase.', 'danger');
+        console.error('Erro detalhado:', err);
+        showAlert('Erro no Upload', 'Não foi possível salvar a imagem: ' + err.message, 'danger');
       } finally {
         btn.disabled = false; btn.textContent = 'ALTERAR LOGO';
       }
