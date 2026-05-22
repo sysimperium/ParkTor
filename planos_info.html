@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Detalhes dos Planos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>body { display: none; }</style>
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico">P</div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Global Root</div>
+      </div>
+    </div>
+    <div class="sb-perf">
+      <div class="sb-av">R</div>
+      <div>
+        <div class="sb-nome">Root Admin</div>
+        <div class="sb-eq">Master Access</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Global</div>
+      <a href="root.html" class="si">
+        <span class="si-i"><i data-lucide="crown"></i></span>
+        <span class="si-l">Tenants</span>
+      </a>
+      <a href="planos_info.html" class="si active">
+        <span class="si-i"><i data-lucide="qr-code"></i></span>
+        <span class="si-l">Planos</span>
+      </a>
+      <a href="#" class="si">
+        <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+        <span class="si-l">Relatórios</span>
+      </a>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Informações dos Planos</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av">R</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="pg-hd">
+        <div>
+          <h1 class="pg-t">Explicação dos Planos</h1>
+          <p class="pg-s">Detalhes técnicos e limites de cada oferta comercial.</p>
+        </div>
+      </div>
+
+      <div class="sgrid anim-stagger" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        
+        <!-- PLANO START -->
+        <div class="card anim-fadeInUp">
+          <div class="card-header" style="background: var(--gold-400); color: var(--bg-card);">
+            <h3 class="card-title">Plano START</h3>
+            <span class="badge" style="background: rgba(0,0,0,0.2);">R$ 99,00/mês</span>
+          </div>
+          <div class="card-body">
+            <ul style="list-style: none; padding: 0; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> <strong>Limite de 20 Vagas</strong></li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Gestão Operacional Completa</li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Relatórios Básicos</li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Cadastro de Equipe</li>
+            </ul>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Ideal para pequenos estacionamentos em início de operação digital.</p>
+          </div>
+        </div>
+
+        <!-- PLANO INTERMEDIÁRIO -->
+        <div class="card anim-fadeInUp">
+          <div class="card-header" style="background: var(--gold-400); color: var(--bg-card);">
+            <h3 class="card-title">Plano PRO</h3>
+            <span class="badge" style="background: rgba(0,0,0,0.2);">R$ 199,00/mês</span>
+          </div>
+          <div class="card-body">
+            <ul style="list-style: none; padding: 0; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> <strong>Limite de 50 Vagas</strong></li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Gestão Financeira Avançada</li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Dashboard de Indicadores</li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Suporte Prioritário</li>
+            </ul>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Para estabelecimentos em crescimento que buscam maior controle financeiro.</p>
+          </div>
+        </div>
+
+        <!-- PLANO FULL -->
+        <div class="card anim-fadeInUp">
+          <div class="card-header" style="background: var(--gold-400); color: var(--bg-card);">
+            <h3 class="card-title">Plano ULTIMATE</h3>
+            <span class="badge" style="background: rgba(0,0,0,0.2);">R$ 349,00/mês</span>
+          </div>
+          <div class="card-body">
+            <ul style="list-style: none; padding: 0; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> <strong>Vagas Ilimitadas</strong></li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Módulo de Mensalistas</li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> API de Integração</li>
+              <li style="display: flex; gap: 10px; align-items: center;"><i data-lucide="check-circle" size="18" style="color: var(--gold-400);"></i> Relatórios Customizados</li>
+            </ul>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Solução completa para grandes redes e operações complexas.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card anim-fadeInUp" style="margin-top: 30px;">
+        <div class="card-body">
+            <h4 style="margin-bottom: 10px; color: var(--gold-400);">Observação Importante:</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">A alteração do nome "Teste Free" para "Plano Start" com valor de R$ 99,00 deve ser refletida no banco de dados para que os novos cadastros herdem as regras corretas de faturamento e limites de vagas.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co', SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function checkAccess() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user, error } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
+      if (error || user?.nivel_acesso !== 'root') {
+        window.location.href = 'index.html';
+        return;
+      }
+      document.body.style.display = 'block';
+    }
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    
+    checkAccess();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
