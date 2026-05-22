@@ -407,13 +407,18 @@
       pdf.addPage([58, pdfHeight]);
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
 
-      // Abrir PDF em nova aba para impressão
+      // Abrir PDF em nova aba e disparar impressão automática (PATCH 1.2.9)
       const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const printWindow = window.open(url, '_blank');
       
-      // Limpar URL após um tempo
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+          // Revoga a URL após a impressão ou fechamento para limpar memória
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        };
+      }
     }
 
     document.getElementById('btnConfirm').addEventListener('click', async () => {
