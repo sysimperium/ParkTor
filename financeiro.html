@@ -3,14 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Parktor — Financeiro</title>
+  <title>Parktor — Gestão Financeira</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
-  <style>body { display: none; }</style>
+  <style>
+    body { display: none; }
+    .fin-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .fin-tab-btn { background: none; border: none; padding: 10px 15px; color: var(--text-secondary); cursor: pointer; font-weight: 600; border-radius: 8px; }
+    .fin-tab-btn.active { background: var(--gold-400); color: var(--bg-card); }
+    .fin-content { display: none; }
+    .fin-content.active { display: block; animation: fadeIn 0.3s ease-out; }
+    .expense-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); }
+    .expense-row:last-child { border-bottom: none; }
+    .expense-info { flex: 1; }
+    .expense-cat { font-size: 0.75rem; color: var(--gold-400); text-transform: uppercase; font-weight: 700; }
+    .expense-desc { font-weight: 600; font-size: 0.95rem; }
+    .expense-date { font-size: 0.8rem; color: var(--text-muted); }
+    .expense-val { font-weight: 700; color: var(--red); }
+  </style>
 </head>
 <body>
 
@@ -38,17 +52,6 @@
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
-      <!-- Links Operacionais (Ocultos para Admin via JS) -->
-      <div id="navOperacional">
-        <a href="entrada.html" class="si" id="navEntrada">
-          <span class="si-i"><i data-lucide="log-in"></i></span>
-          <span class="si-l">Nova Entrada</span>
-        </a>
-        <a href="saida.html" class="si" id="navSaida">
-          <span class="si-i"><i data-lucide="log-out"></i></span>
-          <span class="si-l">Registrar Saída</span>
-        </a>
-      </div>
 
       <div id="navGestao">
         <div class="sb-sec">Gestão</div>
@@ -83,7 +86,7 @@
     <header class="topbar">
       <div class="tb-e">
         <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
-        <div class="tb-t">Financeiro</div>
+        <div class="tb-t">Gestão Financeira</div>
       </div>
       <div class="tb-d">
         <div class="tb-av" id="tb-av-top">A</div>
@@ -91,40 +94,137 @@
     </header>
 
     <div class="pg">
-      <div class="balance-hero anim-fadeInUp">
-        <div class="slb">Saldo Hoje</div>
-        <div class="balance-val" id="totalDay">R$ 0,00</div>
-        <div class="mini-grid">
-          <div class="mini-box"><div class="mini-label">Dinheiro</div><div class="mini-val" id="totalDinheiro">R$ 0</div></div>
-          <div class="mini-box"><div class="mini-label">PIX/Cartão</div><div class="mini-val" id="totalDigital">R$ 0</div></div>
+      <div class="balance-hero anim-fadeInUp" style="background: var(--bg-card); border: 1px solid var(--border);">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+          <div><div class="slb">Receita (Mês)</div><div class="balance-val green" id="totalMonthIncome" style="font-size: 1.2rem;">R$ 0,00</div></div>
+          <div><div class="slb">Despesas (Mês)</div><div class="balance-val red" id="totalMonthExpense" style="font-size: 1.2rem;">R$ 0,00</div></div>
+          <div><div class="slb">Lucro Líquido</div><div class="balance-val gold" id="netProfit" style="font-size: 1.2rem;">R$ 0,00</div></div>
         </div>
       </div>
 
-      <div class="card anim-fadeInUp">
-        <div class="card-header"><h3 class="card-title">Últimas Saídas</h3></div>
-        <div id="transList">
-          <div style="padding: 40px; text-align: center; color: var(--text-muted);">Carregando lançamentos...</div>
+      <div class="fin-tabs anim-fadeInUp">
+        <button class="fin-tab-btn active" onclick="switchFinTab('receitas', this)">RECEITAS</button>
+        <button class="fin-tab-btn" onclick="switchFinTab('despesas', this)">DESPESAS</button>
+      </div>
+
+      <!-- ABA: RECEITAS -->
+      <div id="fin-receitas" class="fin-content active">
+        <div class="card anim-fadeInUp">
+          <div class="card-header"><h3 class="card-title">Últimos Atendimentos</h3></div>
+          <div id="incomeList">
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">Carregando receitas...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: DESPESAS -->
+      <div id="fin-despesas" class="fin-content">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <button class="btn btn-primary btn-full" onclick="openExpenseModal()">+ LANÇAR DESPESA</button>
+        </div>
+
+        <div class="card anim-fadeInUp">
+          <div class="card-header"><h3 class="card-title">Lista de Despesas</h3></div>
+          <div id="expenseList">
+            <div style="padding: 40px; text-align: center; color: var(--text-muted);">Carregando despesas...</div>
+          </div>
         </div>
       </div>
     </div>
   </main>
 
-  <nav class="bnav">
-    <div class="bnis">
-      <a href="dashboard.html" class="bni">
-        <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
-        <span class="bnlb">Dash</span>
-      </a>
-      <a href="financeiro.html" class="bni active">
-        <span class="bnico"><i data-lucide="wallet"></i></span>
-        <span class="bnlb">Financ</span>
-      </a>
-      <a href="config.html" class="bni">
-        <span class="bnico"><i data-lucide="settings"></i></span>
-        <span class="bnlb">Config</span>
-      </a>
+  <!-- MODAL LANÇAR DESPESA -->
+  <div class="modal-overlay" id="modalExpense">
+    <div class="modal-card anim-fadeInUp">
+      <div class="modal-header">
+        <h3 class="modal-title">Nova Despesa</h3>
+        <button class="btn-close" onclick="closeExpenseModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formExpense">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Descrição / Nome</label>
+            <input type="text" id="expDesc" class="form-input" placeholder="Ex: Aluguel Junho" required>
+          </div>
+          
+          <div class="config-grid">
+            <div class="form-group">
+              <label class="form-label">Categoria</label>
+              <select id="expCat" class="form-input" required>
+                <optgroup label="Operacional">
+                  <option value="Aluguel">Aluguel</option>
+                  <option value="Sistemas">Sistemas de Gestão</option>
+                  <option value="Seguros">Seguros</option>
+                </optgroup>
+                <optgroup label="Pessoal">
+                  <option value="Folha">Folha de Pagamento</option>
+                  <option value="Contabilidade">Contabilidade</option>
+                </optgroup>
+                <optgroup label="Tributos">
+                  <option value="IPTU">IPTU</option>
+                  <option value="Bombeiros">Alvará Bombeiros</option>
+                  <option value="Impostos">Impostos (ISS/Simples)</option>
+                </optgroup>
+                <optgroup label="Consumo">
+                  <option value="Agua">Água</option>
+                  <option value="Energia">Energia</option>
+                  <option value="Internet">Internet</option>
+                </optgroup>
+                <option value="Manutencao">Manutenção</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor (R$)</label>
+              <input type="number" id="expVal" class="form-input" step="0.01" required>
+            </div>
+          </div>
+
+          <div class="config-grid">
+            <div class="form-group">
+              <label class="form-label">Vencimento</label>
+              <input type="date" id="expDate" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo</label>
+              <select id="expTipo" class="form-input">
+                <option value="variavel">Variável</option>
+                <option value="fixa">Fixa (Custo Operacional)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Recorrência</label>
+            <select id="expRec" class="form-input" onchange="toggleParcelas(this.value)">
+              <option value="unica">Única</option>
+              <option value="mensal">Mensal (Repetir todo mês)</option>
+              <option value="parcelada">Parcelada</option>
+            </select>
+          </div>
+
+          <div id="rowParcelas" class="form-group" style="display: none;">
+            <label class="form-label">Número de Parcelas</label>
+            <input type="number" id="expParc" class="form-input" value="1" min="1">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeExpenseModal()">CANCELAR</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveExpense">SALVAR DESPESA</button>
+        </div>
+      </form>
     </div>
-  </nav>
+  </div>
+
+  <!-- AVISOS -->
+  <div class="modal-overlay" id="modalCustomAlert">
+    <div class="modal card modal-alert anim-fadeInUp">
+      <div class="modal-icon warning" id="alertIcon"><i data-lucide="alert-triangle"></i></div>
+      <h3 class="modal-title" id="alertTitle">Aviso</h3>
+      <p class="modal-text" id="alertText"></p>
+      <button class="btn btn-primary" onclick="closeAlert()">ENTENDIDO</button>
+    </div>
+  </div>
 
   <script>
     const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co', SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
@@ -133,24 +233,27 @@
 
     function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
     function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    function showAlert(t,m,i='warning'){ document.getElementById('alertTitle').innerText=t; document.getElementById('alertText').innerText=m; document.getElementById('modalCustomAlert').classList.add('show'); lucide.createIcons(); }
+    function closeAlert(){ document.getElementById('modalCustomAlert').classList.remove('show'); }
+
+    function switchFinTab(tab, btn) {
+      document.querySelectorAll('.fin-content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.fin-tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`fin-${tab}`).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    function openExpenseModal() { document.getElementById('modalExpense').classList.add('show'); }
+    function closeExpenseModal() { document.getElementById('modalExpense').classList.remove('show'); }
+    function toggleParcelas(val) { document.getElementById('rowParcelas').style.display = val === 'parcelada' ? 'block' : 'none'; }
 
     async function init() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
-      
-      if (error || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) {
-        window.location.href = 'index.html';
-        return;
-      }
-
+      const { data: user } = await sb.from('users').select('*').eq('id', session.user.id).single();
+      if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
       currentUser = user; tenantId = user.tenant_id;
       
-      // AJUSTE SIDEBAR ADMIN (PATCH 1.2.1)
-      if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'root') {
-        document.getElementById('navOperacional')?.remove();
-      }
-
       document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
       document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
       document.getElementById('sb-av-sidebar').textContent = user.nome[0];
@@ -161,41 +264,86 @@
     }
 
     async function loadFinance() {
-      const hoje = new Date().toISOString().split('T')[0];
-      const { data: resumo } = await sb.from('v_resumo_dia').select('*').eq('tenant_id', tenantId).eq('data', hoje).single();
-      
-      if (resumo) {
-        document.getElementById('totalDay').textContent = `R$ ${resumo.total_faturado.toFixed(2).replace('.', ',')}`;
-        document.getElementById('totalDinheiro').textContent = `R$ ${resumo.total_dinheiro.toFixed(0)}`;
-        document.getElementById('totalDigital').textContent = `R$ ${(resumo.total_pix + resumo.total_cartao).toFixed(0)}`;
-      }
+      const agora = new Date();
+      const primeiroDia = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString();
+      const ultimoDia = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
-      const { data: list } = await sb.from('valet_entries')
-        .select('*')
-        .eq('tenant_id', tenantId)
-        .eq('status', 'finalizado')
-        .gte('saida', hoje + 'T00:00:00')
-        .lte('saida', hoje + 'T23:59:59')
-        .order('saida', { ascending: false })
-        .limit(20);
-      const listEl = document.getElementById('transList');
-      if (!list || list.length === 0) { listEl.innerHTML = '<div class="empty-state">Nenhum lançamento hoje</div>'; return; }
-      
-      listEl.innerHTML = list.map(t => `
-        <div class="trans-item">
-          <div class="trans-ico ico-in"><i data-lucide="arrow-down-left"></i></div>
-          <div class="trans-info">
-            <div class="trans-tit">Saída: ${t.placa}</div>
-            <div class="trans-dat">${new Date(t.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} — ${t.forma_pagamento.toUpperCase()}</div>
+      // 1. CARREGAR RECEITAS (VALET ENTRIES)
+      const { data: income } = await sb.from('valet_entries').select('valor, placa, saida, forma_pagamento').eq('tenant_id', tenantId).eq('status', 'finalizado').gte('saida', primeiroDia).lte('saida', ultimoDia).order('saida', { ascending: false });
+      const totalIncome = income?.reduce((a, c) => a + (c.valor || 0), 0) || 0;
+      document.getElementById('totalMonthIncome').textContent = `R$ ${totalIncome.toFixed(2).replace('.', ',')}`;
+
+      document.getElementById('incomeList').innerHTML = income?.slice(0, 10).map(t => `
+        <div class="expense-row">
+          <div class="expense-info">
+            <div class="expense-desc">Placa: ${t.placa}</div>
+            <div class="expense-date">${new Date(t.saida).toLocaleString('pt-BR')} — ${t.forma_pagamento.toUpperCase()}</div>
           </div>
-          <div class="trans-val green">+ R$ ${t.valor.toFixed(2)}</div>
+          <div style="font-weight: 700; color: var(--green);">+ R$ ${t.valor.toFixed(2)}</div>
         </div>
-      `).join('');
+      `).join('') || '<div class="empty-state">Sem receitas este mês</div>';
+
+      // 2. CARREGAR DESPESAS
+      const { data: expenses } = await sb.from('expenses').select('*').eq('tenant_id', tenantId).gte('data_vencimento', primeiroDia.split('T')[0]).lte('data_vencimento', ultimoDia.split('T')[0]).order('data_vencimento', { ascending: false });
+      const totalExpense = expenses?.reduce((a, c) => a + (c.valor || 0), 0) || 0;
+      document.getElementById('totalMonthExpense').textContent = `R$ ${totalExpense.toFixed(2).replace('.', ',')}`;
+
+      document.getElementById('expenseList').innerHTML = expenses?.map(e => `
+        <div class="expense-row">
+          <div class="expense-info">
+            <div class="expense-cat">${e.categoria}</div>
+            <div class="expense-desc">${e.descricao} ${e.recorrencia === 'parcelada' ? `(${e.parcela_atual}/${e.total_parcelas})` : ''}</div>
+            <div class="expense-date">Venc: ${new Date(e.data_vencimento).toLocaleDateString('pt-BR')}</div>
+          </div>
+          <div class="expense-val">- R$ ${e.valor.toFixed(2).replace('.', ',')}</div>
+        </div>
+      `).join('') || '<div class="empty-state">Sem despesas este mês</div>';
+
+      // 3. CALCULAR LUCRO LÍQUIDO
+      const profit = totalIncome - totalExpense;
+      const profitEl = document.getElementById('netProfit');
+      profitEl.textContent = `R$ ${profit.toFixed(2).replace('.', ',')}`;
+      profitEl.style.color = profit >= 0 ? 'var(--gold-400)' : 'var(--red)';
       lucide.createIcons();
     }
 
+    document.getElementById('formExpense').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveExpense');
+      btn.disabled = true; btn.textContent = 'SALVANDO...';
+
+      const desc = document.getElementById('expDesc').value;
+      const cat = document.getElementById('expCat').value;
+      const val = parseFloat(document.getElementById('expVal').value);
+      const date = document.getElementById('expDate').value;
+      const tipo = document.getElementById('expTipo').value;
+      const rec = document.getElementById('expRec').value;
+      const parc = parseInt(document.getElementById('expParc').value) || 1;
+
+      let payloads = [];
+
+      if (rec === 'unica') {
+        payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: date, tipo, recorrencia: 'unica' });
+      } else if (rec === 'parcelada') {
+        for (let i = 1; i <= parc; i++) {
+          const d = new Date(date); d.setMonth(d.getMonth() + (i - 1));
+          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'parcelada', parcela_atual: i, total_parcelas: parc });
+        }
+      } else if (rec === 'mensal') {
+        // Lançar os próximos 12 meses por padrão para longa duração
+        for (let i = 0; i < 12; i++) {
+          const d = new Date(date); d.setMonth(d.getMonth() + i);
+          payloads.push({ tenant_id: tenantId, user_id: currentUser.id, descricao: desc, categoria: cat, valor: val, data_vencimento: d.toISOString().split('T')[0], tipo, recorrencia: 'mensal' });
+        }
+      }
+
+      const { error } = await sb.from('expenses').insert(payloads);
+      if (error) showAlert('Erro', error.message, 'danger');
+      else { showAlert('Sucesso', 'Lançamento realizado!', 'success'); closeExpenseModal(); loadFinance(); }
+      btn.disabled = false; btn.textContent = 'SALVAR DESPESA';
+    });
+
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
-    
     init();
     lucide.createIcons();
   </script>
