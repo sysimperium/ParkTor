@@ -87,6 +87,24 @@
     </header>
 
     <div class="pg">
+      <!-- Stats (PATCH 1.2.3) -->
+      <div class="sgrid anim-stagger" style="margin-bottom: 20px;">
+        <div class="scard">
+          <div class="sico gold"><i data-lucide="car"></i></div>
+          <div>
+            <div class="slb">No Pátio</div>
+            <div class="svl" id="statActive">0</div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="sico blue"><i data-lucide="square-parking"></i></div>
+          <div>
+            <div class="slb">Vagas Livres</div>
+            <div class="svl" id="statVagas">0</div>
+          </div>
+        </div>
+      </div>
+
       <div class="card plate-card anim-fadeInUp">
         <h2 class="pg-t">Nova Entrada</h2>
         <p class="pg-s">Digite a placa para registrar a entrada</p>
@@ -232,12 +250,18 @@
 
     async function loadHistory() {
       const hoje = new Date().toISOString().split('T')[0];
-      const { data, error } = await sb.from('valet_entries')
-        .select('*')
+      const { data, error, count: activeCount } = await sb.from('valet_entries')
+        .select('*', { count: 'exact' })
         .eq('tenant_id', tenantId)
         .eq('status', 'ativo')
-        .order('entrada', { ascending: false })
-        .limit(10);
+        .order('entrada', { ascending: false });
+
+      // Atualiza Stats (PATCH 1.2.3)
+      document.getElementById('statActive').textContent = activeCount || 0;
+      
+      const { data: tenant } = await sb.from('tenants').select('total_vagas').eq('id', tenantId).single();
+      const totalVagas = tenant?.total_vagas || 50;
+      document.getElementById('statVagas').textContent = Math.max(0, totalVagas - (activeCount || 0));
 
       const tbody = document.getElementById('historyTableBody');
       if (error || !data || data.length === 0) {
@@ -287,6 +311,24 @@
         }
       } catch (err) {
         console.error('Erro ao verificar lotação:', err);
+      }
+
+      // VERIFICAÇÃO DE PLACA DUPLICADA NO PÁTIO (PATCH 1.2.3)
+      try {
+        const { data: duplicate, error: dErr } = await sb.from('valet_entries')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('placa', plate)
+          .eq('status', 'ativo')
+          .maybeSingle();
+        
+        if (dErr) throw dErr;
+        if (duplicate) {
+          showAlert('Placa no Pátio', `O veículo com placa ${plate} já está no pátio.`, 'warning');
+          return;
+        }
+      } catch (err) {
+        console.error('Erro ao verificar duplicidade:', err);
       }
 
       const confirmed = await showConfirm('Confirmar Entrada', `Deseja registrar a entrada da placa ${plate}?`);
