@@ -9,10 +9,50 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <link rel="stylesheet" href="style.css">
-  <style>body { display: none; }</style>
+  <style>
+    body { display: none; }
+    /* Estilos de Impressão (Bobina 58mm) */
+    @media print {
+      body * { visibility: hidden; }
+      #ticketPrint, #ticketPrint * { visibility: visible; }
+      #ticketPrint {
+        position: absolute; left: 0; top: 0;
+        width: 58mm; padding: 2mm;
+        background: #fff; color: #000;
+        font-family: 'Courier New', Courier, monospace;
+        text-align: center;
+      }
+      .ticket-header { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
+      .ticket-logo { max-width: 40mm; max-height: 20mm; margin-bottom: 5px; }
+      .ticket-plate { font-size: 24pt; font-weight: bold; margin: 5px 0; border: 2px solid #000; padding: 2px; }
+      .ticket-info { font-size: 10pt; margin-bottom: 5px; }
+      .ticket-barcode { width: 100%; margin-top: 5px; }
+      .ticket-footer { border-top: 1px dashed #000; margin-top: 5px; padding-top: 5px; font-size: 8pt; }
+    }
+  </style>
 </head>
 <body>
+
+  <!-- Layout do Ticket (Invisível na tela) -->
+  <div id="ticketPrint" style="display: none;">
+    <div class="ticket-header">
+      <img id="printLogo" class="ticket-logo" style="display: none;">
+      <h3 id="printEstName" style="margin: 0; font-size: 14pt;">PARKTOR</h3>
+      <p style="font-size: 8pt; margin: 2px 0;">COMPROVANTE DE ENTRADA</p>
+    </div>
+    <div class="ticket-plate" id="printPlate">ABC-1234</div>
+    <div class="ticket-info">
+      <div id="printDate">Data: 00/00/0000</div>
+      <div id="printTime">Entrada: 00:00</div>
+    </div>
+    <svg id="printBarcode" class="ticket-barcode"></svg>
+    <div class="ticket-footer">
+      <p>Obrigado pela preferência!</p>
+      <p>Guarde este ticket para saída.</p>
+    </div>
+  </div>
 
   <div class="overlay" id="overlay" onclick="closeMenu()"></div>
 
@@ -25,30 +65,29 @@
         <div class="sb-logo-s">Gestão Digital</div>
       </div>
     </div>
+
     <div class="sb-perf">
       <div class="sb-av" id="sb-av-sidebar">M</div>
       <div>
         <div class="sb-nome" id="userNameSidebar">Manobrista</div>
-        <div class="sb-eq" id="userRoleSidebar">Operacional</div>
+        <div class="sb-eq" id="userRoleSidebar">PÁTIO</div>
       </div>
     </div>
+
     <nav class="sb-nav">
       <div class="sb-sec">Principal</div>
       <a href="dashboard.html" class="si" id="navDash">
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard</span>
       </a>
-      <!-- Links Operacionais (Ocultos para Admin via JS) -->
-      <div id="navOperacional">
-        <a href="entrada.html" class="si active">
-          <span class="si-i"><i data-lucide="log-in"></i></span>
-          <span class="si-l">Nova Entrada</span>
-        </a>
-        <a href="saida.html" class="si" id="navSaida">
-          <span class="si-i"><i data-lucide="log-out"></i></span>
-          <span class="si-l">Registrar Saída</span>
-        </a>
-      </div>
+      <a href="entrada.html" class="si active">
+        <span class="si-i"><i data-lucide="log-in"></i></span>
+        <span class="si-l">Nova Entrada</span>
+      </a>
+      <a href="saida.html" class="si" id="navSaida">
+        <span class="si-i"><i data-lucide="log-out"></i></span>
+        <span class="si-l">Registrar Saída</span>
+      </a>
 
       <div id="navGestao">
         <div class="sb-sec">Gestão</div>
@@ -70,6 +109,7 @@
         </a>
       </div>
     </nav>
+
     <div class="sb-ft">
       <div class="si si-logout" onclick="logout()">
         <span class="si-i"><i data-lucide="door-open"></i></span>
@@ -83,7 +123,7 @@
     <header class="topbar">
       <div class="tb-e">
         <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
-        <div class="tb-t">Entrada de Veículo</div>
+        <div class="tb-t">Parktor — Entrada</div>
       </div>
       <div class="tb-d">
         <div class="tb-av" id="tb-av-top">M</div>
@@ -110,23 +150,25 @@
       </div>
 
       <div class="card plate-card anim-fadeInUp">
-        <h2 class="pg-t">Nova Entrada</h2>
+        <h2 class="pg-t">Registrar Entrada</h2>
         <p class="pg-s">Digite a placa para registrar a entrada</p>
 
         <input type="text" id="plateInput" class="form-input plate-input" placeholder="ABC1234" maxlength="7" style="text-transform: uppercase;">
 
-        <button class="btn btn-primary btn-full btn-lg" id="btnConfirm">
-          <span>REGISTRAR ENTRADA</span>
-        </button>
+        <div style="margin-top: 24px;">
+          <button id="btnConfirm" class="btn btn-primary btn-lg btn-full">
+            <span>CONFIRMAR ENTRADA</span>
+          </button>
+        </div>
       </div>
 
       <div class="card anim-fadeInUp">
-        <div class="card-header"><h3 class="card-title">Entradas Recentes</h3></div>
+        <div class="card-header"><h3 class="card-title">Últimas Entradas (Pátio)</h3></div>
         <div class="tw">
           <table class="tab">
-            <thead><tr><th>Placa</th><th>Hora</th><th>Status</th></tr></thead>
+            <thead><tr><th>Placa</th><th>Entrada</th><th>Status</th></tr></thead>
             <tbody id="historyTableBody">
-              <tr><td colspan="3" style="text-align: center; padding: 20px;">Carregando...</td></tr>
+              <tr><td colspan="3" style="text-align: center; padding: 20px;">Nenhum veículo no pátio.</td></tr>
             </tbody>
           </table>
         </div>
@@ -150,7 +192,7 @@
     <div class="modal card modal-alert anim-fadeInUp">
       <div class="modal-icon danger"><i data-lucide="help-circle"></i></div>
       <h3 class="modal-title" id="confirmTitle">Confirmar Entrada</h3>
-      <p class="modal-text" id="confirmText">Deseja registrar a entrada deste veículo?</p>
+      <p class="modal-text" id="confirmText">Tem certeza?</p>
       <div style="display: flex; gap: 10px; justify-content: center;">
         <button class="btn btn-ghost" onclick="closeConfirm(false)">CANCELAR</button>
         <button class="btn btn-primary" id="btnConfirmAction">CONFIRMAR</button>
@@ -182,8 +224,7 @@
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let currentUser = null;
-    let tenantId = null;
+    let currentUser = null, tenantId = null;
 
     /* --- NOTIFICAÇÕES --- */
     function showAlert(title, text, type = 'warning') {
@@ -202,9 +243,15 @@
       document.getElementById('confirmTitle').innerText = title;
       document.getElementById('confirmText').innerText = text;
       document.getElementById('modalCustomConfirm').classList.add('show');
-      return new Promise((resolve) => { confirmResolve = resolve; document.getElementById('btnConfirmAction').onclick = () => closeConfirm(true); });
+      return new Promise((resolve) => {
+        confirmResolve = resolve;
+        document.getElementById('btnConfirmAction').onclick = () => closeConfirm(true);
+      });
     }
-    function closeConfirm(result) { document.getElementById('modalCustomConfirm').classList.remove('show'); if (confirmResolve) confirmResolve(result); }
+    function closeConfirm(result) {
+      document.getElementById('modalCustomConfirm').classList.remove('show');
+      if (confirmResolve) confirmResolve(result);
+    }
 
     function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
     function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
@@ -212,11 +259,10 @@
     async function checkAccess() {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'index.html'; return; }
-      
-      const { data: user, error } = await sb.from('users').select('*').eq('id', session.user.id).single();
-      if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
-      // OPERADOR NÃO ACESSA ENTRADA
+      const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+      if (error || !user) { window.location.href = 'index.html'; return; }
+
       if (user.nivel_acesso === 'operador') {
         window.location.href = 'saida.html';
         return;
@@ -263,9 +309,19 @@
       // Atualiza Stats (PATCH 1.2.3)
       document.getElementById('statActive').textContent = activeCount || 0;
       
-      const { data: tenant } = await sb.from('tenants').select('total_vagas').eq('id', tenantId).single();
+      const { data: tenant } = await sb.from('tenants').select('total_vagas, nome, logo_url').eq('id', tenantId).single();
       const totalVagas = tenant?.total_vagas || 50;
       document.getElementById('statVagas').textContent = Math.max(0, totalVagas - (activeCount || 0));
+
+      // Carregar dados para o Ticket (PATCH 1.2.5)
+      if (tenant) {
+        document.getElementById('printEstName').textContent = tenant.nome;
+        if (tenant.logo_url) {
+          const pLogo = document.getElementById('printLogo');
+          pLogo.src = tenant.logo_url;
+          pLogo.style.display = 'inline-block';
+        }
+      }
 
       const tbody = document.getElementById('historyTableBody');
       if (error || !data || data.length === 0) {
@@ -288,33 +344,34 @@
       return regex.test(placa);
     }
 
+    function printTicket(plate, entryTime) {
+      const date = new Date(entryTime);
+      document.getElementById('printPlate').textContent = plate;
+      document.getElementById('printDate').textContent = `Data: ${date.toLocaleDateString('pt-BR')}`;
+      document.getElementById('printTime').textContent = `Entrada: ${date.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
+      
+      // Gerar Código de Barras (CODE128)
+      JsBarcode("#printBarcode", plate, {
+        format: "CODE128",
+        width: 2.5,
+        height: 40,
+        displayValue: false,
+        margin: 0
+      });
+
+      const ticket = document.getElementById('ticketPrint');
+      ticket.style.display = 'block';
+      window.print();
+      ticket.style.display = 'none';
+    }
+
     document.getElementById('btnConfirm').addEventListener('click', async () => {
-      const plateInput = document.getElementById('plateInput');
-      const plate = plateInput.value.toUpperCase().trim();
+      const plateInputEl = document.getElementById('plateInput');
+      const plate = plateInputEl.value.toUpperCase().trim();
 
       if (!validarPlaca(plate)) {
         showAlert('Placa Inválida', 'Por favor, digite uma placa válida (Ex: ABC1234 ou ABC1D23).', 'warning');
         return;
-      }
-
-      // VERIFICAÇÃO DE LOTAÇÃO (PATCH 1.2.2)
-      try {
-        const { data: tenant, error: tErr } = await sb.from('tenants').select('total_vagas').eq('id', tenantId).single();
-        if (tErr) throw tErr;
-
-        const { count, error: cErr } = await sb.from('valet_entries')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', tenantId)
-          .eq('status', 'ativo');
-        
-        if (cErr) throw cErr;
-
-        if (count >= tenant.total_vagas) {
-          showAlert('Pátio Lotado', `O limite de ${tenant.total_vagas} vagas foi atingido. É necessário registrar a saída de um veículo primeiro.`, 'danger');
-          return;
-        }
-      } catch (err) {
-        console.error('Erro ao verificar lotação:', err);
       }
 
       // VERIFICAÇÃO DE PLACA DUPLICADA NO PÁTIO (PATCH 1.2.3)
@@ -341,28 +398,25 @@
       const btn = document.getElementById('btnConfirm');
       btn.classList.add('btn-loading');
 
-      try {
-        const { data: ticketNumero, error: rpcError } = await sb.rpc('gerar_ticket_numero', { p_tenant_id: tenantId });
-        if (rpcError) throw rpcError;
+      const entryTime = new Date().toISOString();
+      const { error } = await sb.from('valet_entries').insert([{
+        tenant_id: tenantId,
+        placa: plate,
+        entrada: entryTime,
+        operador_entrada_id: currentUser.id,
+        status: 'ativo'
+      }]);
 
-        const { error: insertError } = await sb.from('valet_entries').insert([{
-          tenant_id: tenantId,
-          placa: plate,
-          manobrista_id: currentUser.id,
-          ticket_numero: ticketNumero,
-          status: 'ativo'
-        }]);
-
-        if (insertError) throw insertError;
-
+      if (error) {
+        showAlert('Erro ao Registrar', 'Não foi possível salvar a entrada: ' + error.message, 'danger');
+      } else {
+        plateInputEl.value = '';
         showAlert('Sucesso', 'Entrada registrada com sucesso!', 'success');
-        plateInput.value = '';
         loadHistory();
-      } catch (err) {
-        showAlert('Erro', 'Falha ao registrar entrada: ' + err.message, 'danger');
-      } finally {
-        btn.classList.remove('btn-loading');
+        // Disparar Impressão (PATCH 1.2.5)
+        setTimeout(() => printTicket(plate, entryTime), 500);
       }
+      btn.classList.remove('btn-loading');
     });
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }

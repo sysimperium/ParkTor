@@ -171,6 +171,19 @@
         <div class="card-header"><h3 class="card-title">Estabelecimento</h3></div>
         <div class="card-body">
           <div class="form-group">
+            <label class="form-label">Logotipo do Estacionamento</label>
+            <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 10px;">
+              <div id="logoPreview" style="width: 80px; height: 80px; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff;">
+                <i data-lucide="image" style="color: #ccc;"></i>
+              </div>
+              <div style="flex: 1;">
+                <input type="file" id="logoFile" class="form-input" accept="image/*" style="display: none;">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('logoFile').click()">ALTERAR LOGO</button>
+                <p class="pg-s" style="margin-top: 5px;">Formatos: PNG ou JPG. Recomendado: Fundo transparente.</p>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
             <label class="form-label">Nome do Estacionamento</label>
             <input type="text" id="cfgNome" class="form-input" readonly>
           </div>
@@ -345,6 +358,10 @@
         document.getElementById('cfgValorDiaria').value = t.valor_diaria || 40.00;
         document.getElementById('cfgCustoFixo').value = t.custo_fixo_mensal || '';
         document.getElementById('txtPlano').textContent = t.planos?.nome || 'Básico';
+
+        if (t.logo_url) {
+          document.getElementById('logoPreview').innerHTML = `<img src="${t.logo_url}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+        }
         
         // LIMITAR VAGAS PELO PLANO (PATCH 1.2.1)
         planLimit = t.planos?.limite_vagas || 9999;
@@ -371,6 +388,39 @@
         </tr>
       `).join('');
     }
+
+    document.getElementById('logoFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const btn = e.target.nextElementSibling;
+      const preview = document.getElementById('logoPreview');
+      btn.disabled = true; btn.textContent = 'ENVIANDO...';
+
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${tenantId}/logo_${Date.now()}.${fileExt}`;
+        const filePath = `logos/${fileName}`;
+
+        // Upload para o Bucket 'public'
+        const { error: uploadError } = await sb.storage.from('public').upload(filePath, file);
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = sb.storage.from('public').getPublicUrl(filePath);
+
+        // Atualizar Tabela Tenants
+        const { error: updateError } = await sb.from('tenants').update({ logo_url: publicUrl }).eq('id', tenantId);
+        if (updateError) throw updateError;
+
+        preview.innerHTML = `<img src="${publicUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+        showAlert('Sucesso', 'Logotipo atualizado com sucesso!', 'success');
+      } catch (err) {
+        console.error(err);
+        showAlert('Erro no Upload', 'Não foi possível enviar a imagem. Verifique se o bucket "public" existe no seu Supabase.', 'danger');
+      } finally {
+        btn.disabled = false; btn.textContent = 'ALTERAR LOGO';
+      }
+    });
 
     document.getElementById('formConfig').addEventListener('submit', async (e) => {
       e.preventDefault();
