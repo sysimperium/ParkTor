@@ -10,52 +10,55 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="stylesheet" href="style.css">
   <style>
     body { display: none; }
 
-    /* Estilos de Impressão Otimizados (PATCH 1.2.6) */
+    /* Estilos do Ticket PDF (PATCH 1.2.9) */
+    #ticketPrint {
+      width: 58mm;
+      padding: 5mm;
+      background: #fff;
+      color: #000;
+      font-family: 'Courier New', Courier, monospace;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .ticket-header { border-bottom: 1px dashed #000; padding-bottom: 3mm; margin-bottom: 3mm; }
+    .ticket-logo { max-width: 30mm; max-height: 15mm; margin-bottom: 2mm; filter: grayscale(100%); }
+    .ticket-plate { font-size: 22pt; font-weight: bold; margin: 3mm 0; border: 1.5pt solid #000; padding: 2mm; }
+    .ticket-info { font-size: 10pt; margin-bottom: 4mm; }
+    .ticket-footer { border-top: 1px dashed #000; margin-top: 4mm; padding-top: 4mm; font-size: 8pt; }
+    
     @media print {
-      @page { size: 58mm auto; margin: 0; }
-      body { display: block !important; background: #fff; }
-      header, aside, .pg, .overlay, .modal-overlay, .bnav, #modalCustomAlert, #modalCustomConfirm { display: none !important; }
-      #ticketPrint {
-        display: block !important;
-        width: 58mm;
-        padding: 2mm;
-        margin: 0;
-        color: #000;
-        font-family: 'Courier New', Courier, monospace;
-        text-align: center;
-      }
-      .ticket-header { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
-      .ticket-logo { max-width: 35mm; max-height: 15mm; margin-bottom: 5px; filter: grayscale(100%) contrast(200%); }
-      .ticket-plate { font-size: 20pt; font-weight: bold; margin: 2mm 0; border: 1.5pt solid #000; padding: 1mm; }
-      .ticket-info { font-size: 9pt; margin-bottom: 3mm; line-height: 1.2; }
-      .ticket-barcode { width: 100%; height: 35px; }
-      .ticket-footer { border-top: 1px dashed #000; margin-top: 3mm; padding-top: 3mm; font-size: 8pt; line-height: 1.2; }
+      body * { visibility: hidden; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Layout do Ticket (Invisível na tela por padrão) -->
-  <div id="ticketPrint" style="display: none; background: #fff;">
-    <div class="ticket-header">
-      <img id="printLogo" class="ticket-logo" style="display: none; margin: 0 auto;">
-      <h3 id="printEstName" style="margin: 0; font-size: 12pt; text-transform: uppercase;">PARKTOR</h3>
-      <p style="font-size: 7pt; margin: 1mm 0;">CONTROLE DE ENTRADA</p>
-    </div>
-    <div class="ticket-plate" id="printPlate">---</div>
-    <div class="ticket-info">
-      <div id="printDate">Data: --/--/----</div>
-      <div id="printTime">Hora: --:--</div>
-    </div>
-    <div style="padding: 0 2mm;"><svg id="printBarcode"></svg></div>
-    <div class="ticket-footer">
-      <p>ESTE TICKET NÃO É UM RECIBO FISCAL</p>
-      <p>CONSERVE-O PARA A SAÍDA DO VEÍCULO</p>
-      <p style="font-size: 6pt; margin-top: 2mm;">ParkTor - Gestão de Pátios</p>
+  <!-- Container Oculto para Renderizar o PDF -->
+  <div style="position: absolute; left: -9999px; top: -9999px;">
+    <div id="ticketPrint">
+      <div class="ticket-header">
+        <img id="printLogo" class="ticket-logo" style="display: none; margin: 0 auto;">
+        <h3 id="printEstName" style="margin: 0; font-size: 14pt;">PARKTOR</h3>
+        <p style="font-size: 8pt; margin: 1mm 0;">CONTROLE DE ENTRADA</p>
+      </div>
+      <div class="ticket-plate" id="printPlate">---</div>
+      <div class="ticket-info">
+        <div id="printDate">DATA: --/--/----</div>
+        <div id="printTime">HORA: --:--</div>
+      </div>
+      <div id="barcodeContainer" style="display: flex; justify-content: center; margin-bottom: 2mm;">
+        <svg id="printBarcode"></svg>
+      </div>
+      <div class="ticket-footer">
+        <p>CONSERVE ESTE TICKET PARA A SAÍDA</p>
+        <p style="font-size: 6pt; margin-top: 2mm;">Sistema ParkTor</p>
+      </div>
     </div>
   </div>
 
@@ -363,25 +366,54 @@
       return regex.test(placa);
     }
 
-    function printTicket(plate, entryTime) {
+    async function printTicket(plate, entryTime) {
+      const { jsPDF } = window.jspdf;
       const date = new Date(entryTime);
+      
       document.getElementById('printPlate').textContent = plate;
       document.getElementById('printDate').textContent = `DATA: ${date.toLocaleDateString('pt-BR')}`;
       document.getElementById('printTime').textContent = `HORA: ${date.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
       
-      // Gerar Código de Barras Otimizado para Térmica
+      // Gerar Barcode para o PDF
       JsBarcode("#printBarcode", plate, {
         format: "CODE128",
         width: 2,
         height: 40,
         displayValue: true,
-        fontSize: 10,
-        margin: 0,
-        background: "#fff"
+        fontSize: 14
       });
 
-      // Disparar Impressão
-      window.print();
+      // Capturar o elemento como imagem (html2canvas)
+      const ticketEl = document.getElementById('ticketPrint');
+      const canvas = await html2canvas(ticketEl, { 
+        scale: 2, 
+        backgroundColor: '#ffffff',
+        useCORS: true // Para permitir carregar a logo do Supabase
+      });
+      const imgData = canvas.toDataURL('image/png');
+
+      // Criar PDF com tamanho 58mm (aproximado 164pt)
+      const pdf = new jsPDF({
+        unit: 'mm',
+        format: [58, 100] // Altura inicial estimada
+      });
+
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Redimensionar o PDF para a altura real do ticket
+      pdf.deletePage(1);
+      pdf.addPage([58, pdfHeight]);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+      // Abrir PDF em nova aba para impressão
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      // Limpar URL após um tempo
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
 
     document.getElementById('btnConfirm').addEventListener('click', async () => {
