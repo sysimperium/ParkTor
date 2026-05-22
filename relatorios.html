@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Relatórios Gerenciais</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>body { display: none; }</style>
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico">P</div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">A</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Admin</div>
+        <div class="sb-eq" id="userRoleSidebar">Administrador</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-sec">Principal</div>
+      <a href="dashboard.html" class="si">
+        <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+        <span class="si-l">Dashboard</span>
+      </a>
+
+      <div id="navGestao">
+        <div class="sb-sec">Gestão</div>
+        <a href="financeiro.html" class="si">
+          <span class="si-i"><i data-lucide="wallet"></i></span>
+          <span class="si-l">Financeiro</span>
+        </a>
+        <a href="relatorios.html" class="si active">
+          <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+          <span class="si-l">Relatórios</span>
+        </a>
+        <a href="mensalistas.html" class="si">
+          <span class="si-i"><i data-lucide="calendar-days"></i></span>
+          <span class="si-l">Mensalistas</span>
+        </a>
+        <a href="config.html" class="si">
+          <span class="si-i"><i data-lucide="settings"></i></span>
+          <span class="si-l">Configurações</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Relatórios Gerenciais</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av" id="tb-av-top">A</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="pg-hd">
+        <div>
+          <h1 class="pg-t">Inteligência de Negócio</h1>
+          <p class="pg-s">Analise o desempenho e a operação do seu estacionamento.</p>
+        </div>
+      </div>
+
+      <!-- FILTROS -->
+      <div class="card anim-fadeInUp">
+        <div class="card-body">
+          <div class="filter-grid">
+            <div class="form-group">
+              <label class="form-label">Data Inicial</label>
+              <input type="date" id="repDataInicio" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data Final</label>
+              <input type="date" id="repDataFim" class="form-input">
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end;">
+              <button class="btn btn-primary btn-full" onclick="generateReports()">GERAR RELATÓRIOS</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESUMO RÁPIDO -->
+      <div class="sgrid anim-stagger">
+        <div class="scard">
+          <div class="sico green"><i data-lucide="trending-up"></i></div>
+          <div><div class="slb">Faturamento Total</div><div class="svl" id="totalRevenue">R$ 0,00</div></div>
+        </div>
+        <div class="scard">
+          <div class="sico blue"><i data-lucide="car"></i></div>
+          <div><div class="slb">Atendimentos</div><div class="svl" id="totalStays">0</div></div>
+        </div>
+        <div class="scard">
+          <div class="sico gold"><i data-lucide="ticket"></i></div>
+          <div><div class="slb">Ticket Médio</div><div class="svl" id="avgTicket">R$ 0,00</div></div>
+        </div>
+        <div class="scard">
+          <div class="sico red"><i data-lucide="shield-check"></i></div>
+          <div><div class="slb">Total Isentos</div><div class="svl" id="totalExempt">0</div></div>
+        </div>
+      </div>
+
+      <div class="dash-grid">
+        <!-- FINANCEIRO: POR FORMA DE PAGAMENTO -->
+        <div class="card anim-fadeInUp">
+          <div class="card-header">
+            <h3 class="card-title">Faturamento por Forma</h3>
+          </div>
+          <div class="card-body">
+            <p class="pg-s" style="margin-bottom: 15px;">Divisão dos ganhos por tipo de transação no período.</p>
+            <div class="tw">
+              <table class="tab">
+                <thead><tr><th>Forma</th><th>Qtd</th><th>Valor</th><th>%</th></tr></thead>
+                <tbody id="payTableBody">
+                  <tr><td colspan="4" class="txt-center">Selecione um período</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- OPERACIONAL: HORÁRIOS DE PICO -->
+        <div class="card anim-fadeInUp">
+          <div class="card-header">
+            <h3 class="card-title">Horários de Pico (Entradas)</h3>
+          </div>
+          <div class="card-body">
+            <p class="pg-s" style="margin-bottom: 15px;">Identificação dos momentos de maior fluxo no pátio.</p>
+            <div class="tw">
+              <table class="tab">
+                <thead><tr><th>Horário</th><th>Entradas</th><th>Impacto</th></tr></thead>
+                <tbody id="peakTableBody">
+                  <tr><td colspan="3" class="txt-center">Selecione um período</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERFORMANCE: POR OPERADOR -->
+        <div class="card anim-fadeInUp">
+          <div class="card-header">
+            <h3 class="card-title">Performance por Operador</h3>
+          </div>
+          <div class="card-body">
+            <p class="pg-s" style="margin-bottom: 15px;">Acompanhamento da produtividade da equipe.</p>
+            <div class="tw">
+              <table class="tab">
+                <thead><tr><th>Operador</th><th>Saídas</th><th>Faturado</th></tr></thead>
+                <tbody id="userTableBody">
+                  <tr><td colspan="3" class="txt-center">Selecione um período</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- AUDITORIA: LISTA DE ISENTOS -->
+        <div class="card anim-fadeInUp">
+          <div class="card-header">
+            <h3 class="card-title">Auditoria: Últimos Isentos</h3>
+          </div>
+          <div class="card-body">
+            <p class="pg-s" style="margin-bottom: 15px;">Verificação de veículos que saíram sem cobrança (até 5 min).</p>
+            <div class="tw">
+              <table class="tab">
+                <thead><tr><th>Placa</th><th>Data</th><th>Permanência</th></tr></thead>
+                <tbody id="exemptTableBody">
+                  <tr><td colspan="3" class="txt-center">Selecione um período</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null, tenantId = null;
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+
+      const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+      if (error || !user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      currentUser = user;
+      tenantId = user.tenant_id;
+
+      const firstName = user.nome.split(' ')[0];
+      document.getElementById('userNameSidebar').textContent = firstName;
+      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+      document.getElementById('sb-av-sidebar').textContent = firstName[0];
+      document.getElementById('tb-av-top').textContent = firstName[0];
+      
+      const hoje = new Date().toISOString().split('T')[0];
+      document.getElementById('repDataInicio').value = hoje;
+      document.getElementById('repDataFim').value = hoje;
+
+      document.body.style.display = 'block';
+      generateReports();
+    }
+
+    async function generateReports() {
+      const dataInicio = document.getElementById('repDataInicio').value;
+      const dataFim = document.getElementById('repDataFim').value;
+
+      if (!dataInicio || !dataFim) return;
+
+      // 1. DADOS BRUTOS (valet_entries)
+      const { data: entries, error } = await sb.from('valet_entries')
+        .select('*, users!valet_entries_operador_saida_id_fkey(nome)')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'finalizado')
+        .gte('saida', `${dataInicio}T00:00:00`)
+        .lte('saida', `${dataFim}T23:59:59`);
+
+      if (error) { console.error(error); return; }
+
+      renderFinancial(entries);
+      renderOperational(entries);
+      renderPerformance(entries);
+      renderAuditory(entries);
+    }
+
+    function renderFinancial(data) {
+      const total = data.reduce((acc, curr) => acc + (curr.valor || 0), 0);
+      const isentos = data.filter(d => d.valor === 0).length;
+      const avg = data.length > 0 ? (total / data.length) : 0;
+
+      document.getElementById('totalRevenue').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalStays').textContent = data.length;
+      document.getElementById('avgTicket').textContent = `R$ ${avg.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalExempt').textContent = isentos;
+
+      // Agrupamento por Forma de Pagamento
+      const groups = data.reduce((acc, curr) => {
+        const key = curr.forma_pagamento || 'isento';
+        if (!acc[key]) acc[key] = { qtd: 0, valor: 0 };
+        acc[key].qtd++;
+        acc[key].valor += (curr.valor || 0);
+        return acc;
+      }, {});
+
+      const tbody = document.getElementById('payTableBody');
+      tbody.innerHTML = Object.entries(groups).map(([label, val]) => `
+        <tr>
+          <td><span class="badge badge-blue">${label.toUpperCase()}</span></td>
+          <td>${val.qtd}</td>
+          <td>R$ ${val.valor.toFixed(2)}</td>
+          <td>${total > 0 ? ((val.valor / total) * 100).toFixed(1) : 0}%</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderOperational(data) {
+      // Agrupamento por Hora de Entrada
+      const hours = data.reduce((acc, curr) => {
+        const hour = new Date(curr.entrada).getHours();
+        acc[hour] = (acc[hour] || 0) + 1;
+        return acc;
+      }, {});
+
+      const sortedHours = Object.entries(hours).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const max = Math.max(...Object.values(hours), 1);
+
+      const tbody = document.getElementById('peakTableBody');
+      tbody.innerHTML = sortedHours.map(([hour, count]) => `
+        <tr>
+          <td><strong>${hour}:00</strong></td>
+          <td>${count} entradas</td>
+          <td>
+            <div class="progress-track" style="height: 6px;"><div class="progress-fill gold" style="width: ${(count/max)*100}%"></div></div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderPerformance(data) {
+      const operators = data.reduce((acc, curr) => {
+        const name = curr.users?.nome || 'Sistema';
+        if (!acc[name]) acc[name] = { qtd: 0, valor: 0 };
+        acc[name].qtd++;
+        acc[name].valor += (curr.valor || 0);
+        return acc;
+      }, {});
+
+      const tbody = document.getElementById('userTableBody');
+      tbody.innerHTML = Object.entries(operators).map(([name, val]) => `
+        <tr>
+          <td>${name}</td>
+          <td>${val.qtd}</td>
+          <td>R$ ${val.valor.toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderAuditory(data) {
+      const isentos = data.filter(d => d.valor === 0).slice(0, 10);
+      const tbody = document.getElementById('exemptTableBody');
+      if (isentos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="txt-center">Nenhum isento no período</td></tr>';
+        return;
+      }
+      tbody.innerHTML = isentos.map(d => `
+        <tr>
+          <td><strong>${d.placa}</strong></td>
+          <td>${new Date(d.saida).toLocaleDateString('pt-BR')}</td>
+          <td>${d.minutos_total} min</td>
+        </tr>
+      `).join('');
+    }
+
+    init();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

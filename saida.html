@@ -56,6 +56,10 @@
           <span class="si-i"><i data-lucide="wallet"></i></span>
           <span class="si-l">Financeiro</span>
         </a>
+        <a href="relatorios.html" class="si">
+          <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+          <span class="si-l">Relatórios</span>
+        </a>
         <a href="mensalistas.html" class="si">
           <span class="si-i"><i data-lucide="calendar-days"></i></span>
           <span class="si-l">Mensalistas</span>
@@ -101,7 +105,7 @@
       <!-- TABS -->
       <div class="tabs-nav anim-fadeInUp">
         <button class="tab-btn active" onclick="switchTab('patio')">VEÍCULOS NO PÁTIO</button>
-        <button class="tab-btn" onclick="switchTab('historico')">HISTÓRICO DE HOJE</button>
+        <button class="tab-btn" onclick="switchTab('historico')">HISTÓRICO</button>
       </div>
 
       <!-- SEÇÃO PÁTIO -->
@@ -159,9 +163,9 @@
           </div>
           <div class="tw">
             <table class="tab">
-              <thead><tr><th>Placa</th><th>Saída</th><th>Permanência</th><th>Valor</th><th>Pagto</th></tr></thead>
+              <thead><tr><th>Placa</th><th>Data</th><th>Saída</th><th>Permanência</th><th>Valor</th><th>Pagto</th></tr></thead>
               <tbody id="historyTableBody">
-                <tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>
+                <tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>
               </tbody>
             </table>
           </div>
@@ -435,6 +439,7 @@
       tbody.innerHTML = data.map(item => `
         <tr>
           <td><strong style="font-family: var(--font-display); letter-spacing: 1px;">${item.placa}</strong></td>
+          <td>${new Date(item.saida).toLocaleDateString('pt-BR')}</td>
           <td>${new Date(item.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
           <td>${item.minutos_total} min</td>
           <td>R$ ${item.valor.toFixed(2).replace('.', ',')}</td>
