@@ -267,12 +267,53 @@
     function showAlert(t,m,i='warning'){ document.getElementById('alertTitle').innerText=t; document.getElementById('alertText').innerText=m; document.getElementById('modalCustomAlert').classList.add('show'); lucide.createIcons(); }
     function closeAlert(){ document.getElementById('modalCustomAlert').classList.remove('show'); }
 
-    async function deleteExpense(id, desc) {
-      const confirmed = await showConfirm('Excluir Despesa', `Deseja realmente excluir a despesa "${desc}"?`);
-      if (!confirmed) return;
-      const { error } = await sb.from('expenses').delete().eq('id', id);
+    async function deleteExpense(id, desc, status, recorrencia, categoria) {
+      if (status === 'pago') {
+        showAlert('Ação Bloqueada', 'Não é possível excluir uma despesa que já foi PAGA. Reabra o lançamento primeiro.', 'danger');
+        return;
+      }
+
+      let deleteMode = 'unica';
+      if (recorrencia !== 'unica') {
+        const choice = await showConfirm('Excluir Recorrência', `Deseja excluir apenas este lançamento de "${desc}" ou este e todos os próximos meses?`);
+        if (choice === null) return; // Cancelou
+        deleteMode = choice ? 'futuras' : 'unica';
+      } else {
+        const confirmed = await showConfirm('Confirmar Exclusão', `Deseja realmente excluir a despesa "${desc}"?`);
+        if (!confirmed) return;
+      }
+
+      let query = sb.from('expenses').delete().eq('id', id);
+      
+      if (deleteMode === 'futuras') {
+        // Pega a data da despesa atual para apagar as maiores que ela
+        const { data: current } = await sb.from('expenses').select('data_vencimento').eq('id', id).single();
+        
+        // Verifica se há alguma paga no futuro antes de apagar
+        const { data: paidFuture } = await sb.from('expenses')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('descricao', desc)
+          .eq('categoria', categoria)
+          .eq('status', 'pago')
+          .gt('data_vencimento', current.data_vencimento);
+
+        if (paidFuture && paidFuture.length > 0) {
+          showAlert('Ação Bloqueada', 'Existem lançamentos futuros desta série que já estão PAGOS. Exclua-os individualmente.', 'danger');
+          return;
+        }
+
+        query = sb.from('expenses').delete()
+          .eq('tenant_id', tenantId)
+          .eq('descricao', desc)
+          .eq('categoria', categoria)
+          .eq('status', 'pendente')
+          .gte('data_vencimento', current.data_vencimento);
+      }
+
+      const { error } = await query;
       if (error) showAlert('Erro ao Excluir', error.message, 'danger');
-      else { showAlert('Sucesso', 'Despesa removida!', 'success'); loadFinance(); }
+      else { showAlert('Sucesso', 'Exclusão realizada!', 'success'); loadFinance(); }
     }
 
     let confirmResolve;
@@ -283,15 +324,40 @@
       const btnContainer = modal.querySelector('button').parentElement;
       const originalBtn = modal.querySelector('button');
       originalBtn.style.display = 'none';
+
+      const isRecurrent = title.includes('Recorrência');
+
       const confirmBtn = document.createElement('button');
-      confirmBtn.className = 'btn btn-primary'; confirmBtn.innerText = 'CONFIRMAR';
-      confirmBtn.onclick = () => { cleanup(); confirmResolve(true); };
+      confirmBtn.className = 'btn btn-primary';
+      confirmBtn.innerText = isRecurrent ? 'ESTE E FUTUROS' : 'CONFIRMAR';
+      confirmBtn.onclick = () => { cleanup(); confirmResolve(isRecurrent ? true : true); };
+
+      const onlyThisBtn = isRecurrent ? document.createElement('button') : null;
+      if (onlyThisBtn) {
+        onlyThisBtn.className = 'btn btn-ghost';
+        onlyThisBtn.innerText = 'APENAS ESTE';
+        onlyThisBtn.onclick = () => { cleanup(); confirmResolve(false); };
+      }
+
       const cancelBtn = document.createElement('button');
-      cancelBtn.className = 'btn btn-ghost'; cancelBtn.innerText = 'CANCELAR';
-      cancelBtn.onclick = () => { cleanup(); confirmResolve(false); };
-      btnContainer.appendChild(cancelBtn); btnContainer.appendChild(confirmBtn);
+      cancelBtn.className = 'btn btn-ghost';
+      cancelBtn.innerText = 'CANCELAR';
+      cancelBtn.onclick = () => { cleanup(); confirmResolve(null); };
+
+      btnContainer.appendChild(cancelBtn);
+      if (onlyThisBtn) btnContainer.appendChild(onlyThisBtn);
+      btnContainer.appendChild(confirmBtn);
+      
       modal.classList.add('show');
-      function cleanup() { modal.classList.remove('show'); cancelBtn.remove(); confirmBtn.remove(); originalBtn.style.display = 'block'; }
+
+      function cleanup() {
+        modal.classList.remove('show');
+        cancelBtn.remove();
+        if (onlyThisBtn) onlyThisBtn.remove();
+        confirmBtn.remove();
+        originalBtn.style.display = 'block';
+      }
+
       return new Promise((resolve) => { confirmResolve = resolve; });
     }
 
@@ -396,7 +462,7 @@
               <button class="btn ${isPago ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="toggleExpenseStatus('${e.id}', '${e.status}')" style="padding: 5px 10px; font-size: 0.7rem;">
                 ${isPago ? 'REABRIR' : 'BAIXAR'}
               </button>
-              <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}')" style="color: var(--red); padding: 5px;">
+              <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}', '${e.status}', '${e.recorrencia}', '${e.categoria}')" style="color: var(--red); padding: 5px;">
                 <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
               </button>
             </div>
