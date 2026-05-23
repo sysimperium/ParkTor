@@ -252,8 +252,8 @@
       document.getElementById('alertTitle').innerText = title;
       document.getElementById('alertText').innerText = text;
       const iconDiv = document.getElementById('alertIcon');
-      iconDiv.className = `modal-icon ${type}`;
-      iconDiv.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')}"></i>`;
+      iconDiv.className = 'modal-icon ' + type;
+      iconDiv.innerHTML = '<i data-lucide="' + (type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')) + '"></i>';
       document.getElementById('modalCustomAlert').classList.add('show');
       lucide.createIcons();
     }
@@ -352,13 +352,13 @@
         return;
       }
 
-      tbody.innerHTML = data.map(item => `
-        <tr>
-          <td><strong style="font-family: var(--font-display); letter-spacing: 1px;">${item.placa}</strong></td>
-          <td>${new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td><span class="badge ${item.status === 'ativo' ? 'badge-gold' : 'badge-green'}">${item.status.toUpperCase()}</span></td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = data.map(function(item) {
+        return '<tr>' +
+          '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
+          '<td>' + new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td><span class="badge ' + (item.status === 'ativo' ? 'badge-gold' : 'badge-green') + '">' + item.status.toUpperCase() + '</span></td>' +
+        '</tr>';
+      }).join('');
     }
 
     // Validação de Placa (Brasil: XXX9999 ou XXX9X99)

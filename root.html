@@ -210,8 +210,8 @@
       document.getElementById('alertTitle').innerText = title;
       document.getElementById('alertText').innerText = text;
       const iconDiv = document.getElementById('alertIcon');
-      iconDiv.className = `modal-icon ${type}`;
-      iconDiv.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')}"></i>`;
+      iconDiv.className = 'modal-icon ' + type;
+      iconDiv.innerHTML = '<i data-lucide="' + (type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')) + '"></i>';
       document.getElementById('modalCustomAlert').classList.add('show');
       lucide.createIcons();
     }
@@ -286,29 +286,29 @@
         return;
       }
 
-      select.innerHTML = planos.map(p => `
-        <option value="${p.id}" ${p.id === selectedId ? 'selected' : ''}>
-          Plano ${p.nome} - R$ ${p.valor.toFixed(0)} - ${p.descricao}
-        </option>
-      `).join('');
+      select.innerHTML = planos.map(function(p) {
+        return '<option value="' + p.id + '" ' + (p.id === selectedId ? 'selected' : '') + '>' +
+          'Plano ' + p.nome + ' - R$ ' + p.valor.toFixed(0) + ' - ' + p.descricao +
+        '</option>';
+      }).join('');
     }
 
     async function loadTenants() {
       const { data: tenants } = await sb.from('tenants').select('*, planos(nome)');
       document.getElementById('totalTenants').textContent = tenants.length;
       const grid = document.getElementById('tenantGrid');
-      grid.innerHTML = tenants.map(t => `
-        <div class="card anim-fadeInUp">
-          <div class="card-header"><h3 class="card-title">${t.nome}</h3><span class="badge ${t.status === 'ativo' ? 'badge-green' : (t.status === 'suspenso' ? 'badge-gold' : 'badge-red')}">${t.status}</span></div>
-          <div class="card-body tenant-card-body">
-            <p>Plano: <strong>${t.planos?.nome || 'Básico'}</strong></p>
-            <p>Vagas: <strong>${t.total_vagas}</strong></p>
-            <div class="tenant-actions">
-              <button class="btn btn-secondary btn-full btn-sm" onclick="openEditModal('${t.id}', '${t.nome}', '${t.plano_id}', '${t.status}')">EDITAR</button>
-            </div>
-          </div>
-        </div>
-      `).join('');
+      grid.innerHTML = tenants.map(function(t) {
+        return '<div class="card anim-fadeInUp">' +
+          '<div class="card-header"><h3 class="card-title">' + t.nome + '</h3><span class="badge ' + (t.status === 'ativo' ? 'badge-green' : (t.status === 'suspenso' ? 'badge-gold' : 'badge-red')) + '">' + t.status + '</span></div>' +
+          '<div class="card-body tenant-card-body">' +
+            '<p>Plano: <strong>' + (t.planos ? t.planos.nome : 'Básico') + '</strong></p>' +
+            '<p>Vagas: <strong>' + t.total_vagas + '</strong></p>' +
+            '<div class="tenant-actions">' +
+              '<button class="btn btn-secondary btn-full btn-sm" onclick="openEditModal(\'' + t.id + '\', \'' + t.nome + '\', \'' + t.plano_id + '\', \'' + t.status + '\')">EDITAR</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
       lucide.createIcons();
     }
 

@@ -380,52 +380,58 @@
     function toggleParcelas(val) { document.getElementById('rowParcelas').style.display = val === 'parcelada' ? 'block' : 'none'; }
 
     async function init() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
-      if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
-      currentUser = user; tenantId = user.tenant_id;
-
-      // CONTROLE DE VISIBILIDADE DA SIDEBAR
-      if (user.nivel_acesso === 'manobrista') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navSaida')?.remove();
-        document.getElementById('navGestao')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavSaida')?.remove();
-      } else if (user.nivel_acesso === 'operador') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navEntrada')?.remove();
-        document.getElementById('navFinanceiro')?.remove();
-        document.getElementById('navMensalistas')?.remove();
-        document.getElementById('navConfig')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavEntrada')?.remove();
-      }
-
-      const agora = new Date();
-      document.getElementById('filterMonth').value = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
-      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
-      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
-      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
-      document.getElementById('tb-av-top').textContent = user.nome[0];
-
-      if (currentUser.tenants) {
-        document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
-        if (currentUser.tenants.logo_url) {
-          document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { window.location.href = 'index.html'; return; }
+        const { data: user } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+        if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
+        
+        // Sidebar Visibility Logic (STRICT)
+        if (user.nivel_acesso === 'manobrista') {
+          document.getElementById('navDashboard')?.remove();
+          document.getElementById('navSaida')?.remove();
+          document.getElementById('navGestao')?.remove();
+          document.getElementById('mobNavDash')?.remove();
+          document.getElementById('mobNavSaida')?.remove();
+        } else if (user.nivel_acesso === 'operador') {
+          document.getElementById('navDashboard')?.remove();
+          document.getElementById('navEntrada')?.remove();
+          document.getElementById('navFinanceiro')?.remove();
+          document.getElementById('navMensalistas')?.remove();
+          document.getElementById('navConfig')?.remove();
+          document.getElementById('mobNavDash')?.remove();
+          document.getElementById('mobNavEntrada')?.remove();
         }
-      }
 
-      document.body.style.display = 'block';
-      loadFinance();
+        currentUser = user; tenantId = user.tenant_id;
+
+        const agora = new Date();
+        document.getElementById('filterMonth').value = agora.getFullYear() + "-" + String(agora.getMonth() + 1).padStart(2, '0');
+        document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+        document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+        document.getElementById('sb-av-sidebar').textContent = user.nome[0];
+        document.getElementById('tb-av-top').textContent = user.nome[0];
+
+        if (currentUser.tenants) {
+          document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
+          if (currentUser.tenants.logo_url) {
+            document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
+          }
+        }
+
+        loadFinance();
+      } catch (err) {
+        console.error('Init error:', err);
+      } finally {
+        document.body.style.display = 'block';
+      }
     }
 
     function changeMonth(delta) {
       const input = document.getElementById('filterMonth');
       const current = new Date(input.value + '-01T12:00:00Z');
       current.setUTCMonth(current.getUTCMonth() + delta);
-      input.value = `${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}`;
+      input.value = current.getUTCFullYear() + "-" + String(current.getUTCMonth() + 1).padStart(2, '0');
       loadFinance();
     }
 
@@ -442,42 +448,56 @@
 
       const { data: income } = await sb.from('valet_entries').select('valor, placa, saida, forma_pagamento').eq('tenant_id', tenantId).eq('status', 'finalizado').gte('saida', firstISO).lte('saida', lastISO);
       const totInc = income?.reduce((a, c) => a + (c.valor || 0), 0) || 0;
-      document.getElementById('totalMonthIncome').textContent = `R$ ${totInc.toFixed(2).replace('.', ',')}`;
-      document.getElementById('incomeList').innerHTML = income?.slice(0, 10).map(t => `
-        <div class="expense-row">
-          <div class="expense-info"><div class="expense-desc">Placa: ${t.placa}</div><div class="expense-date">${new Date(t.saida).toLocaleString('pt-BR')}</div></div>
-          <div style="font-weight: 700; color: var(--green);">+ R$ ${t.valor.toFixed(2)}</div>
-        </div>
-      `).join('') || '<div class="empty-state">Sem receitas</div>';
+      document.getElementById('totalMonthIncome').textContent = "R$ " + totInc.toFixed(2).replace('.', ',');
+      
+      var incHtml = '';
+      if (income && income.length > 0) {
+        var topIncome = income.slice(0, 10);
+        for (var i = 0; i < topIncome.length; i++) {
+          var t = topIncome[i];
+          incHtml += '<div class="expense-row">' +
+            '<div class="expense-info"><div class="expense-desc">Placa: ' + t.placa + '</div><div class="expense-date">' + new Date(t.saida).toLocaleString('pt-BR') + '</div></div>' +
+            '<div style="font-weight: 700; color: var(--green);">+ R$ ' + t.valor.toFixed(2) + '</div>' +
+          '</div>';
+        }
+      } else {
+        incHtml = '<div class="empty-state">Sem receitas</div>';
+      }
+      document.getElementById('incomeList').innerHTML = incHtml;
 
-      const { data: expenses } = await sb.from('expenses').select('*').eq('tenant_id', tenantId).gte('data_vencimento', `${year}-${month}-01`).lte('data_vencimento', `${year}-${month}-${lastDay}`).order('data_vencimento', { ascending: true });
+      const { data: expenses } = await sb.from('expenses').select('*').eq('tenant_id', tenantId).gte('data_vencimento', year + "-" + month + "-01").lte('data_vencimento', year + "-" + month + "-" + lastDay).order('data_vencimento', { ascending: true });
       const totPaid = expenses?.filter(e => e.status === 'pago').reduce((a, c) => a + (c.valor || 0), 0) || 0;
       const totPend = expenses?.filter(e => e.status === 'pendente').reduce((a, c) => a + (c.valor || 0), 0) || 0;
-      document.getElementById('totalPaidExpense').textContent = `R$ ${totPaid.toFixed(2).replace('.', ',')}`;
-      document.getElementById('totalPendingExpense').textContent = `R$ ${totPend.toFixed(2).replace('.', ',')}`;
+      document.getElementById('totalPaidExpense').textContent = "R$ " + totPaid.toFixed(2).replace('.', ',');
+      document.getElementById('totalPendingExpense').textContent = "R$ " + totPend.toFixed(2).replace('.', ',');
 
-      document.getElementById('expenseList').innerHTML = expenses?.map(e => {
-        const [y, m, d] = e.data_vencimento.split('-');
-        const isPago = e.status === 'pago';
-        return `
-          <div class="expense-row" style="opacity: ${isPago ? '0.7' : '1'}">
-            <div class="expense-info">
-              <div style="display: flex; align-items: center; gap: 8px;"><div class="expense-cat">${e.categoria}</div><span class="badge ${isPago ? 'badge-green' : 'badge-gold'}">${e.status.toUpperCase()}</span></div>
-              <div class="expense-desc">${e.descricao} ${e.recorrencia === 'parcelada' ? `(${e.parcela_atual}/${e.total_parcelas})` : ''}</div>
-              <div class="expense-date">Venc: ${d}/${m}/${y}</div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div class="expense-val" style="color: ${isPago ? 'var(--text-muted)' : 'var(--red)'}">- R$ ${e.valor.toFixed(2).replace('.', ',')}</div>
-              <button class="btn ${isPago ? 'btn-ghost' : 'btn-primary'} btn-sm" onclick="toggleExpenseStatus('${e.id}', '${e.status}')">${isPago ? 'REABRIR' : 'BAIXAR'}</button>
-              <button class="btn btn-ghost btn-sm" onclick="deleteExpense('${e.id}', '${e.descricao}', '${e.status}', '${e.recorrencia}', '${e.categoria}')"><i data-lucide="trash-2"></i></button>
-            </div>
-          </div>
-        `;
-      }).join('') || '<div class="empty-state">Sem despesas</div>';
+      var expHtml = '';
+      if (expenses && expenses.length > 0) {
+        for (var j = 0; j < expenses.length; j++) {
+          var e = expenses[j];
+          var parts = e.data_vencimento.split('-');
+          var isPago = e.status === 'pago';
+          expHtml += '<div class="expense-row" style="opacity: ' + (isPago ? '0.7' : '1') + '">' +
+            '<div class="expense-info">' +
+              '<div style="display: flex; align-items: center; gap: 8px;"><div class="expense-cat">' + e.categoria + '</div><span class="badge ' + (isPago ? 'badge-green' : 'badge-gold') + '">' + e.status.toUpperCase() + '</span></div>' +
+              '<div class="expense-desc">' + e.descricao + ' ' + (e.recorrencia === 'parcelada' ? '(' + e.parcela_atual + '/' + e.total_parcelas + ')' : '') + '</div>' +
+              '<div class="expense-date">Venc: ' + parts[2] + '/' + parts[1] + '/' + parts[0] + '</div>' +
+            '</div>' +
+            '<div style="display: flex; align-items: center; gap: 10px;">' +
+              '<div class="expense-val" style="color: ' + (isPago ? 'var(--text-muted)' : 'var(--red)') + '">- R$ ' + e.valor.toFixed(2).replace('.', ',') + '</div>' +
+              '<button class="btn ' + (isPago ? 'btn-ghost' : 'btn-primary') + ' btn-sm" onclick="toggleExpenseStatus(\'' + e.id + '\', \'' + e.status + '\')">' + (isPago ? 'REABRIR' : 'BAIXAR') + '</button>' +
+              '<button class="btn btn-ghost btn-sm" onclick="deleteExpense(\'' + e.id + '\', \'' + e.descricao + '\', \'' + e.status + '\', \'' + e.recorrencia + '\', \'' + e.categoria + '\')"><i data-lucide="trash-2"></i></button>' +
+            '</div>' +
+          '</div>';
+        }
+      } else {
+        expHtml = '<div class="empty-state">Sem despesas</div>';
+      }
+      document.getElementById('expenseList').innerHTML = expHtml;
 
       const cash = totInc - totPaid;
       const profEl = document.getElementById('netProfit');
-      profEl.textContent = `R$ ${cash.toFixed(2).replace('.', ',')}`;
+      profEl.textContent = "R$ " + cash.toFixed(2).replace('.', ',');
       profEl.style.color = cash >= 0 ? 'var(--gold-400)' : 'var(--red)';
       lucide.createIcons();
     }

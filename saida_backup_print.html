@@ -419,14 +419,14 @@
         return;
       }
       document.getElementById('activeCount').textContent = data.length;
-      tbody.innerHTML = data.map(item => `
-        <tr>
-          <td><strong style="font-family: var(--font-display); letter-spacing: 1px;">${item.placa}</strong></td>
-          <td>${new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td><span class="badge badge-gold">${Math.floor(item.minutos_estacionado)} min</span></td>
-          <td><button class="btn btn-ghost btn-sm" onclick="startCheckout('${item.id}')">SAÍDA</button></td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = data.map(function(item) {
+        return '<tr>' +
+          '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
+          '<td>' + new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td><span class="badge badge-gold">' + Math.floor(item.minutos_estacionado) + ' min</span></td>' +
+          '<td><button class="btn btn-ghost btn-sm" onclick="startCheckout(\'' + item.id + '\')">SAÍDA</button></td>' +
+        '</tr>';
+      }).join('');
       document.getElementById('searchInput').focus();
     }
 
@@ -477,12 +477,12 @@
 
       document.getElementById('checkPlate').textContent = data.placa;
       document.getElementById('checkIn').textContent = new Date(data.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('checkDuration').textContent = `${selectedEntry.calc.minutos} min`;
-      document.getElementById('checkTotal').textContent = `R$ ${selectedEntry.calc.total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('checkDuration').textContent = selectedEntry.calc.minutos + ' min';
+      document.getElementById('checkTotal').textContent = 'R$ ' + selectedEntry.calc.total.toFixed(2).replace('.', ',');
 
-      document.getElementById('rotationList').innerHTML = selectedEntry.calc.history.map(h => `
-        <div class="rotation-item"><div class="rotation-label">${h.label}</div><div class="rotation-sub">R$ ${h.valor.toFixed(2)}</div></div>
-      `).join('');
+      document.getElementById('rotationList').innerHTML = selectedEntry.calc.history.map(function(h) {
+        return '<div class="rotation-item"><div class="rotation-label">' + h.label + '</div><div class="rotation-sub">R$ ' + h.valor.toFixed(2) + '</div></div>';
+      }).join('');
 
       selectedPayments = [];
       renderPayments();
@@ -503,13 +503,13 @@
 
     function renderPayments() {
       const listEl = document.getElementById('paymentList');
-      listEl.innerHTML = selectedPayments.map((p, i) => `
-        <div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
-          <span class="badge badge-blue" style="width: 80px;">${p.mode.toUpperCase()}</span>
-          <input type="number" class="form-input" value="${p.valor.toFixed(2)}" step="0.01" onchange="updatePaymentValor(${i}, this.value)" style="flex: 1;">
-          <button class="btn btn-ghost btn-sm" onclick="removePayment(${i})"><i data-lucide="trash-2"></i></button>
-        </div>
-      `).join('');
+      listEl.innerHTML = selectedPayments.map(function(p, i) {
+        return '<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">' +
+          '<span class="badge badge-blue" style="width: 80px;">' + p.mode.toUpperCase() + '</span>' +
+          '<input type="number" class="form-input" value="' + p.valor.toFixed(2) + '" step="0.01" onchange="updatePaymentValor(' + i + ', this.value)" style="flex: 1;">' +
+          '<button class="btn btn-ghost btn-sm" onclick="removePayment(' + i + ')"><i data-lucide="trash-2"></i></button>' +
+        '</div>';
+      }).join('');
       lucide.createIcons();
       updateRemaining();
     }
@@ -523,7 +523,7 @@
       if (total === 0 || Math.abs(remaining) < 0.01) { row.style.display = 'none'; }
       else {
         row.style.display = 'flex';
-        text.textContent = `R$ ${remaining.toFixed(2).replace('.', ',')}`;
+        text.textContent = 'R$ ' + remaining.toFixed(2).replace('.', ',');
         text.style.color = remaining > 0 ? 'var(--red)' : 'var(--green)';
       }
     }
@@ -574,15 +574,17 @@
       document.getElementById('recOut').textContent = fmt(agora);
       document.getElementById('recOutCopy').textContent = fmt(agora);
       
-      document.getElementById('recDuration').textContent = `${entryData.calc.minutos} min`;
-      document.getElementById('recTotal').textContent = `R$ ${entryData.calc.total.toFixed(2).replace('.', ',')}`;
-      document.getElementById('recTotalCopy').textContent = `R$ ${entryData.calc.total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('recDuration').textContent = entryData.calc.minutos + ' min';
+      document.getElementById('recTotal').textContent = 'R$ ' + entryData.calc.total.toFixed(2).replace('.', ',');
+      document.getElementById('recTotalCopy').textContent = 'R$ ' + entryData.calc.total.toFixed(2).replace('.', ',');
       document.getElementById('recPayCopy').textContent = mainPayMode.toUpperCase();
       document.getElementById('recOpCopy').textContent = currentUser.nome;
 
       const histEl = document.getElementById('recHistoryContent');
       histEl.innerHTML = '<div style="font-weight: 700; margin-bottom: 1mm; font-size: 7pt;">DETALHES DA TARIFA:</div>' + 
-        entryData.calc.history.map(h => `<div style="display: flex; justify-content: space-between; margin-bottom: 0.5mm;"><span>${h.label}</span><strong>R$ ${h.valor.toFixed(2)}</strong></div>`).join('');
+        entryData.calc.history.map(function(h) {
+          return '<div style="display: flex; justify-content: space-between; margin-bottom: 0.5mm;"><span>' + h.label + '</span><strong>R$ ' + h.valor.toFixed(2) + '</strong></div>';
+        }).join('');
 
       const receiptEl = document.getElementById('receiptPrint');
       const canvas = await html2canvas(receiptEl, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
@@ -632,16 +634,16 @@
       const { data } = await query.order('saida', { ascending: false });
       const tbody = document.getElementById('historyTableBody');
       if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>'; return; }
-      tbody.innerHTML = data.map(item => `
-        <tr>
-          <td><strong>${item.placa}</strong></td>
-          <td>${new Date(item.saida).toLocaleDateString('pt-BR')}</td>
-          <td>${new Date(item.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td>${item.minutos_total} min</td>
-          <td>R$ ${item.valor.toFixed(2).replace('.', ',')}</td>
-          <td><span class="badge badge-blue">${item.forma_pagamento.toUpperCase()}</span></td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = data.map(function(item) {
+        return '<tr>' +
+          '<td><strong>' + item.placa + '</strong></td>' +
+          '<td>' + new Date(item.saida).toLocaleDateString('pt-BR') + '</td>' +
+          '<td>' + new Date(item.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td>' + item.minutos_total + ' min</td>' +
+          '<td>R$ ' + item.valor.toFixed(2).replace('.', ',') + '</td>' +
+          '<td><span class="badge badge-blue">' + item.forma_pagamento.toUpperCase() + '</span></td>' +
+        '</tr>';
+      }).join('');
     }
 
     checkAccess();

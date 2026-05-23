@@ -342,53 +342,58 @@
     function switchRepTab(tab) {
       document.querySelectorAll('.rep-tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.rep-content').forEach(c => c.classList.remove('active'));
-      document.querySelector(`.rep-tab-btn[onclick="switchRepTab('${tab}')"]`).classList.add('active');
-      document.getElementById(`rep-${tab}`).classList.add('active');
+      document.querySelector(".rep-tab-btn[onclick=\"switchRepTab('" + tab + "')\"]").classList.add('active');
+      document.getElementById("rep-" + tab).classList.add('active');
     }
 
     async function init() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) { window.location.href = 'index.html'; return; }
-      const { data: user } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
-      if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { window.location.href = 'index.html'; return; }
+        const { data: user } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+        if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'index.html'; return; }
 
-      currentUser = user; tenantId = user.tenant_id;
-
-      // CONTROLE DE VISIBILIDADE DA SIDEBAR
-      if (user.nivel_acesso === 'manobrista') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navSaida')?.remove();
-        document.getElementById('navGestao')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavSaida')?.remove();
-      } else if (user.nivel_acesso === 'operador') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navEntrada')?.remove();
-        document.getElementById('navFinanceiro')?.remove();
-        document.getElementById('navMensalistas')?.remove();
-        document.getElementById('navConfig')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavEntrada')?.remove();
-      }
-
-      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
-      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
-      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
-      document.getElementById('tb-av-top').textContent = user.nome[0];
-      
-      if (currentUser.tenants) {
-        document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
-        if (currentUser.tenants.logo_url) {
-          document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
+        // Sidebar Visibility Logic (STRICT)
+        if (user.nivel_acesso === 'manobrista') {
+          document.getElementById('navDashboard')?.remove();
+          document.getElementById('navSaida')?.remove();
+          document.getElementById('navGestao')?.remove();
+          document.getElementById('mobNavDash')?.remove();
+          document.getElementById('mobNavSaida')?.remove();
+        } else if (user.nivel_acesso === 'operador') {
+          document.getElementById('navDashboard')?.remove();
+          document.getElementById('navEntrada')?.remove();
+          document.getElementById('navFinanceiro')?.remove();
+          document.getElementById('navMensalistas')?.remove();
+          document.getElementById('navConfig')?.remove();
+          document.getElementById('mobNavDash')?.remove();
+          document.getElementById('mobNavEntrada')?.remove();
         }
+
+        currentUser = user; tenantId = user.tenant_id;
+
+        document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+        document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+        document.getElementById('sb-av-sidebar').textContent = user.nome[0];
+        document.getElementById('tb-av-top').textContent = user.nome[0];
+        
+        if (currentUser.tenants) {
+          document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
+          if (currentUser.tenants.logo_url) {
+            document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
+          }
+        }
+
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('repDataInicio').value = hoje;
+        document.getElementById('repDataFim').value = hoje;
+
+        generateReports();
+      } catch (err) {
+        console.error('Init error:', err);
+      } finally {
+        document.body.style.display = 'block';
       }
-
-      const hoje = new Date().toISOString().split('T')[0];
-      document.getElementById('repDataInicio').value = hoje;
-      document.getElementById('repDataFim').value = hoje;
-
-      document.body.style.display = 'block';
-      generateReports();
     }
 
     function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
@@ -410,7 +415,7 @@
       const { data: entries, error } = await sb.from('valet_entries')
         .select('*, users!valet_entries_operador_saida_id_fkey(nome)')
         .eq('tenant_id', tenantId).eq('status', 'finalizado')
-        .gte('saida', `${start}T00:00:00`).lte('saida', `${end}T23:59:59`);
+        .gte('saida', start + "T00:00:00").lte('saida', end + "T23:59:59");
 
       if (error) return;
 
@@ -422,23 +427,18 @@
     }
 
     function processTicketMedio(data) {
-      // Excluir isentos do cálculo do ticket médio (opcional, mas recomendado para precisão)
-      const paidEntries = data.filter(d => d.valor > 0);
-      const totalRevenue = paidEntries.reduce((a, c) => a + (c.valor || 0), 0);
+      const paidEntries = data.filter(function(d) { return d.valor > 0; });
+      const totalRevenue = paidEntries.reduce(function(a, c) { return a + (c.valor || 0); }, 0);
       const avg = paidEntries.length ? totalRevenue / paidEntries.length : 0;
       
-      document.getElementById('valAvgTicketDiag').textContent = `R$ ${avg.toFixed(2).replace('.', ',')}`;
+      document.getElementById('valAvgTicketDiag').textContent = "R$ " + avg.toFixed(2).replace('.', ',');
 
-      // Lógica de Diagnóstico Estratégico
       const valorBase = 7.00;
-      const valorDiaria = currentUser.tenants?.valor_diaria || 40.00;
-      const totalVagas = currentUser.tenants?.total_vagas || 50;
+      const valorDiaria = (currentUser.tenants && currentUser.tenants.valor_diaria) ? currentUser.tenants.valor_diaria : 40.00;
+      const totalVagas = (currentUser.tenants && currentUser.tenants.total_vagas) ? currentUser.tenants.total_vagas : 50;
       const giro = data.length / totalVagas;
-      const custoMensal = currentUser.tenants?.custo_fixo_mensal || 0;
+      const custoMensal = (currentUser.tenants && currentUser.tenants.custo_fixo_mensal) ? currentUser.tenants.custo_fixo_mensal : 0;
       
-      // Cálculo de Custo por Carro (Simulado mensalmente)
-      // Se custoMensal = 5000 e entram 1000 carros/mês -> R$ 5,00 por carro
-      // Aqui adaptamos para o volume proporcional do período filtrado
       const custoPorCarro = data.length > 0 ? (custoMensal / 30 * (new Date(document.getElementById('repDataFim').value) - new Date(document.getElementById('repDataInicio').value) + 86400000) / 86400000) / data.length : 0;
       const lucroMedio = avg - custoPorCarro;
 
@@ -446,7 +446,6 @@
       let eficienciaStatus = "MÉDIA";
       let recomendacao = "";
 
-      // 1. Comparação Tabela (Piso/Teto)
       if (avg <= valorBase * 1.2) {
         analiseHtml += "<p>• <strong>Ticket Baixo:</strong> Seu valor médio está muito próximo da entrada mínima. Público de passagem rápida.</p>";
       } else if (avg >= valorDiaria * 0.5) {
@@ -454,7 +453,6 @@
         eficienciaStatus = "ALTA";
       }
 
-      // 2. Giro vs Eficiência
       if (giro >= 2.0 && avg < valorBase * 2) {
         analiseHtml += "<p>• <strong>Giro Eficiente:</strong> Você compensa o ticket baixo com alto volume de troca de vagas. Cenário ideal para centros comerciais.</p>";
         eficienciaStatus = "OTIMIZADA";
@@ -463,8 +461,7 @@
         eficienciaStatus = "BAIXA";
       }
 
-      // 4. Ponto de Equilíbrio
-      document.getElementById('txtBreakeven').innerHTML = `O custo estimado por carro é de <strong>R$ ${custoPorCarro.toFixed(2)}</strong>. Seu lucro médio real por veículo é <strong>R$ ${lucroMedio.toFixed(2)}</strong>.`;
+      document.getElementById('txtBreakeven').innerHTML = "O custo estimado por carro é de <strong>R$ " + custoPorCarro.toFixed(2) + "</strong>. Seu lucro médio real por veículo é <strong>R$ " + lucroMedio.toFixed(2) + "</strong>.";
 
       if (lucroMedio < 2.00) {
         recomendacao = "Sua margem está perigosamente baixa. Considere revisar o valor da primeira hora ou reduzir custos fixos.";
@@ -480,20 +477,18 @@
     }
 
     function processFinanceiro(data) {
-      const total = data.reduce((a, c) => a + (c.valor || 0), 0);
+      const total = data.reduce(function(a, c) { return a + (c.valor || 0); }, 0);
       
-      // Chart Pay Methods
-      const payMap = data.reduce((a, c) => { 
+      const payMap = data.reduce(function(a, c) { 
         const mode = c.forma_pagamento || 'isento';
         a[mode] = (a[mode] || 0) + (c.valor || 0); return a; 
       }, {});
       updateChart('chartPayMethods', 'doughnut', {
-        labels: Object.keys(payMap).map(k => k.toUpperCase()),
+        labels: Object.keys(payMap).map(function(k) { return k.toUpperCase(); }),
         datasets: [{ data: Object.values(payMap), backgroundColor: ['#22884f', '#3b82f6', '#d4a844', '#ef4444'] }]
       });
 
-      // Revenue Trend
-      const trendMap = data.reduce((a, c) => { 
+      const trendMap = data.reduce(function(a, c) { 
         const d = new Date(c.saida).toLocaleDateString('pt-BR'); 
         a[d] = (a[d] || 0) + c.valor; return a; 
       }, {});
@@ -504,55 +499,57 @@
     }
 
     function processOperacional(data) {
-      const hours = data.reduce((a, c) => { const h = new Date(c.entrada).getHours(); a[h] = (a[h] || 0) + 1; return a; }, {});
+      const hours = data.reduce(function(a, c) { const h = new Date(c.entrada).getHours(); a[h] = (a[h] || 0) + 1; return a; }, {});
       updateChart('chartPeakHours', 'bar', {
-        labels: Object.keys(hours).map(h => `${h}h`),
+        labels: Object.keys(hours).map(function(h) { return h + "h"; }),
         datasets: [{ label: 'Entradas', data: Object.values(hours), backgroundColor: '#d4a844' }]
       });
 
-      const totalVagas = currentUser.tenants?.total_vagas || 50;
+      const totalVagas = (currentUser.tenants && currentUser.tenants.total_vagas) ? currentUser.tenants.total_vagas : 50;
       const giro = data.length / totalVagas;
-      const avgTime = data.length ? data.reduce((a, c) => a + (c.minutos_total || 0), 0) / data.length : 0;
+      const avgTime = data.length ? data.reduce(function(a, c) { return a + (c.minutos_total || 0); }, 0) / data.length : 0;
       
       document.getElementById('valGiroVagas').textContent = giro.toFixed(1);
-      document.getElementById('valAvgTime').textContent = `${Math.round(avgTime)} min`;
+      document.getElementById('valAvgTime').textContent = Math.round(avgTime) + " min";
     }
 
     function processAuditoria(data) {
-      const isentos = data.filter(d => d.valor === 0).slice(0, 10);
-      document.getElementById('auditExemptTable').innerHTML = isentos.map(d => `
-        <tr>
-          <td><strong>${d.placa}</strong></td>
-          <td>${new Date(d.entrada).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</td>
-          <td>${new Date(d.saida).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</td>
-          <td>${d.minutos_total} min</td>
-          <td>${d.users?.nome || 'Sistema'}</td>
-        </tr>
-      `).join('');
+      const isentos = data.filter(function(d) { return d.valor === 0; }).slice(0, 10);
+      document.getElementById('auditExemptTable').innerHTML = isentos.map(function(d) {
+        return "<tr>" +
+          "<td><strong>" + d.placa + "</strong></td>" +
+          "<td>" + new Date(d.entrada).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) + "</td>" +
+          "<td>" + new Date(d.saida).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) + "</td>" +
+          "<td>" + d.minutos_total + " min</td>" +
+          "<td>" + (d.users ? d.users.nome : 'Sistema') + "</td>" +
+        "</tr>";
+      }).join('');
     }
 
     function processPerformance(data) {
-      const ops = data.reduce((a, c) => { 
-        const n = c.users?.nome || 'Outros'; 
+      const ops = data.reduce(function(a, c) { 
+        const n = (c.users && c.users.nome) ? c.users.nome : 'Outros'; 
         if(!a[n]) a[n] = { q:0, v:0 }; a[n].q++; a[n].v += c.valor; return a; 
       }, {});
-      document.getElementById('perfOperatorTable').innerHTML = Object.entries(ops).map(([n, v]) => `
-        <tr><td>${n}</td><td>${v.q}</td><td>R$ ${v.v.toFixed(2)}</td></tr>
-      `).join('');
+      document.getElementById('perfOperatorTable').innerHTML = Object.entries(ops).map(function(entry) {
+        var n = entry[0], v = entry[1];
+        return "<tr><td>" + n + "</td><td>" + v.q + "</td><td>R$ " + v.v.toFixed(2) + "</td></tr>";
+      }).join('');
 
-      const clients = data.reduce((a, c) => { 
+      const clients = data.reduce(function(a, c) { 
         if(!a[c.placa]) a[c.placa] = { q:0, v:0 }; a[c.placa].q++; a[c.placa].v += c.valor; return a; 
       }, {});
-      const topClients = Object.entries(clients).sort((a,b) => b[1].q - a[1].q).slice(0, 10);
-      document.getElementById('perfClientTable').innerHTML = topClients.map(([p, v]) => `
-        <tr><td><strong>${p}</strong></td><td>${v.q}x</td><td>R$ ${v.v.toFixed(2)}</td></tr>
-      `).join('');
+      const topClients = Object.entries(clients).sort(function(a, b) { return b[1].q - a[1].q; }).slice(0, 10);
+      document.getElementById('perfClientTable').innerHTML = topClients.map(function(entry) {
+        var p = entry[0], v = entry[1];
+        return "<tr><td><strong>" + p + "</strong></td><td>" + v.q + "x</td><td>R$ " + v.v.toFixed(2) + "</td></tr>";
+      }).join('');
     }
 
     function updateChart(id, type, data) {
       if (charts[id]) charts[id].destroy();
       charts[id] = new Chart(document.getElementById(id), {
-        type, data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#8aaa95' } } }, scales: type === 'line' || type === 'bar' ? { y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8aaa95' } }, x: { grid: { display: false }, ticks: { color: '#8aaa95' } } } : {} }
+        type: type, data: data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#8aaa95' } } }, scales: type === 'line' || type === 'bar' ? { y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8aaa95' } }, x: { grid: { display: false }, ticks: { color: '#8aaa95' } } } : {} }
       });
     }
 

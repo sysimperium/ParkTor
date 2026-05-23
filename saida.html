@@ -352,54 +352,59 @@
     let currentUser = null, tenantId = null, selectedEntry = null, selectedPayments = [], currentCashier = null;
 
     async function checkAccess() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) { window.location.href = 'index.html'; return; }
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { window.location.href = 'index.html'; return; }
 
-      const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
-      if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
+        const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+        if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
-      if (user.nivel_acesso === 'manobrista') {
-        window.location.href = 'entrada.html'; return;
-      }
-
-      currentUser = user; tenantId = user.tenant_id;
-
-      if (user.tenants) {
-        document.getElementById('recEstName').textContent = user.tenants.nome;
-        if (user.tenants.logo_url) {
-          const rLogo = document.getElementById('recLogo');
-          rLogo.src = user.tenants.logo_url;
-          rLogo.style.display = 'inline-block';
+        // Sidebar Visibility Logic (STRICT)
+        if (user.nivel_acesso === 'manobrista') {
+          document.getElementById('navDashboard')?.remove();
+          document.getElementById('navSaida')?.remove();
+          document.getElementById('navGestao')?.remove();
+          document.getElementById('mobNavDash')?.remove();
+          document.getElementById('mobNavSaida')?.remove();
+        } else if (user.nivel_acesso === 'operador') {
+          document.getElementById('navDashboard')?.remove();
+          document.getElementById('navEntrada')?.remove();
+          document.getElementById('navFinanceiro')?.remove();
+          document.getElementById('navMensalistas')?.remove();
+          document.getElementById('navConfig')?.remove();
+          document.getElementById('mobNavDash')?.remove();
+          document.getElementById('mobNavEntrada')?.remove();
         }
-        document.getElementById('sb-tenant-name').textContent = user.tenants.nome;
-        if (user.tenants.logo_url) document.getElementById('sb-tenant-logo').src = user.tenants.logo_url;
+
+        if (user.nivel_acesso === 'manobrista') {
+          window.location.href = 'entrada.html'; return;
+        }
+
+        currentUser = user; tenantId = user.tenant_id;
+
+        if (user.tenants) {
+          document.getElementById('recEstName').textContent = user.tenants.nome;
+          if (user.tenants.logo_url) {
+            const rLogo = document.getElementById('recLogo');
+            rLogo.src = user.tenants.logo_url;
+            rLogo.style.display = 'inline-block';
+          }
+          document.getElementById('sb-tenant-name').textContent = user.tenants.nome;
+          if (user.tenants.logo_url) document.getElementById('sb-tenant-logo').src = user.tenants.logo_url;
+        }
+
+        document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
+        document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+        document.getElementById('sb-av-sidebar').textContent = user.nome[0];
+        document.getElementById('tb-av-top').textContent = user.nome[0];
+
+        checkCashierStatus();
+        loadActive();
+      } catch (err) {
+        console.error('CheckAccess error:', err);
+      } finally {
+        document.body.style.display = 'block';
       }
-
-      document.getElementById('userNameSidebar').textContent = user.nome.split(' ')[0];
-      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
-      document.getElementById('sb-av-sidebar').textContent = user.nome[0];
-      document.getElementById('tb-av-top').textContent = user.nome[0];
-
-      // CONTROLE DE VISIBILIDADE DA SIDEBAR
-      if (user.nivel_acesso === 'manobrista') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navSaida')?.remove();
-        document.getElementById('navGestao')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavSaida')?.remove();
-      } else if (user.nivel_acesso === 'operador') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navEntrada')?.remove();
-        document.getElementById('navFinanceiro')?.remove();
-        document.getElementById('navMensalistas')?.remove();
-        document.getElementById('navConfig')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavEntrada')?.remove();
-      }
-
-      document.body.style.display = 'block';
-      checkCashierStatus();
-      loadActive();
     }
 
     async function checkCashierStatus() {
@@ -440,14 +445,18 @@
         return;
       }
       document.getElementById('activeCount').textContent = data.length;
-      tbody.innerHTML = data.map(item => `
-        <tr>
-          <td><strong style="font-family: var(--font-display); letter-spacing: 1px;">${item.placa}</strong></td>
-          <td>${new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td><span class="badge badge-gold">${Math.floor(item.minutos_estacionado)} min</span></td>
-          <td><button class="btn btn-ghost btn-sm" onclick="startCheckout('${item.id}')">SAÍDA</button></td>
-        </tr>
-      `).join('');
+      
+      var html = '';
+      for (var i = 0; i < data.length; i++) {
+        var item = data[i];
+        html += '<tr>' +
+          '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
+          '<td>' + new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td><span class="badge badge-gold">' + Math.floor(item.minutos_estacionado) + ' min</span></td>' +
+          '<td><button class="btn btn-ghost btn-sm" onclick="startCheckout(\'' + item.id + '\')">SAÍDA</button></td>' +
+        '</tr>';
+      }
+      tbody.innerHTML = html;
       document.getElementById('searchInput').focus();
     }
 
@@ -511,12 +520,15 @@
       }
 
       document.getElementById('checkIn').textContent = new Date(data.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('checkDuration').textContent = `${selectedEntry.calc.minutos} min`;
-      document.getElementById('checkTotal').textContent = `R$ ${selectedEntry.calc.total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('checkDuration').textContent = selectedEntry.calc.minutos + " min";
+      document.getElementById('checkTotal').textContent = "R$ " + selectedEntry.calc.total.toFixed(2).replace('.', ',');
 
-      document.getElementById('rotationList').innerHTML = selectedEntry.calc.history.map(h => `
-        <div class="rotation-item"><div class="rotation-label">${h.label}</div><div class="rotation-sub">R$ ${h.valor.toFixed(2)}</div></div>
-      `).join('');
+      var rotHtml = '';
+      for (var j = 0; j < selectedEntry.calc.history.length; j++) {
+        var h = selectedEntry.calc.history[j];
+        rotHtml += '<div class="rotation-item"><div class="rotation-label">' + h.label + '</div><div class="rotation-sub">R$ ' + h.valor.toFixed(2) + '</div></div>';
+      }
+      document.getElementById('rotationList').innerHTML = rotHtml;
 
       selectedPayments = [];
       renderPayments();
@@ -537,13 +549,16 @@
 
     function renderPayments() {
       const listEl = document.getElementById('paymentList');
-      listEl.innerHTML = selectedPayments.map((p, i) => `
-        <div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
-          <span class="badge badge-blue" style="width: 80px;">${p.mode.toUpperCase()}</span>
-          <input type="number" class="form-input" value="${p.valor.toFixed(2)}" step="0.01" onchange="updatePaymentValor(${i}, this.value)" style="flex: 1;">
-          <button class="btn btn-ghost btn-sm" onclick="removePayment(${i})"><i data-lucide="trash-2"></i></button>
-        </div>
-      `).join('');
+      var payHtml = '';
+      for (var k = 0; k < selectedPayments.length; k++) {
+        var p = selectedPayments[k];
+        payHtml += '<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">' +
+          '<span class="badge badge-blue" style="width: 80px;">' + p.mode.toUpperCase() + '</span>' +
+          '<input type="number" class="form-input" value="' + p.valor.toFixed(2) + '" step="0.01" onchange="updatePaymentValor(' + k + ', this.value)" style="flex: 1;">' +
+          '<button class="btn btn-ghost btn-sm" onclick="removePayment(' + k + ')"><i data-lucide="trash-2"></i></button>' +
+        '</div>';
+      }
+      listEl.innerHTML = payHtml;
       lucide.createIcons();
       updateRemaining();
     }
@@ -623,15 +638,19 @@
       document.getElementById('recOut').textContent = fmt(agora);
       document.getElementById('recOutCopy').textContent = fmt(agora);
       
-      document.getElementById('recDuration').textContent = `${entryData.calc.minutos} min`;
-      document.getElementById('recTotal').textContent = `R$ ${entryData.calc.total.toFixed(2).replace('.', ',')}`;
-      document.getElementById('recTotalCopy').textContent = `R$ ${entryData.calc.total.toFixed(2).replace('.', ',')}`;
+      document.getElementById('recDuration').textContent = entryData.calc.minutos + " min";
+      document.getElementById('recTotal').textContent = "R$ " + entryData.calc.total.toFixed(2).replace('.', ',');
+      document.getElementById('recTotalCopy').textContent = "R$ " + entryData.calc.total.toFixed(2).replace('.', ',');
       document.getElementById('recPayCopy').textContent = mainPayMode.toUpperCase();
       document.getElementById('recOpCopy').textContent = currentUser.nome;
 
       const histEl = document.getElementById('recHistoryContent');
-      histEl.innerHTML = '<div style="font-weight: 700; margin-bottom: 1mm; font-size: 7pt;">DETALHES DA TARIFA:</div>' + 
-        entryData.calc.history.map(h => `<div style="display: flex; justify-content: space-between; margin-bottom: 0.5mm;"><span>${h.label}</span><strong>R$ ${h.valor.toFixed(2)}</strong></div>`).join('');
+      var recHistHtml = '<div style="font-weight: 700; margin-bottom: 1mm; font-size: 7pt;">DETALHES DA TARIFA:</div>';
+      for (var m = 0; m < entryData.calc.history.length; m++) {
+        var hRec = entryData.calc.history[m];
+        recHistHtml += '<div style="display: flex; justify-content: space-between; margin-bottom: 0.5mm;"><span>' + hRec.label + '</span><strong>R$ ' + hRec.valor.toFixed(2) + '</strong></div>';
+      }
+      histEl.innerHTML = recHistHtml;
 
       const receiptEl = document.getElementById('receiptPrint');
       const canvas = await html2canvas(receiptEl, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
@@ -681,16 +700,20 @@
       const { data } = await query.order('saida', { ascending: false });
       const tbody = document.getElementById('historyTableBody');
       if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>'; return; }
-      tbody.innerHTML = data.map(item => `
-        <tr>
-          <td><strong>${item.placa}</strong></td>
-          <td>${new Date(item.saida).toLocaleDateString('pt-BR')}</td>
-          <td>${new Date(item.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-          <td>${item.minutos_total} min</td>
-          <td>R$ ${item.valor.toFixed(2).replace('.', ',')}</td>
-          <td><span class="badge badge-blue">${item.forma_pagamento.toUpperCase()}</span></td>
-        </tr>
-      `).join('');
+      
+      var histHtml = '';
+      for (var n = 0; n < data.length; n++) {
+        var itemH = data[n];
+        histHtml += '<tr>' +
+          '<td><strong>' + itemH.placa + '</strong></td>' +
+          '<td>' + new Date(itemH.saida).toLocaleDateString('pt-BR') + '</td>' +
+          '<td>' + new Date(itemH.saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td>' + itemH.minutos_total + ' min</td>' +
+          '<td>R$ ' + itemH.valor.toFixed(2).replace('.', ',') + '</td>' +
+          '<td><span class="badge badge-blue">' + itemH.forma_pagamento.toUpperCase() + '</span></td>' +
+        '</tr>';
+      }
+      tbody.innerHTML = histHtml;
     }
 
     checkAccess();
