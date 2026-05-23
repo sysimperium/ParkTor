@@ -234,7 +234,7 @@
             <select id="staffNivel" class="form-input" required>
               <option value="operador">Operador de Caixa</option>
               <option value="manobrista">Manobrista / Pátio</option>
-              <option value="admin">Administrador (Dono)</option>
+              <option value="admin" id="optAdminNew">Administrador (Dono)</option>
             </select>
           </div>
 
@@ -260,6 +260,49 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-ghost" onclick="closeStaffModal()">CANCELAR</button>
           <button type="submit" class="btn btn-primary" id="btnSaveStaff">CADASTRAR</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR FUNCIONÁRIO -->
+  <div class="modal-overlay" id="modalEditStaff">
+    <div class="modal-card anim-fadeInUp">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Funcionário</h3>
+        <button class="btn-close" onclick="closeEditStaffModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="formEditStaff">
+        <input type="hidden" id="editStaffId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Nome Completo</label>
+            <input type="text" id="editStaffNome" class="form-input" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Cargo / Nível de Acesso</label>
+            <select id="editStaffNivel" class="form-input" required>
+              <option value="operador">Operador de Caixa</option>
+              <option value="manobrista">Manobrista / Pátio</option>
+              <option value="admin" id="optAdminEdit">Administrador (Dono)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Usuário de Login</label>
+            <input type="text" id="editStaffUsername" class="form-input" required>
+          </div>
+
+          <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 5px;">Alterar Senha (opcional):</p>
+          <div class="form-group">
+            <input type="password" id="editStaffSenha" class="form-input" placeholder="Nova senha (deixe vazio para não alterar)">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeEditStaffModal()">CANCELAR</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveEditStaff">SALVAR ALTERAÇÕES</button>
         </div>
       </form>
     </div>
@@ -354,6 +397,12 @@
 
         currentUser = user; tenantId = user.tenant_id;
         
+        // RESTRIÇÃO: ADMIN NÃO CRIA ADMIN (PATCH 1.2.4)
+        if (user.nivel_acesso === 'admin') {
+          document.getElementById('optAdminNew')?.remove();
+          document.getElementById('optAdminEdit')?.remove();
+        }
+
         // CONTROLE DE VISIBILIDADE DA SIDEBAR (STRICT)
         if (user.nivel_acesso === 'manobrista') {
           document.getElementById('navDashboard')?.remove();
@@ -425,7 +474,8 @@
           "<td>" + (s.username || '-') + "</td>" +
           "<td><span class='badge badge-blue'>" + s.nivel_acesso.toUpperCase() + "</span></td>" +
           "<td><span class='badge " + (s.status === 'ativo' ? 'badge-green' : 'badge-red') + "'>" + s.status.toUpperCase() + "</span></td>" +
-          "<td>" +
+          "<td style='display: flex; gap: 5px;'>" +
+            "<button class='btn btn-ghost btn-sm' onclick=\"openEditStaffModal('" + s.id + "')\">EDITAR</button>" +
             "<button class='btn btn-ghost btn-sm' onclick=\"toggleStaffStatus('" + s.id + "', '" + s.status + "')\">" +
               (s.status === 'ativo' ? 'DESATIVAR' : 'ATIVAR') +
             "</button>" +
@@ -555,6 +605,57 @@
       if (error) showAlert('Erro', 'Não foi possível alterar o status', 'danger');
       else { showAlert('Sucesso', 'Status atualizado!', 'success'); loadStaff(); }
     }
+
+    function openEditStaffModal(id) { fetchStaffMember(id); }
+
+    async function fetchStaffMember(id) {
+      const { data, error } = await sb.from('users').select('*').eq('id', id).single();
+      if (error) return showAlert('Erro', 'Não foi possível buscar dados do funcionário', 'danger');
+      
+      document.getElementById('editStaffId').value = data.id;
+      document.getElementById('editStaffNome').value = data.nome;
+      document.getElementById('editStaffNivel').value = data.nivel_acesso;
+      document.getElementById('editStaffUsername').value = data.username;
+      document.getElementById('editStaffSenha').value = '';
+      
+      document.getElementById('modalEditStaff').classList.add('show');
+    }
+
+    function closeEditStaffModal() { document.getElementById('modalEditStaff').classList.remove('show'); }
+
+    document.getElementById('formEditStaff').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveEditStaff');
+      btn.disabled = true; btn.textContent = 'SALVANDO...';
+
+      const targetUserId = document.getElementById('editStaffId').value;
+      const updates = {
+        nome: document.getElementById('editStaffNome').value,
+        nivel_acesso: document.getElementById('editStaffNivel').value,
+        username: document.getElementById('editStaffUsername').value,
+        password: document.getElementById('editStaffSenha').value || undefined
+      };
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const response = await fetch('/api/update-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetUserId, updates, token: session.access_token })
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+
+        showAlert('Sucesso', 'Dados do funcionário atualizados!', 'success');
+        closeEditStaffModal();
+        loadStaff();
+      } catch (err) {
+        showAlert('Erro ao atualizar', err.message, 'danger');
+      } finally {
+        btn.disabled = false; btn.textContent = 'SALVAR ALTERAÇÕES';
+      }
+    });
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
     
