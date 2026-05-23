@@ -31,7 +31,7 @@
         <form id="loginForm" class="login-form">
           <div class="form-group">
             <label class="form-label">Usuário</label>
-            <input type="text" id="usuario" class="form-input" placeholder="seu usuário" required>
+            <input type="text" id="usuario" class="form-input" placeholder="seu usuário" autocomplete="username" autocapitalize="none" autocorrect="off" required>
           </div>
           <div class="form-group">
             <label class="form-label">Senha</label>
@@ -71,8 +71,8 @@
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const usuario = document.getElementById('usuario').value;
-      const senha = document.getElementById('senha').value;
+      const usuario = document.getElementById('usuario').value.trim();
+      const senha = document.getElementById('senha').value.trim();
       const btn = document.getElementById('btnLogin');
       const alert = document.getElementById('alertError');
 
@@ -83,7 +83,7 @@
       const { data: userData, error: userError } = await sb
         .from('users')
         .select('email')
-        .eq('username', usuario)
+        .ilike('username', usuario)
         .single();
 
       if (userError || !userData) {
