@@ -614,9 +614,31 @@
       
       document.getElementById('editStaffId').value = data.id;
       document.getElementById('editStaffNome').value = data.nome;
-      document.getElementById('editStaffNivel').value = data.nivel_acesso;
       document.getElementById('editStaffUsername').value = data.username;
       document.getElementById('editStaffSenha').value = '';
+
+      const nivelSelect = document.getElementById('editStaffNivel');
+      
+      // Se quem está editando é ADMIN e está editando a si próprio
+      if (currentUser.nivel_acesso === 'admin' && data.id === currentUser.id) {
+        // Garante que a opção ADMIN exista para exibição, mas bloqueia o campo
+        if (!document.getElementById('optAdminEdit')) {
+          const opt = document.createElement('option');
+          opt.value = 'admin';
+          opt.id = 'optAdminEdit';
+          opt.textContent = 'Administrador (Dono)';
+          nivelSelect.appendChild(opt);
+        }
+        nivelSelect.value = 'admin';
+        nivelSelect.disabled = true;
+      } else {
+        nivelSelect.value = data.nivel_acesso;
+        nivelSelect.disabled = false;
+        // Se for ADMIN editando outro, garante que não possa promover a ADMIN
+        if (currentUser.nivel_acesso === 'admin') {
+          document.getElementById('optAdminEdit')?.remove();
+        }
+      }
       
       document.getElementById('modalEditStaff').classList.add('show');
     }
