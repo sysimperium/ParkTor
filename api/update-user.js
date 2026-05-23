@@ -38,16 +38,47 @@ module.exports = async (req, res) => {
       throw new Error('Você não tem permissão para editar este funcionário.');
     }
 
-    // 3. Bloquear alteração para nível 'admin' se o solicitante for 'admin'
-    // (Apenas ROOT pode promover alguém a ADMIN ou editar um ADMIN)
+    // 3. Validar Limites de Plano se o nivel_acesso estiver sendo alterado (PATCH 1.2.5)
+    if (updates.nivel_acesso && updates.nivel_acesso !== targetData.nivel_acesso) {
+        const { data: tenantData } = await supabaseAdmin
+          .from('tenants')
+          .select('*, planos(nome)')
+          .eq('id', requesterData.tenant_id)
+          .single();
+
+        const planoNome = tenantData.planos?.nome;
+        const { data: existingUsers } = await supabaseAdmin
+          .from('users')
+          .select('id, nivel_acesso')
+          .eq('tenant_id', requesterData.tenant_id);
+
+        const others = existingUsers.filter(u => u.id !== targetUserId);
+        const manobristas = others.filter(u => u.nivel_acesso === 'manobrista').length;
+        const operadores = others.filter(u => u.nivel_acesso === 'operador').length;
+
+        if (planoNome === 'Start') {
+          if (updates.nivel_acesso === 'manobrista' && manobristas >= 1) {
+            throw new Error('O plano Start só permite 1 manobrista e 1 operador.');
+          }
+          if (updates.nivel_acesso === 'operador' && operadores >= 1) {
+            throw new Error('O plano Start só permite 1 manobrista e 1 operador.');
+          }
+        } else if (planoNome === 'Básico') {
+          if (updates.nivel_acesso === 'manobrista' && manobristas >= 2) {
+            throw new Error('O plano Básico permite no máximo 2 manobristas.');
+          }
+          if (updates.nivel_acesso === 'operador' && operadores >= 2) {
+            throw new Error('O plano Básico permite no máximo 2 operadores.');
+          }
+        }
+    }
+
+    // 4. Bloquear alteração para nível 'admin' se o solicitante for 'admin'
     if (requesterData.nivel_acesso === 'admin' && updates.nivel_acesso === 'admin') {
-       // Se o alvo já for admin, o requester (que é admin) não deveria estar editando outro admin? 
-       // O usuário disse: "ADMIN não pode criar um novo ADMIN". 
-       // Vou assumir que ADMIN também não pode promover ninguém a ADMIN.
        delete updates.nivel_acesso; 
     }
 
-    // 4. Atualizar no Auth se houver senha ou email
+    // 5. Atualizar no Auth se houver senha ou email
     let authUpdates = {};
     if (updates.password) authUpdates.password = updates.password;
     if (updates.email) authUpdates.email = updates.email;
@@ -60,13 +91,12 @@ module.exports = async (req, res) => {
       if (authUpdateError) throw authUpdateError;
     }
 
-    // 5. Atualizar na tabela pública
+    // 6. Atualizar na tabela pública
     const publicUpdates = {
       nome: updates.nome,
       nivel_acesso: updates.nivel_acesso,
       username: updates.username
     };
-    // Remover undefined
     Object.keys(publicUpdates).forEach(key => publicUpdates[key] === undefined && delete publicUpdates[key]);
 
     const { error: profileError } = await supabaseAdmin
