@@ -34,26 +34,64 @@
     </div>
 
     <div class="sb-perf">
-      <div class="sb-av">R</div>
+      <div class="sb-av" id="sb-av-sidebar">R</div>
       <div>
-        <div class="sb-nome">Root Admin</div>
-        <div class="sb-eq">Master Access</div>
+        <div class="sb-nome" id="userNameSidebar">Root Admin</div>
+        <div class="sb-eq" id="userRoleSidebar">Master Access</div>
       </div>
     </div>
     <nav class="sb-nav">
-      <div class="sb-sec">Global</div>
-      <a href="root.html" class="si">
-        <span class="si-i"><i data-lucide="crown"></i></span>
-        <span class="si-l">Tenants</span>
-      </a>
-      <a href="planos_info.html" class="si active">
-        <span class="si-i"><i data-lucide="qr-code"></i></span>
-        <span class="si-l">Planos</span>
-      </a>
-      <a href="#" class="si">
-        <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
-        <span class="si-l">Relatórios</span>
-      </a>
+      <div id="navGlobal">
+        <div class="sb-sec">Global</div>
+        <a href="root.html" class="si">
+          <span class="si-i"><i data-lucide="crown"></i></span>
+          <span class="si-l">Tenants</span>
+        </a>
+        <a href="planos_info.html" class="si active">
+          <span class="si-i"><i data-lucide="qr-code"></i></span>
+          <span class="si-l">Planos</span>
+        </a>
+      </div>
+
+      <div id="navDashboard">
+        <div class="sb-sec">Principal</div>
+        <a href="dashboard.html" class="si">
+          <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+          <span class="si-l">Dashboard</span>
+        </a>
+      </div>
+
+      <div id="navOperacional">
+        <div class="sb-sec">Operacional</div>
+        <a href="entrada.html" class="si" id="navEntrada">
+          <span class="si-i"><i data-lucide="log-in"></i></span>
+          <span class="si-l">Nova Entrada</span>
+        </a>
+        <a href="saida.html" class="si" id="navSaida">
+          <span class="si-i"><i data-lucide="log-out"></i></span>
+          <span class="si-l">Registrar Saída</span>
+        </a>
+      </div>
+
+      <div id="navGestao">
+        <div class="sb-sec">Gestão</div>
+        <a href="financeiro.html" class="si" id="navFinanceiro">
+          <span class="si-i"><i data-lucide="wallet"></i></span>
+          <span class="si-l">Financeiro</span>
+        </a>
+        <a href="relatorios.html" class="si" id="navRelatorios">
+          <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+          <span class="si-l">Relatórios</span>
+        </a>
+        <a href="mensalistas.html" class="si" id="navMensalistas">
+          <span class="si-i"><i data-lucide="calendar-days"></i></span>
+          <span class="si-l">Mensalistas</span>
+        </a>
+        <a href="config.html" class="si" id="navConfig">
+          <span class="si-i"><i data-lucide="settings"></i></span>
+          <span class="si-l">Configurações</span>
+        </a>
+      </div>
     </nav>
     <div class="sb-ft">
       <div class="si si-logout" onclick="logout()">
@@ -164,9 +202,29 @@
       }
       currentUser = user;
       
+      const firstName = user.nome.split(' ')[0];
+      document.getElementById('userNameSidebar').textContent = firstName;
+      document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
+      document.getElementById('sb-av-sidebar').textContent = firstName[0];
+
       if (currentUser.tenants) {
         document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
         if (currentUser.tenants.logo_url) document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
+      }
+
+      // CONTROLE DE VISIBILIDADE DA SIDEBAR (PATCH 1.2.3)
+      if (user.nivel_acesso === 'manobrista') {
+        document.getElementById('navGlobal')?.remove();
+        document.getElementById('navDashboard')?.remove();
+        document.getElementById('navSaida')?.remove();
+        document.getElementById('navGestao')?.remove();
+      } else if (user.nivel_acesso === 'operador') {
+        document.getElementById('navGlobal')?.remove();
+        document.getElementById('navDashboard')?.remove();
+        document.getElementById('navEntrada')?.remove();
+        document.getElementById('navFinanceiro')?.remove();
+        document.getElementById('navMensalistas')?.remove();
+        document.getElementById('navConfig')?.remove();
       }
 
       document.body.style.display = 'block';

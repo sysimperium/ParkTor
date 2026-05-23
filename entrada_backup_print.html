@@ -47,15 +47,7 @@
         <h3 id="printEstName" style="margin: 0; font-size: 14pt;">PARKTOR</h3>
         <p style="font-size: 8pt; margin: 1mm 0;">CONTROLE DE ENTRADA</p>
       </div>
-
-      <!-- Placa Real no Ticket (PATCH 1.3.0) -->
-      <div class="plate-preview-container" style="transform: scale(0.95); margin: 2mm auto;">
-        <div id="printPlateVisual" class="real-plate classic" style="width: 100%; max-width: none;">
-          <div class="plate-header-text">BRASIL</div>
-          <div class="plate-text" id="printPlate" style="font-size: 22pt;">---</div>
-        </div>
-      </div>
-
+      <div class="ticket-plate" id="printPlate">---</div>
       <div class="ticket-info">
         <div id="printDate">DATA: --/--/----</div>
         <div id="printTime">HORA: --:--</div>
@@ -100,7 +92,7 @@
     <nav class="sb-nav">
       <div id="navDashboard">
         <div class="sb-sec">Principal</div>
-        <a href="dashboard.html" class="si" id="linkDashboard">
+        <a href="dashboard.html" class="si" id="navDash">
           <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
           <span class="si-l">Dashboard</span>
         </a>
@@ -108,7 +100,7 @@
 
       <div id="navOperacional">
         <div class="sb-sec">Operacional</div>
-        <a href="entrada.html" class="si active" id="navEntrada">
+        <a href="entrada.html" class="si active">
           <span class="si-i"><i data-lucide="log-in"></i></span>
           <span class="si-l">Nova Entrada</span>
         </a>
@@ -182,14 +174,6 @@
         <h2 class="pg-t">Registrar Entrada</h2>
         <p class="pg-s">Digite a placa para registrar a entrada</p>
 
-        <!-- Preview da Placa Dinâmica (PATCH 1.3.0) -->
-        <div class="plate-preview-container">
-          <div id="platePreview" class="real-plate classic" style="display: none;">
-            <div class="plate-header-text">BRASIL</div>
-            <div class="plate-text" id="platePreviewText">---</div>
-          </div>
-        </div>
-
         <input type="text" id="plateInput" class="form-input plate-input" placeholder="ABC1234" maxlength="7" style="text-transform: uppercase;">
 
         <div style="margin-top: 24px;">
@@ -244,7 +228,7 @@
         <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
         <span class="bnlb">Dash</span>
       </a>
-      <a href="entrada.html" class="bni active" id="mobNavEntrada">
+      <a href="entrada.html" class="bni active">
         <span class="bnico"><i data-lucide="log-in"></i></span>
         <span class="bnlb">Entrada</span>
       </a>
@@ -308,21 +292,13 @@
       currentUser = user;
       tenantId = user.tenant_id;
 
-      // CONTROLE DE VISIBILIDADE DA SIDEBAR
+      // RESTRIÇÕES VISUAIS PARA MANOBRISTA
       if (user.nivel_acesso === 'manobrista') {
-        document.getElementById('navDashboard')?.remove();
+        document.getElementById('navDash')?.remove();
+        document.getElementById('mobNavDash')?.remove();
         document.getElementById('navSaida')?.remove();
-        document.getElementById('navGestao')?.remove();
-        document.getElementById('mobNavDash')?.remove();
         document.getElementById('mobNavSaida')?.remove();
-      } else if (user.nivel_acesso === 'operador') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navEntrada')?.remove();
-        document.getElementById('navFinanceiro')?.remove();
-        document.getElementById('navMensalistas')?.remove();
-        document.getElementById('navConfig')?.remove();
-        document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavEntrada')?.remove();
+        document.getElementById('navGestao')?.remove();
       }
 
       document.body.style.display = 'block';
@@ -396,18 +372,6 @@
       const date = new Date(entryTime);
       
       document.getElementById('printPlate').textContent = plate;
-      
-      // Ajustar Visual da Placa no Impresso (PATCH 1.3.0)
-      const visual = document.getElementById('printPlateVisual');
-      const isMercosul = /[A-Z]/.test(plate[4]);
-      if (isMercosul && plate.length >= 5) {
-        visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
-      } else {
-        visual.className = 'real-plate classic';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
-      }
-
       document.getElementById('printDate').textContent = `DATA: ${date.toLocaleDateString('pt-BR')}`;
       document.getElementById('printTime').textContent = `HORA: ${date.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
       
@@ -521,44 +485,12 @@
         showAlert('Erro ao Registrar', 'Não foi possível salvar a entrada: ' + error.message, 'danger');
       } else {
         plateInputEl.value = '';
-        // Resetar Preview da Placa (PATCH 1.3.0)
-        const preview = document.getElementById('platePreview');
-        if (preview) preview.style.display = 'none';
-        
         showAlert('Sucesso', 'Entrada registrada com sucesso!', 'success');
         loadHistory();
-        // Disparar Impressão (PATCH 1.2.5) — Agora Opcional (PATCH 1.2.9)
-        if (currentUser.tenants?.print_enabled !== false) {
-          setTimeout(() => printTicket(plate, entryTime), 500);
-        }
+        // Disparar Impressão (PATCH 1.2.5)
+        setTimeout(() => printTicket(plate, entryTime), 500);
       }
       btn.classList.remove('btn-loading');
-    });
-
-    // Lógica da Placa Real (PATCH 1.3.0)
-    document.getElementById('plateInput').addEventListener('input', (e) => {
-      const val = e.target.value.toUpperCase().trim();
-      const preview = document.getElementById('platePreview');
-      const text = document.getElementById('platePreviewText');
-      
-      if (val.length === 0) {
-        preview.style.display = 'none';
-        return;
-      }
-      
-      preview.style.display = 'flex';
-      text.textContent = val;
-
-      // Detecta Modelo: Mercosul (Letra na 5ª posição) ou Antigo (Número na 5ª posição)
-      const isMercosul = /[A-Z]/.test(val[4]);
-      
-      if (isMercosul && val.length >= 5) {
-        preview.className = 'real-plate mercosul';
-        preview.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
-      } else {
-        preview.className = 'real-plate classic';
-        preview.querySelector('.plate-header-text').textContent = 'BRASIL';
-      }
     });
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }

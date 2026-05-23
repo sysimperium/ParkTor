@@ -48,13 +48,7 @@
         <p style="font-size: 7pt; margin: 1mm 0;">RECIBO DE ESTADIA</p>
       </div>
       
-      <!-- Placa Real no Recibo de Saída (PATCH 1.3.0) -->
-      <div class="plate-preview-container" style="transform: scale(0.95); margin: 2mm auto;">
-        <div id="recPlateVisual" class="real-plate classic" style="width: 100%; max-width: none;">
-          <div class="plate-header-text">BRASIL</div>
-          <div class="plate-text" id="recPlate" style="font-size: 24pt;">---</div>
-        </div>
-      </div>
+      <div class="rec-plate" id="recPlate">---</div>
       
       <div class="rec-info">
         <div class="rec-row"><span>DATA:</span> <strong id="recDate">--/--/----</strong></div>
@@ -119,7 +113,7 @@
     <nav class="sb-nav">
       <div id="navDashboard">
         <div class="sb-sec">Principal</div>
-        <a href="dashboard.html" class="si" id="linkDashboard">
+        <a href="dashboard.html" class="si" id="navDash">
           <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
           <span class="si-l">Dashboard</span>
         </a>
@@ -273,14 +267,7 @@
         <button class="btn-close" onclick="closeCheckout()"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <!-- Placa Real no Checkout (PATCH 1.3.0) -->
-        <div class="plate-preview-container">
-          <div id="checkPlateVisual" class="real-plate classic">
-            <div class="plate-header-text">BRASIL</div>
-            <div class="plate-text" id="checkPlateText">---</div>
-          </div>
-        </div>
-        
+        <div class="checkout-plate" id="checkPlate">ABC-1234</div>
         <div class="info-row"><span>Entrada:</span> <strong id="checkIn">--:--</strong></div>
         <div class="info-row"><span>Permanência:</span> <strong id="checkDuration">0 min</strong></div>
 
@@ -336,7 +323,7 @@
         <span class="bnico"><i data-lucide="log-in"></i></span>
         <span class="bnlb">Entrada</span>
       </a>
-      <a href="saida.html" class="bni active" id="mobNavSaida">
+      <a href="saida.html" class="bni active">
         <span class="bnico"><i data-lucide="log-out"></i></span>
         <span class="bnlb">Saída</span>
       </a>
@@ -380,21 +367,13 @@
       document.getElementById('sb-av-sidebar').textContent = user.nome[0];
       document.getElementById('tb-av-top').textContent = user.nome[0];
 
-      // CONTROLE DE VISIBILIDADE DA SIDEBAR
-      if (user.nivel_acesso === 'manobrista') {
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navSaida')?.remove();
-        document.getElementById('navGestao')?.remove();
+      // RESTRIÇÕES OPERADOR
+      if (user.nivel_acesso === 'operador') {
+        document.getElementById('navDash')?.remove();
         document.getElementById('mobNavDash')?.remove();
-        document.getElementById('mobNavSaida')?.remove();
-      } else if (user.nivel_acesso === 'operador') {
-        document.getElementById('navDashboard')?.remove();
         document.getElementById('navEntrada')?.remove();
-        document.getElementById('navFinanceiro')?.remove();
-        document.getElementById('navMensalistas')?.remove();
-        document.getElementById('navConfig')?.remove();
-        document.getElementById('mobNavDash')?.remove();
         document.getElementById('mobNavEntrada')?.remove();
+        document.getElementById('navGestao')?.remove();
       }
 
       document.body.style.display = 'block';
@@ -496,20 +475,7 @@
       selectedEntry.saida = agora;
       selectedEntry.calc = calcularRotationHistory(data.entrada, agora);
 
-      // Lógica da Placa Real (PATCH 1.3.0)
-      const plate = data.placa.toUpperCase();
-      const visual = document.getElementById('checkPlateVisual');
-      document.getElementById('checkPlateText').textContent = plate;
-      
-      const isMercosul = /[A-Z]/.test(plate[4]);
-      if (isMercosul && plate.length >= 5) {
-        visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
-      } else {
-        visual.className = 'real-plate classic';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
-      }
-
+      document.getElementById('checkPlate').textContent = data.placa;
       document.getElementById('checkIn').textContent = new Date(data.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       document.getElementById('checkDuration').textContent = `${selectedEntry.calc.minutos} min`;
       document.getElementById('checkTotal').textContent = `R$ ${selectedEntry.calc.total.toFixed(2).replace('.', ',')}`;
@@ -588,9 +554,7 @@
         }
 
         showAlert('Sucesso', 'Saída concluída!', 'success');
-        if (currentUser.tenants?.print_enabled !== false) {
-          await printReceipt(selectedEntry, selectedPayments, mainPayMode);
-        }
+        await printReceipt(selectedEntry, selectedPayments, mainPayMode);
         closeCheckout(); loadActive();
       } catch (err) { showAlert('Erro', err.message, 'danger'); }
       finally { btn.classList.remove('btn-loading'); }
@@ -600,21 +564,8 @@
       const { jsPDF } = window.jspdf;
       const agora = new Date(); const entrada = new Date(entryData.entrada);
       
-      // Ajustar Visual da Placa no Recibo (PATCH 1.3.0)
-      const plate = entryData.placa.toUpperCase();
-      const visual = document.getElementById('recPlateVisual');
-      document.getElementById('recPlate').textContent = plate;
-      document.getElementById('recPlateCopy').textContent = plate;
-      
-      const isMercosul = /[A-Z]/.test(plate[4]);
-      if (isMercosul && plate.length >= 5) {
-        visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
-      } else {
-        visual.className = 'real-plate classic';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
-      }
-
+      document.getElementById('recPlate').textContent = entryData.placa;
+      document.getElementById('recPlateCopy').textContent = entryData.placa;
       document.getElementById('recDate').textContent = entrada.toLocaleDateString('pt-BR');
       
       const fmt = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
