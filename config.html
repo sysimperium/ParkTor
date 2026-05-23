@@ -479,6 +479,7 @@
             "<button class='btn btn-ghost btn-sm' onclick=\"toggleStaffStatus('" + s.id + "', '" + s.status + "')\">" +
               (s.status === 'ativo' ? 'DESATIVAR' : 'ATIVAR') +
             "</button>" +
+            "<button class='btn btn-ghost btn-sm' style='color: var(--red-400);' onclick=\"deleteStaff('" + s.id + "', '" + s.nome + "')\">DELETAR</button>" +
           "</td>" +
         "</tr>";
       }).join('');
@@ -604,6 +605,37 @@
       const { error } = await sb.from('users').update({ status: newStatus }).eq('id', id);
       if (error) showAlert('Erro', 'Não foi possível alterar o status', 'danger');
       else { showAlert('Sucesso', 'Status atualizado!', 'success'); loadStaff(); }
+    }
+
+    async function deleteStaff(id, nome) {
+      if (id === currentUser.id) {
+        return showAlert('Ação Negada', 'Você não pode excluir a si próprio.', 'danger');
+      }
+
+      const confirmDelete = await showConfirm(
+        'Excluir Funcionário', 
+        `ATENÇÃO: Ao excluir "${nome}", todos os registros históricos vinculados a este usuário serão perdidos ou ficarão sem identificação. ` +
+        `Recomendamos apenas DESATIVAR o funcionário para manter o histórico de auditoria. Deseja realmente DELETAR permanentemente?`
+      );
+
+      if (!confirmDelete) return;
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const response = await fetch('/api/delete-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetUserId: id, token: session.access_token })
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+
+        showAlert('Sucesso', 'Funcionário excluído permanentemente!', 'success');
+        loadStaff();
+      } catch (err) {
+        showAlert('Erro ao excluir', err.message, 'danger');
+      }
     }
 
     function openEditStaffModal(id) { fetchStaffMember(id); }
