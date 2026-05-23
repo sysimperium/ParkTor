@@ -80,6 +80,7 @@
       btn.classList.add('btn-loading');
 
       // 1. Buscar o e-mail associado ao username na tabela public.users
+      console.log('Tentando buscar e-mail para o usuário:', usuario);
       const { data: userData, error: userError } = await sb
         .from('users')
         .select('email')
@@ -87,22 +88,26 @@
         .single();
 
       if (userError || !userData) {
+        console.error('Erro ao buscar usuário na tabela public.users:', userError);
         btn.classList.remove('btn-loading');
         alert.classList.add('show');
         return;
       }
 
       const email = userData.email;
+      console.log('E-mail encontrado:', email, '. Tentando autenticar...');
 
       // 2. Autenticar usando o e-mail encontrado
       const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
 
       if (error) {
+        console.error('Erro na autenticação Auth:', error.message, error.status);
         btn.classList.remove('btn-loading');
         alert.classList.add('show');
         return;
       }
 
+      console.log('Autenticação bem-sucedida! Roteando...');
       await rotearUsuario(data.user.id);
     });
 
