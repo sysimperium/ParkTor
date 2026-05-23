@@ -475,36 +475,39 @@
 
       let rem = totalMinutos;
       
-      // 1ª. Faixa (Especial: 2 horas de base)
+      // Ciclo 1 (Especial: Faixa 1)
       faixasCount++;
       totalBase += valorBase;
       history.push({ label: `1ª. Faixa 2h`, valor: valorBase });
-      
-      if (rem <= 125) { // 120 min + 5 min de tolerância
-        return { total: totalBase, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
+
+      if (rem <= 125) { // 2h base + 5min tol
+        return { total: totalBase, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente: 0, excedenteCount: 0 };
       }
-      if (rem <= 140) { // 120 min + 20 min (limite do excedente)
-        excedenteCount++;
-        totalExcedente += valorAdic;
+      if (rem <= 140) { // Até o fim do excedente da Faixa 1 (9:20)
+        excedenteCount = 1;
+        totalExcedente = valorAdic;
         history.push({ label: `Excedente (1ª. Faixa)`, valor: valorAdic });
         return { total: totalBase + totalExcedente, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
       }
-      
-      // Reinicia a lógica para faixas subsequentes (Ciclos de 20 min conforme exemplo do Patch 1.2.6)
-      rem -= 140;
+
+      // Reinicia para ciclos subsequentes (2h base + tol + exc)
+      rem -= 140; 
       while (rem > 0) {
         faixasCount++;
         totalBase += valorBase;
         history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
         
-        if (rem <= 5) break; // Tolerância da nova faixa
-        if (rem <= 20) { // Excedente da nova faixa
-          excedenteCount++;
-          totalExcedente += valorAdic;
+        if (rem <= 126) { // 2h base + 6min tol (Ex: 11:22 a 11:27)
+          totalExcedente = 0; excedenteCount = 0;
+          break;
+        }
+        if (rem <= 147) { // 2h base + tol + 21min exc (Ex: 11:28 a 11:48)
+          excedenteCount = 1;
+          totalExcedente = valorAdic;
           history.push({ label: `Excedente (${faixasCount}ª. Faixa)`, valor: valorAdic });
           break;
         }
-        rem -= 20; // Pula para a próxima faixa após os 20 min
+        rem -= 147; // Pula para a próxima faixa
       }
       
       const total = totalBase + totalExcedente;
