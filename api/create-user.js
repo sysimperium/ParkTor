@@ -33,7 +33,10 @@ module.exports = async (req, res) => {
       .single();
 
     if (tenantError) throw new Error('Erro ao buscar dados do plano');
-    const planoNome = tenantData.planos?.nome;
+    
+    // Normalização: Se o plano contém "Free" ou "Teste", tratamos como "Start" (PATCH 1.2.5 CORRECTION)
+    const planoNome = tenantData.planos?.nome || 'Start';
+    const isStartLike = planoNome === 'Start' || planoNome.toLowerCase().includes('free') || planoNome.toLowerCase().includes('teste');
 
     const { data: existingUsers, error: usersError } = await supabaseAdmin
       .from('users')
@@ -46,16 +49,16 @@ module.exports = async (req, res) => {
     const manobristas = existingUsers.filter(u => u.nivel_acesso === 'manobrista').length;
     const operadores = existingUsers.filter(u => u.nivel_acesso === 'operador').length;
 
-    if (planoNome === 'Start') {
+    if (isStartLike) {
       if (nivel_acesso === 'manobrista' && manobristas >= 1) {
-        throw new Error('O plano Start só permite 1 manobrista e 1 operador, se precisar de mais funcionario será preciso um UPDATE de Plano');
+        throw new Error(`O plano ${planoNome} só permite 1 manobrista e 1 operador. Para mais, realize um UPDATE de Plano.`);
       }
       if (nivel_acesso === 'operador' && operadores >= 1) {
-        throw new Error('O plano Start só permite 1 manobrista e 1 operador, se precisar de mais funcionario será preciso um UPDATE de Plano');
+        throw new Error(`O plano ${planoNome} só permite 1 manobrista e 1 operador. Para mais, realize um UPDATE de Plano.`);
       }
     } else if (planoNome === 'Básico') {
       if (totalUsers >= 5) {
-        throw new Error('O plano Básico permite no máximo 5 usuários (incluindo o Admin). Se precisar de mais funcionario será preciso um UPDATE de Plano');
+        throw new Error('O plano Básico permite no máximo 5 usuários (incluindo o Admin).');
       }
       if (nivel_acesso === 'manobrista' && manobristas >= 2) {
         throw new Error('O plano Básico permite no máximo 2 manobristas.');
@@ -65,7 +68,7 @@ module.exports = async (req, res) => {
       }
     } else if (planoNome === 'Pro') {
       if (totalUsers >= 15) {
-        throw new Error('O plano Pro permite no máximo 15 usuários. Se precisar de mais funcionario será preciso um UPDATE de Plano');
+        throw new Error('O plano Pro permite no máximo 15 usuários.');
       }
     }
 

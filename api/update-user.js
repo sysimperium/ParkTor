@@ -46,7 +46,10 @@ module.exports = async (req, res) => {
           .eq('id', requesterData.tenant_id)
           .single();
 
-        const planoNome = tenantData.planos?.nome;
+        // Normalização (PATCH 1.2.5 CORRECTION)
+        const planoNome = tenantData.planos?.nome || 'Start';
+        const isStartLike = planoNome === 'Start' || planoNome.toLowerCase().includes('free') || planoNome.toLowerCase().includes('teste');
+
         const { data: existingUsers } = await supabaseAdmin
           .from('users')
           .select('id, nivel_acesso')
@@ -56,12 +59,12 @@ module.exports = async (req, res) => {
         const manobristas = others.filter(u => u.nivel_acesso === 'manobrista').length;
         const operadores = others.filter(u => u.nivel_acesso === 'operador').length;
 
-        if (planoNome === 'Start') {
+        if (isStartLike) {
           if (updates.nivel_acesso === 'manobrista' && manobristas >= 1) {
-            throw new Error('O plano Start só permite 1 manobrista e 1 operador.');
+            throw new Error(`O plano ${planoNome} só permite 1 manobrista.`);
           }
           if (updates.nivel_acesso === 'operador' && operadores >= 1) {
-            throw new Error('O plano Start só permite 1 manobrista e 1 operador.');
+            throw new Error(`O plano ${planoNome} só permite 1 operador.`);
           }
         } else if (planoNome === 'Básico') {
           if (updates.nivel_acesso === 'manobrista' && manobristas >= 2) {
