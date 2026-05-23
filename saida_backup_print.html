@@ -272,8 +272,12 @@
         <div class="info-row"><span>Permanência:</span> <strong id="checkDuration">0 min</strong></div>
 
         <div id="rotationHistory" class="rotation-history">
-          <p class="rotation-title">Histórico de Cobrança:</p>
+          <p class="rotation-title">-- Faixas de Rotatividade --</p>
           <div id="rotationList"></div>
+          <div id="faixasUsedSummary" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-align: right; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+            <div id="summaryBase">Valor Base (0 faixas) - R$ 0,00</div>
+            <div id="summaryExcedente">Valor Excedente (0 faixas) - R$ 0,00</div>
+          </div>
         </div>
 
         <div class="info-row total-row"><span class="total-label">TOTAL A PAGAR:</span> <span class="total-value" id="checkTotal">R$ 0,00</span></div>
@@ -434,38 +438,40 @@
       const entrada = new Date(entradaStr);
       const saida = new Date(saidaStr);
       const totalMinutos = Math.floor((saida - entrada) / 60000);
-      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Tolerância 5min', valor: 0 }], minutos: totalMinutos, faixasCount: 0 };
+      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Tolerância 5min', valor: 0 }], minutos: totalMinutos, faixasCount: 0, totalBase: 0, totalExcedente: 0, excedenteCount: 0 };
       
       let history = []; let currentTotal = 0;
       const valorBase = 7.00; const valorAdic = 3.00; const intervaloBase = 120; const tolerancia = 20;
 
       let tempMinutes = totalMinutos;
       let faixasCount = 0;
+      let totalBase = 0;
+      let totalExcedente = 0;
+      let excedenteCount = 0;
 
       while (tempMinutes > 0) {
         faixasCount++;
         history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
         currentTotal += valorBase;
+        totalBase += valorBase;
         
         if (tempMinutes <= intervaloBase) {
-          // Permaneceu dentro das 2h desta faixa
           break; 
         } else {
-          // Passou de 2h nesta faixa
           history.push({ label: `Excedente (${faixasCount}ª. Faixa)`, valor: valorAdic });
           currentTotal += valorAdic;
+          totalExcedente += valorAdic;
+          excedenteCount++;
           
           if (tempMinutes <= intervaloBase + tolerancia) {
-            // Passou de 2h mas está dentro da tolerância de 20min
             break;
           } else {
-            // Passou da tolerância, cobra a próxima faixa
             tempMinutes -= intervaloBase;
           }
         }
       }
 
-      return { total: currentTotal, history, minutos: totalMinutos, faixasCount };
+      return { total: currentTotal, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
     }
 
     async function startCheckout(id) {
@@ -480,6 +486,9 @@
       document.getElementById('checkIn').textContent = new Date(data.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       document.getElementById('checkDuration').textContent = selectedEntry.calc.minutos + ' min';
       document.getElementById('checkTotal').textContent = 'R$ ' + selectedEntry.calc.total.toFixed(2).replace('.', ',');
+
+      document.getElementById('summaryBase').textContent = 'Valor Base (' + selectedEntry.calc.faixasCount + ' faixas) - R$ ' + selectedEntry.calc.totalBase.toFixed(2).replace('.', ',');
+      document.getElementById('summaryExcedente').textContent = 'Valor Excedente (' + selectedEntry.calc.excedenteCount + ' faixas) - R$ ' + selectedEntry.calc.totalExcedente.toFixed(2).replace('.', ',');
 
       document.getElementById('rotationList').innerHTML = selectedEntry.calc.history.map(function(h) {
         return '<div class="rotation-item"><div class="rotation-label">' + h.label + '</div><div class="rotation-sub">R$ ' + h.valor.toFixed(2) + '</div></div>';
