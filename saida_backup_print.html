@@ -438,40 +438,49 @@
       const entrada = new Date(entradaStr);
       const saida = new Date(saidaStr);
       const totalMinutos = Math.floor((saida - entrada) / 60000);
+      
       if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Tolerância 5min', valor: 0 }], minutos: totalMinutos, faixasCount: 0, totalBase: 0, totalExcedente: 0, excedenteCount: 0 };
       
-      let history = []; let currentTotal = 0;
-      const valorBase = 7.00; const valorAdic = 3.00; const intervaloBase = 120; const tolerancia = 20;
+      let history = []; 
+      const valorBase = 7.00; const valorAdic = 3.00;
+      let totalBase = 0; let totalExcedente = 0; let faixasCount = 0; let excedenteCount = 0;
 
-      let tempMinutes = totalMinutos;
-      let faixasCount = 0;
-      let totalBase = 0;
-      let totalExcedente = 0;
-      let excedenteCount = 0;
-
-      while (tempMinutes > 0) {
-        faixasCount++;
-        history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
-        currentTotal += valorBase;
-        totalBase += valorBase;
-        
-        if (tempMinutes <= intervaloBase) {
-          break; 
-        } else {
-          history.push({ label: `Excedente (${faixasCount}ª. Faixa)`, valor: valorAdic });
-          currentTotal += valorAdic;
-          totalExcedente += valorAdic;
-          excedenteCount++;
-          
-          if (tempMinutes <= intervaloBase + tolerancia) {
-            break;
-          } else {
-            tempMinutes -= intervaloBase;
-          }
-        }
+      let rem = totalMinutos;
+      
+      // 1ª. Faixa (Especial: 2 horas de base)
+      faixasCount++;
+      totalBase += valorBase;
+      history.push({ label: `1ª. Faixa 2h`, valor: valorBase });
+      
+      if (rem <= 125) { // 120 min + 5 min de tolerância
+        return { total: totalBase, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
       }
-
-      return { total: currentTotal, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
+      if (rem <= 140) { // 120 min + 20 min (limite do excedente)
+        excedenteCount++;
+        totalExcedente += valorAdic;
+        history.push({ label: `Excedente (1ª. Faixa)`, valor: valorAdic });
+        return { total: totalBase + totalExcedente, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
+      }
+      
+      // Reinicia a lógica para faixas subsequentes (Ciclos de 20 min conforme exemplo do Patch 1.2.6)
+      rem -= 140;
+      while (rem > 0) {
+        faixasCount++;
+        totalBase += valorBase;
+        history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
+        
+        if (rem <= 5) break; // Tolerância da nova faixa
+        if (rem <= 20) { // Excedente da nova faixa
+          excedenteCount++;
+          totalExcedente += valorAdic;
+          history.push({ label: `Excedente (${faixasCount}ª. Faixa)`, valor: valorAdic });
+          break;
+        }
+        rem -= 20; // Pula para a próxima faixa após os 20 min
+      }
+      
+      const total = totalBase + totalExcedente;
+      return { total, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
     }
 
     async function startCheckout(id) {
