@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Painel Root</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>body { display: none; }</style>
+</head>
+<body>
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico"><img src="imgs/logoP.png" style="width: 100%; height: 100%; object-fit: contain;"></div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">R</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Root</div>
+        <div class="sb-eq" id="userRoleSidebar">ROOT</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Global</div>
+      <a href="root.html" class="si">
+        <span class="si-i"><i data-lucide="crown"></i></span>
+        <span class="si-l">Tenants</span>
+      </a>
+      <a href="planos_info.html" class="si">
+        <span class="si-i"><i data-lucide="qr-code"></i></span>
+        <span class="si-l">Planos</span>
+      </a>
+      <a href="relatorios_root.html" class="si">
+        <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+        <span class="si-l">Relatórios</span>
+      </a>
+      <a href="painel_root.html" class="si active">
+        <span class="si-i"><i data-lucide="layout-panel-left"></i></span>
+        <span class="si-l">Painel Root</span>
+      </a>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Painel Root</div>
+      </div>
+    </header>
+    <div class="pg">
+      <div class="card anim-fadeInUp" style="min-height: 300px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px; text-align: center;">
+        <div style="width: 80px; height: 80px; background: var(--bg-body); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold-400);">
+            <i data-lucide="construction" size="40"></i>
+        </div>
+        <div>
+            <h2 class="pg-t">Em Desenvolvimento.</h2>
+            <p class="pg-s">O Painel de Controle Root está sendo preparado.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function checkAccess() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
+      if (!user || user.nivel_acesso !== 'root') { window.location.href = 'dashboard.html'; return; }
+      document.body.style.display = 'block';
+    }
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    checkAccess();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
