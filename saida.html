@@ -470,34 +470,30 @@
       let history = []; let currentTotal = 0;
       const valorBase = 7.00; const valorAdic = 3.00; const intervaloBase = 120; const tolerancia = 20;
 
-      const blocosCompletos = Math.floor(totalMinutos / intervaloBase);
-      const minutosRestantes = totalMinutos % intervaloBase;
+      let tempMinutes = totalMinutos;
+      let faixasCount = 0;
 
-      if (blocosCompletos > 0) {
-        for (let i = 1; i <= blocosCompletos; i++) {
-          history.push({ label: `${i}ª. Faixa 2h`, valor: valorBase });
-          currentTotal += valorBase;
-        }
-      }
-
-      let faixasCount = blocosCompletos;
-
-      if (minutosRestantes > 0) {
-        if (minutosRestantes <= tolerancia) {
-          history.push({ label: `Excedente (${minutosRestantes}min)`, valor: valorAdic });
-          currentTotal += valorAdic;
-          faixasCount++;
+      while (tempMinutes > 0) {
+        faixasCount++;
+        history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
+        currentTotal += valorBase;
+        
+        if (tempMinutes <= intervaloBase) {
+          // Permaneceu dentro das 2h desta faixa
+          break; 
         } else {
-          faixasCount++;
-          history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
-          currentTotal += valorBase;
+          // Passou de 2h nesta faixa
+          history.push({ label: `Excedente (${faixasCount}ª. Faixa)`, valor: valorAdic });
+          currentTotal += valorAdic;
+          
+          if (tempMinutes <= intervaloBase + tolerancia) {
+            // Passou de 2h mas está dentro da tolerância de 20min
+            break;
+          } else {
+            // Passou da tolerância, cobra a próxima faixa
+            tempMinutes -= intervaloBase;
+          }
         }
-      }
-
-      if (currentTotal < valorBase && totalMinutos > 5) {
-        currentTotal = valorBase;
-        history = [{ label: '1ª. Faixa 2h', valor: valorBase }];
-        faixasCount = 1;
       }
 
       return { total: currentTotal, history, minutos: totalMinutos, faixasCount };
