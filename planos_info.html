@@ -51,6 +51,14 @@
           <span class="si-i"><i data-lucide="qr-code"></i></span>
           <span class="si-l">Planos</span>
         </a>
+        <a href="#" class="si">
+          <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+          <span class="si-l">Relatórios (dev)</span>
+        </a>
+        <a href="#" class="si">
+          <span class="si-i"><i data-lucide="layout-panel-left"></i></span>
+          <span class="si-l">Painel Root (dev)</span>
+        </a>
       </div>
 
       <div id="navDashboard">
@@ -212,19 +220,12 @@
         if (currentUser.tenants.logo_url) document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
       }
 
-      // CONTROLE DE VISIBILIDADE DA SIDEBAR (PATCH 1.2.3)
-      if (user.nivel_acesso === 'manobrista') {
-        document.getElementById('navGlobal')?.remove();
+      // CONTROLE DE VISIBILIDADE DA SIDEBAR (PATCH 1.2.4)
+      if (user.nivel_acesso === 'root') {
         document.getElementById('navDashboard')?.remove();
-        document.getElementById('navSaida')?.remove();
+        document.getElementById('navOperacional')?.remove();
         document.getElementById('navGestao')?.remove();
-      } else if (user.nivel_acesso === 'operador') {
-        document.getElementById('navGlobal')?.remove();
-        document.getElementById('navDashboard')?.remove();
-        document.getElementById('navEntrada')?.remove();
-        document.getElementById('navFinanceiro')?.remove();
-        document.getElementById('navMensalistas')?.remove();
-        document.getElementById('navConfig')?.remove();
+        document.querySelector('.sb-tenant-info')?.remove();
       }
 
       document.body.style.display = 'block';

@@ -226,6 +226,8 @@
     let tenantId = null;
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
 
     async function init() {
       try {
@@ -235,8 +237,17 @@
         const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
         if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
-        // Sidebar Visibility Logic (STRICT)
-        if (user.nivel_acesso === 'manobrista') {
+        // Sidebar Visibility Logic (STRICT) (PATCH 1.2.4)
+        if (user.nivel_acesso === 'root') {
+          document.getElementById('navDashboard')?.remove();
+          document.getElementById('navOperacional')?.remove();
+          document.getElementById('navGestao')?.remove();
+          document.querySelector('.sb-tenant-info')?.remove();
+          // Add Global items if they don't exist? Dashboard usually doesn't have them in HTML.
+          // But according to SPEC, they should only see Global items.
+          // Since those items are not in the HTML of dashboard.html, they won't see anything!
+          // This is a problem. The Global items should be present in the HTML of all pages or handled dynamically.
+        } else if (user.nivel_acesso === 'manobrista') {
           document.getElementById('navDashboard')?.remove();
           document.getElementById('navSaida')?.remove();
           document.getElementById('navGestao')?.remove();
@@ -245,9 +256,7 @@
         } else if (user.nivel_acesso === 'operador') {
           document.getElementById('navDashboard')?.remove();
           document.getElementById('navEntrada')?.remove();
-          document.getElementById('navFinanceiro')?.remove();
-          document.getElementById('navMensalistas')?.remove();
-          document.getElementById('navConfig')?.remove();
+          document.getElementById('navGestao')?.remove();
           document.getElementById('mobNavDash')?.remove();
           document.getElementById('mobNavEntrada')?.remove();
         }

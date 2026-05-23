@@ -267,7 +267,7 @@
 
   <!-- MODAL CHECKOUT -->
   <div class="modal-overlay" id="modalCheckout">
-    <div class="modal-card anim-fadeInUp">
+    <div class="modal anim-fadeInUp">
       <div class="modal-header">
         <h3 class="modal-title">Finalizar Estadia</h3>
         <button class="btn-close" onclick="closeCheckout()"><i data-lucide="x"></i></button>
@@ -285,8 +285,11 @@
         <div class="info-row"><span>Permanência:</span> <strong id="checkDuration">0 min</strong></div>
 
         <div id="rotationHistory" class="rotation-history">
-          <p class="rotation-title">Histórico de Cobrança:</p>
+          <p class="rotation-title">-- Faixas de Rotatividade --</p>
           <div id="rotationList"></div>
+          <div id="faixasUsedSummary" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-align: right; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+            Faixas Rotatividades utilizadas (0)
+          </div>
         </div>
 
         <div class="info-row total-row"><span class="total-label">TOTAL A PAGAR:</span> <span class="total-value" id="checkTotal">R$ 0,00</span></div>
@@ -369,9 +372,7 @@
         } else if (user.nivel_acesso === 'operador') {
           document.getElementById('navDashboard')?.remove();
           document.getElementById('navEntrada')?.remove();
-          document.getElementById('navFinanceiro')?.remove();
-          document.getElementById('navMensalistas')?.remove();
-          document.getElementById('navConfig')?.remove();
+          document.getElementById('navGestao')?.remove();
           document.getElementById('mobNavDash')?.remove();
           document.getElementById('mobNavEntrada')?.remove();
         }
@@ -464,7 +465,7 @@
       const entrada = new Date(entradaStr);
       const saida = new Date(saidaStr);
       const totalMinutos = Math.floor((saida - entrada) / 60000);
-      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Tolerância 5min', valor: 0 }], minutos: totalMinutos };
+      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Tolerância 5min', valor: 0 }], minutos: totalMinutos, faixasCount: 0 };
       
       let history = []; let currentTotal = 0;
       const valorBase = 7.00; const valorAdic = 3.00; const intervaloBase = 120; const tolerancia = 20;
@@ -474,27 +475,32 @@
 
       if (blocosCompletos > 0) {
         for (let i = 1; i <= blocosCompletos; i++) {
-          history.push({ label: `Bloco ${i} (2h)`, valor: valorBase });
+          history.push({ label: `${i}ª. Faixa 2h`, valor: valorBase });
           currentTotal += valorBase;
         }
       }
+
+      let faixasCount = blocosCompletos;
 
       if (minutosRestantes > 0) {
         if (minutosRestantes <= tolerancia) {
           history.push({ label: `Excedente (${minutosRestantes}min)`, valor: valorAdic });
           currentTotal += valorAdic;
+          faixasCount++;
         } else {
-          history.push({ label: `Próximo Bloco (frações)`, valor: valorBase });
+          faixasCount++;
+          history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
           currentTotal += valorBase;
         }
       }
 
       if (currentTotal < valorBase && totalMinutos > 5) {
         currentTotal = valorBase;
-        history = [{ label: 'Tarifa Mínima (1º Bloco)', valor: valorBase }];
+        history = [{ label: '1ª. Faixa 2h', valor: valorBase }];
+        faixasCount = 1;
       }
 
-      return { total: currentTotal, history, minutos: totalMinutos };
+      return { total: currentTotal, history, minutos: totalMinutos, faixasCount };
     }
 
     async function startCheckout(id) {
@@ -522,6 +528,7 @@
       document.getElementById('checkIn').textContent = new Date(data.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       document.getElementById('checkDuration').textContent = selectedEntry.calc.minutos + " min";
       document.getElementById('checkTotal').textContent = "R$ " + selectedEntry.calc.total.toFixed(2).replace('.', ',');
+      document.getElementById('faixasUsedSummary').textContent = `Faixas Rotatividades utilizadas (${selectedEntry.calc.faixasCount})`;
 
       var rotHtml = '';
       for (var j = 0; j < selectedEntry.calc.history.length; j++) {
@@ -645,11 +652,12 @@
       document.getElementById('recOpCopy').textContent = currentUser.nome;
 
       const histEl = document.getElementById('recHistoryContent');
-      var recHistHtml = '<div style="font-weight: 700; margin-bottom: 1mm; font-size: 7pt;">DETALHES DA TARIFA:</div>';
+      var recHistHtml = '<div style="font-weight: 700; margin-bottom: 1mm; font-size: 7pt;">-- Faixas de Rotatividade --</div>';
       for (var m = 0; m < entryData.calc.history.length; m++) {
         var hRec = entryData.calc.history[m];
         recHistHtml += '<div style="display: flex; justify-content: space-between; margin-bottom: 0.5mm;"><span>' + hRec.label + '</span><strong>R$ ' + hRec.valor.toFixed(2) + '</strong></div>';
       }
+      recHistHtml += '<div style="border-top: 0.2mm dashed #000; margin-top: 1mm; padding-top: 1mm; font-size: 6pt; text-align: right;">Faixas Rotatividades utilizadas (' + entryData.calc.faixasCount + ')</div>';
       histEl.innerHTML = recHistHtml;
 
       const receiptEl = document.getElementById('receiptPrint');
