@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Minha Assinatura</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>body { display: none; }</style>
+</head>
+<body>
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+  
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico"><img src="imgs/logoP.png" style="width: 100%; height: 100%; object-fit: contain;"></div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+
+    <div class="sb-tenant-info" style="margin-top: 15px; padding: 10px; border-radius: 12px; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+      <div style="width: 60px; height: 60px; margin: 0 auto 8px auto; border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center;">
+        <img id="sb-tenant-logo" src="imgs/SuaMarcaAqui.png" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+      </div>
+      <div id="sb-tenant-name" style="font-size: 0.8rem; font-weight: 700; color: var(--gold-400); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">...</div>
+    </div>
+
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">A</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Admin</div>
+        <div class="sb-eq" id="userRoleSidebar">Administrador</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div id="navDashboard">
+        <div class="sb-sec">Principal</div>
+        <a href="dashboard.html" class="si">
+          <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+          <span class="si-l">Dashboard</span>
+        </a>
+      </div>
+
+      <div id="navOperacional">
+        <div class="sb-sec">Operacional</div>
+        <a href="entrada.html" class="si">
+          <span class="si-i"><i data-lucide="log-in"></i></span>
+          <span class="si-l">Nova Entrada</span>
+        </a>
+        <a href="saida.html" class="si">
+          <span class="si-i"><i data-lucide="log-out"></i></span>
+          <span class="si-l">Registrar Saída</span>
+        </a>
+      </div>
+
+      <div id="navGestao">
+        <div class="sb-sec">Gestão</div>
+        <a href="financeiro.html" class="si">
+          <span class="si-i"><i data-lucide="wallet"></i></span>
+          <span class="si-l">Financeiro</span>
+        </a>
+        <a href="relatorios.html" class="si">
+          <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+          <span class="si-l">Relatórios</span>
+        </a>
+        <a href="mensalistas.html" class="si">
+          <span class="si-i"><i data-lucide="calendar-days"></i></span>
+          <span class="si-l">Mensalistas</span>
+        </a>
+        <a href="config.html" class="si">
+          <span class="si-i"><i data-lucide="settings"></i></span>
+          <span class="si-l">Configurações</span>
+        </a>
+        <a href="minha_assinatura.html" class="si active">
+          <span class="si-i"><i data-lucide="credit-card"></i></span>
+          <span class="si-l">Minha Assinatura</span>
+        </a>
+      </div>
+    </nav>
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Minha Assinatura</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="pg-hd">
+        <div><h2 class="pg-t">Status do Plano</h2><p class="pg-s">Acompanhe suas mensalidades e detalhes da assinatura.</p></div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="card anim-fadeInUp">
+          <div class="card-header"><h3 class="card-title">Plano Atual</h3></div>
+          <div class="card-body">
+            <h1 id="planName" style="color: var(--gold-400); margin-bottom: 5px;">...</h1>
+            <p id="planValue" style="font-size: 1.2rem; font-weight: 700; margin-bottom: 15px;">R$ 0,00 /mês</p>
+            <div id="planDesc" class="pg-s">...</div>
+          </div>
+        </div>
+
+        <div class="card anim-fadeInUp">
+          <div class="card-header"><h3 class="card-title">Financeiro</h3></div>
+          <div class="card-body">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Vencimento Padrão:</span>
+                <strong id="vencimentoPadrao">Dia 10</strong>
+            </div>
+            <hr style="margin: 15px 0; border: 0; border-top: 1px solid var(--border);">
+            <p class="pg-s">Para pagamentos, utilize a chave PIX do suporte ParkTor.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card anim-fadeInUp" style="margin-top: 20px;">
+        <div class="card-header"><h3 class="card-title">Histórico de Faturas</h3></div>
+        <div class="tw">
+          <table class="tab">
+            <thead>
+              <tr>
+                <th>Referência</th>
+                <th>Vencimento</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Pagamento</th>
+              </tr>
+            </thead>
+            <tbody id="invoiceTableBody">
+              <tr><td colspan="5" style="text-align: center; padding: 20px;">Carregando faturas...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null;
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      
+      const { data: user } = await sb.from('users').select('*, tenants(*, planos(*))').eq('id', session.user.id).single();
+      if (!user || user.nivel_acesso !== 'admin') { window.location.href = 'dashboard.html'; return; }
+      
+      currentUser = user;
+      document.body.style.display = 'block';
+      renderUI();
+      loadInvoices();
+    }
+
+    function renderUI() {
+        const t = currentUser.tenants;
+        const p = t?.planos;
+        document.getElementById('planName').textContent = p?.nome || 'Sem Plano';
+        document.getElementById('planValue').textContent = `R$ ${p?.valor?.toFixed(2) || '0,00'} /mês`;
+        document.getElementById('planDesc').textContent = p?.descricao || '';
+        document.getElementById('vencimentoPadrao').textContent = `Dia ${t?.dia_vencimento || 10}`;
+        
+        document.getElementById('userNameSidebar').textContent = currentUser.nome.split(' ')[0];
+        document.getElementById('sb-tenant-name').textContent = t?.nome || '...';
+        if (t?.logo_url) document.getElementById('sb-tenant-logo').src = t.logo_url;
+    }
+
+    async function loadInvoices() {
+        const { data, error } = await sb.from('platform_invoices')
+            .select('*')
+            .eq('tenant_id', currentUser.tenant_id)
+            .order('mes_referencia', { ascending: false });
+        
+        const tbody = document.getElementById('invoiceTableBody');
+        if (error || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma fatura encontrada.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(inv => `
+            <tr>
+                <td><strong>${inv.mes_referencia}</strong></td>
+                <td>${new Date(inv.vencimento).toLocaleDateString('pt-BR')}</td>
+                <td>R$ ${inv.valor.toFixed(2)}</td>
+                <td><span class="badge ${getStatusBadge(inv.status)}">${inv.status.toUpperCase()}</span></td>
+                <td>${inv.data_pagamento ? new Date(inv.data_pagamento).toLocaleDateString('pt-BR') : '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function getStatusBadge(status) {
+        if (status === 'pago') return 'badge-green';
+        if (status === 'pendente') return 'badge-gold';
+        if (status === 'atrasado') return 'badge-red';
+        return 'badge-blue';
+    }
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    
+    init();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

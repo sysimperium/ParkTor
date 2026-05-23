@@ -80,6 +80,10 @@
           <span class="si-i"><i data-lucide="settings"></i></span>
           <span class="si-l">Configurações</span>
         </a>
+        <a href="minha_assinatura.html" class="si" id="navAssinatura">
+          <span class="si-i"><i data-lucide="credit-card"></i></span>
+          <span class="si-l">Minha Assinatura</span>
+        </a>
       </div>
     </nav>
 
@@ -237,16 +241,11 @@
         const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
         if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
-        // Sidebar Visibility Logic (STRICT) (PATCH 1.2.4)
         if (user.nivel_acesso === 'root') {
           document.getElementById('navDashboard')?.remove();
           document.getElementById('navOperacional')?.remove();
           document.getElementById('navGestao')?.remove();
           document.querySelector('.sb-tenant-info')?.remove();
-          // Add Global items if they don't exist? Dashboard usually doesn't have them in HTML.
-          // But according to SPEC, they should only see Global items.
-          // Since those items are not in the HTML of dashboard.html, they won't see anything!
-          // This is a problem. The Global items should be present in the HTML of all pages or handled dynamically.
         } else if (user.nivel_acesso === 'manobrista') {
           document.getElementById('navDashboard')?.remove();
           document.getElementById('navSaida')?.remove();
@@ -259,6 +258,9 @@
           document.getElementById('navGestao')?.remove();
           document.getElementById('mobNavDash')?.remove();
           document.getElementById('mobNavEntrada')?.remove();
+        } else {
+          // Admin - remove Global stuff if any
+          document.getElementById('navGlobal')?.remove();
         }
 
         // RESTRIÇÃO TOTAL DE DASHBOARD PARA MANOBRISTA E OPERADOR
