@@ -247,7 +247,14 @@
                 <td>R$ ${inv.valor.toFixed(2)}</td>
                 <td><span class="badge ${getStatusBadge(inv.status)}">${inv.status.toUpperCase()}</span></td>
                 <td>
-                    ${inv.status === 'pendente' ? `<button class="btn btn-ghost btn-sm" onclick="markAsPaid('${inv.id}')">DAR BAIXA</button>` : '-'}
+                    <div style="display: flex; gap: 5px;">
+                        ${inv.status === 'pendente' ? `
+                            <button class="btn btn-ghost btn-sm" onclick="markAsPaid('${inv.id}')">DAR BAIXA</button>
+                            <button class="btn btn-ghost btn-sm" style="color: var(--red-400);" onclick="deleteInvoice('${inv.id}')">DELETAR</button>
+                        ` : `
+                            <button class="btn btn-ghost btn-sm" onclick="reopenInvoice('${inv.id}')">REABRIR</button>
+                        `}
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -271,6 +278,34 @@
         if (error) showAlert('Erro', 'Não foi possível dar baixa na fatura.', 'danger');
         else {
             showAlert('Sucesso', 'Mensalidade registrada como PAGA!', 'success');
+            loadInvoices(selectedTenantId);
+        }
+    }
+
+    async function deleteInvoice(id) {
+        const confirmAction = await showConfirm('Excluir Fatura', 'Deseja realmente excluir esta mensalidade? Esta ação não pode ser desfeita.');
+        if (!confirmAction) return;
+
+        const { error } = await sb.from('platform_invoices').delete().eq('id', id);
+        
+        if (error) showAlert('Erro', 'Não foi possível excluir a fatura.', 'danger');
+        else {
+            showAlert('Sucesso', 'Mensalidade excluída com sucesso!', 'success');
+            loadInvoices(selectedTenantId);
+        }
+    }
+
+    async function reopenInvoice(id) {
+        const confirmAction = await showConfirm('Reabrir Fatura', 'Deseja reverter o pagamento desta mensalidade para PENDENTE?');
+        if (!confirmAction) return;
+
+        const { error } = await sb.from('platform_invoices')
+            .update({ status: 'pendente', data_pagamento: null })
+            .eq('id', id);
+        
+        if (error) showAlert('Erro', 'Não foi possível reabrir a fatura.', 'danger');
+        else {
+            showAlert('Sucesso', 'Mensalidade reaberta e agora consta como PENDENTE.', 'success');
             loadInvoices(selectedTenantId);
         }
     }
