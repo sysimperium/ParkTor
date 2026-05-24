@@ -124,7 +124,7 @@
             <button class="btn-close" onclick="closeBatchModal()"><i data-lucide="x"></i></button>
         </div>
         <div class="modal-body">
-            <p class="pg-s" style="margin-bottom: 15px;">Selecione o mês de referência para gerar as cobranças de todos os estacionamentos ativos.</p>
+            <p id="batchDesc" class="pg-s" style="margin-bottom: 15px;">Selecione o mês de referência para gerar as cobranças.</p>
             <div class="form-group">
                 <label class="form-label">Mês de Referência</label>
                 <input type="month" id="batchMonth" class="form-input">
@@ -312,6 +312,13 @@
 
     function openBatchModal() { 
         document.getElementById('batchMonth').value = new Date().toISOString().slice(0, 7);
+        const desc = document.getElementById('batchDesc');
+        if (selectedTenantId) {
+            const t = tenants.find(x => x.id === selectedTenantId);
+            desc.textContent = `Gerar mensalidade apenas para: ${t?.nome || 'Selecionado'}`;
+        } else {
+            desc.textContent = "Gerar mensalidades para TODOS os estacionamentos ativos.";
+        }
         document.getElementById('modalBatch').classList.add('show'); 
     }
     function closeBatchModal() { document.getElementById('modalBatch').classList.remove('show'); }
@@ -325,7 +332,9 @@
 
         try {
             let count = 0;
-            for (const t of tenants) {
+            const targetTenants = selectedTenantId ? tenants.filter(t => t.id === selectedTenantId) : tenants;
+
+            for (const t of targetTenants) {
                 if (!t.plano_id || !t.planos) continue;
                 
                 const { data: existing } = await sb.from('platform_invoices')
