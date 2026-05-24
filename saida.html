@@ -81,7 +81,8 @@
         <div class="rec-row"><span>ENTRADA:</span> <span id="recInCopy">--:--</span></div>
         <div class="rec-row"><span>SAÍDA:</span> <span id="recOutCopy">--:--</span></div>
         <div class="rec-row"><span>VALOR:</span> <strong id="recTotalCopy">R$ 0,00</strong></div>
-        <div class="rec-row"><span>FORMA:</span> <span id="recPayCopy">---</span></div>
+        <div id="recMultiPayDetails" style="font-size: 7pt; margin: 1mm 0; border-top: 0.1mm solid #eee; padding-top: 1mm; display: none;"></div>
+        <div class="rec-row" id="recSinglePayRow"><span>FORMA:</span> <span id="recPayCopy">---</span></div>
         <div class="rec-row" style="margin-top: 2mm;"><span>OPERADOR:</span> <span id="recOpCopy">---</span></div>
       </div>
       <div class="rec-footer" style="margin-top: 5mm;">
@@ -701,7 +702,25 @@
       document.getElementById('recDuration').textContent = entryData.calc.minutos + " min";
       document.getElementById('recTotal').textContent = "R$ " + entryData.calc.total.toFixed(2).replace('.', ',');
       document.getElementById('recTotalCopy').textContent = "R$ " + entryData.calc.total.toFixed(2).replace('.', ',');
-      document.getElementById('recPayCopy').textContent = mainPayMode.toUpperCase();
+      
+      // Lógica de Detalhamento de Pagamentos (PATCH 1.2.9)
+      const multiPayEl = document.getElementById('recMultiPayDetails');
+      const singlePayRow = document.getElementById('recSinglePayRow');
+      
+      if (payments && payments.length > 1) {
+        multiPayEl.style.display = 'block';
+        singlePayRow.style.display = 'none';
+        let multiHtml = '';
+        payments.forEach(p => {
+          multiHtml += `<div class="rec-row" style="margin-bottom: 0.2mm;"><span>${p.mode.toUpperCase()}:</span> <span>R$ ${p.valor.toFixed(2).replace('.', ',')}</span></div>`;
+        });
+        multiPayEl.innerHTML = multiHtml;
+      } else {
+        multiPayEl.style.display = 'none';
+        singlePayRow.style.display = 'flex';
+        document.getElementById('recPayCopy').textContent = mainPayMode.toUpperCase();
+      }
+      
       document.getElementById('recOpCopy').textContent = currentUser.nome;
 
       const histEl = document.getElementById('recHistoryContent');
