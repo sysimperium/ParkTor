@@ -35,9 +35,57 @@
     .rec-divider { border-top: 1px dashed #000; margin: 5mm 0; }
     .rec-footer { font-size: 8pt; text-align: center; }
     .rec-cashier { font-size: 8pt; text-align: left; }
+
+    /* Visualizador Checklist (PATCH 1.3.1) */
+    .checklist-viewer {
+      position: relative;
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #fff;
+    }
+    .checklist-img { width: 100%; display: block; user-select: none; }
+    .checklist-mark {
+      position: absolute;
+      width: 14px;
+      height: 16px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid #fff;
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+    .checklist-mark.risco { background: #000; }
+    .checklist-mark.amassado { background: #ef4444; }
   </style>
 </head>
 <body>
+
+  <!-- MODAL VISUALIZAR CHECKLIST (PATCH 1.3.1) -->
+  <div class="modal-overlay" id="modalViewChecklist">
+    <div class="modal card anim-fadeInUp" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Checklist de Entrada</h3>
+        <button class="btn-close" onclick="closeViewChecklist()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="viewChecklistArea" class="checklist-viewer">
+          <img src="imgs/ChkCar.png" class="checklist-img">
+          <div id="viewMarksLayer"></div>
+        </div>
+        <div style="margin-top: 15px; display: flex; gap: 20px; justify-content: center; font-size: 0.8rem; font-weight: 600;">
+          <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 50%; background: #000; border: 1px solid #fff;"></span> RISCOS</div>
+          <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 1px solid #fff;"></span> AMASSADOS</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeViewChecklist()">FECHAR</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Container Oculto para Recibo de Saída -->
   <div style="position: absolute; left: -9999px; top: -9999px;">
@@ -229,7 +277,10 @@
               </div>
             </div>
 
-            <div style="margin-top: 15px;">
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+              <button class="btn btn-ghost btn-full" id="btnViewChecklist" style="display: none; border: 1px solid var(--gold-400); color: var(--gold-400);" onclick="viewCurrentChecklist()">
+                <i data-lucide="check-square" size="18" style="margin-right: 8px;"></i> CHECKLIST
+              </button>
               <button class="btn btn-primary btn-lg btn-full" id="btnQuickCheckout" style="font-size: 1.1rem; height: 55px;">SAÍDA RÁPIDA</button>
             </div>
           </div>
@@ -438,6 +489,33 @@
 
     let currentUser = null, tenantId = null, selectedEntry = null, selectedPayments = [], currentCashier = null;
     let quickEntryInterval = null, currentQuickEntry = null, activeEntries = [];
+
+    /* --- VIEW CHECKLIST LOGIC (PATCH 1.3.1) --- */
+    function openViewChecklist(marks) {
+      const layer = document.getElementById('viewMarksLayer');
+      if (marks && marks.length > 0) {
+        layer.innerHTML = marks.map(m => 
+          `<div class="checklist-mark ${m.type}" style="left: ${m.x}%; top: ${m.y}%;"></div>`
+        ).join('');
+      } else {
+        layer.innerHTML = '<p style="position: absolute; width: 100%; text-align: center; top: 50%; color: var(--text-muted);">Sem avarias registradas.</p>';
+      }
+      document.getElementById('modalViewChecklist').classList.add('show');
+    }
+    function closeViewChecklist() {
+      document.getElementById('modalViewChecklist').classList.remove('show');
+    }
+    function viewCurrentChecklist() {
+      if (currentQuickEntry && currentQuickEntry.checklist_data) {
+        openViewChecklist(currentQuickEntry.checklist_data);
+      }
+    }
+    async function viewChecklistById(id) {
+      const { data, error } = await sb.from('valet_entries').select('checklist_data').eq('id', id).single();
+      if (!error && data) {
+        openViewChecklist(data.checklist_data);
+      }
+    }
 
     async function checkAccess() {
       try {
@@ -912,6 +990,14 @@
       currentQuickEntry = entry;
       document.getElementById('quickResult').style.display = 'block';
       
+      // Mostrar Botão Checklist se habilitado e houver dados (PATCH 1.3.1)
+      const btnCheck = document.getElementById('btnViewChecklist');
+      if (currentUser.tenants?.checklist_enabled && entry.checklist_data) {
+        btnCheck.style.display = 'flex';
+      } else {
+        btnCheck.style.display = 'none';
+      }
+
       const plate = entry.placa.toUpperCase();
       const visual = document.getElementById('quickPlateVisual');
       document.getElementById('quickPlateText').textContent = plate;
@@ -1064,7 +1150,10 @@
           '<td>' + itemH.minutos_total + ' min</td>' +
           '<td>R$ ' + itemH.valor.toFixed(2).replace('.', ',') + '</td>' +
           '<td><span class="badge badge-blue">' + itemH.forma_pagamento.toUpperCase() + '</span></td>' +
-          '<td><button class="btn btn-ghost btn-sm" onclick="reprintReceiptFromHistory(\'' + itemH.id + '\')" title="Reimprimir"><i data-lucide="printer"></i></button></td>' +
+          '<td style="display: flex; gap: 5px;">' +
+            '<button class="btn btn-ghost btn-sm" onclick="reprintReceiptFromHistory(\'' + itemH.id + '\')" title="Reimprimir"><i data-lucide="printer"></i></button>' +
+            (itemH.checklist_data ? '<button class="btn btn-ghost btn-sm" onclick="viewChecklistById(\'' + itemH.id + '\')" title="Checklist" style="color: var(--gold-400);"><i data-lucide="check-square"></i></button>' : '') +
+          '</td>' +
         '</tr>';
       }
       tbody.innerHTML = histHtml;
