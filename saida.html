@@ -207,6 +207,33 @@
           </div>
         </div>
 
+        <!-- RESULTADO RÁPIDO (PATCH 1.2.9) -->
+        <div id="quickResult" class="card anim-fadeInUp" style="display: none; border-top: 4px solid var(--gold-400);">
+          <div class="card-body" style="text-align: center;">
+            <div id="quickClock" style="font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; color: var(--gold-300); margin-bottom: 10px; letter-spacing: 2px;">00:00:00</div>
+            
+            <div class="plate-preview-container" style="margin-bottom: 20px;">
+              <div id="quickPlateVisual" class="real-plate classic">
+                <div class="plate-header-text">BRASIL</div>
+                <div class="plate-text" id="quickPlateText">---</div>
+              </div>
+            </div>
+
+            <div id="quickRotation" class="rotation-history" style="text-align: left; max-width: 400px; margin: 0 auto;">
+              <p class="rotation-title">-- Faixas de Rotatividade --</p>
+              <div id="quickRotationList"></div>
+              <div id="quickFaixasSummary" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-align: right; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                <div id="quickSummaryBase">Valor Base (0 faixas) - R$ 0,00</div>
+                <div id="quickSummaryExcedente">Valor Excedente (0 faixas) - R$ 0,00</div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+              <button class="btn btn-primary btn-lg btn-full" id="btnQuickCheckout">SAÍDA RÁPIDA</button>
+            </div>
+          </div>
+        </div>
+
         <div class="card anim-fadeInUp">
           <div class="card-header">
             <h3 class="card-title">Veículos Estacionados</h3>
@@ -354,6 +381,7 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null, tenantId = null, selectedEntry = null, selectedPayments = [], currentCashier = null;
+    let quickEntryInterval = null, currentQuickEntry = null, activeEntries = [];
 
     async function checkAccess() {
       try {
@@ -444,8 +472,10 @@
       if (error || !data || data.length === 0) {
         document.getElementById('activeCount').textContent = '0';
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Pátio vazio</td></tr>';
+        activeEntries = [];
         return;
       }
+      activeEntries = data;
       document.getElementById('activeCount').textContent = data.length;
       
       var html = '';
@@ -696,10 +726,108 @@
       if (win) { win.onload = () => { win.print(); setTimeout(() => URL.revokeObjectURL(url), 60000); }; }
     }
 
-    document.getElementById('btnSearch').addEventListener('click', () => {
+    function stopQuickClock() {
+      if (quickEntryInterval) clearInterval(quickEntryInterval);
+      quickEntryInterval = null;
+      document.getElementById('quickResult').style.display = 'none';
+    }
+
+    function startQuickClock(entry) {
+      stopQuickClock();
+      currentQuickEntry = entry;
+      document.getElementById('quickResult').style.display = 'block';
+      
+      const plate = entry.placa.toUpperCase();
+      const visual = document.getElementById('quickPlateVisual');
+      document.getElementById('quickPlateText').textContent = plate;
+      const isMercosul = /[A-Z]/.test(plate[4]);
+      if (isMercosul && plate.length >= 5) {
+        visual.className = 'real-plate mercosul';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+      } else {
+        visual.className = 'real-plate classic';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+      }
+
+      const updateUI = () => {
+        const agora = new Date();
+        const entrada = new Date(currentQuickEntry.entrada);
+        const diffMs = agora - entrada;
+        const diffHrs = Math.floor(diffMs / 3600000);
+        const diffMins = Math.floor((diffMs % 3600000) / 60000);
+        const diffSecs = Math.floor((diffMs % 60000) / 1000);
+        
+        document.getElementById('quickClock').textContent = 
+          String(diffHrs).padStart(2, '0') + ":" + 
+          String(diffMins).padStart(2, '0') + ":" + 
+          String(diffSecs).padStart(2, '0');
+
+        const calc = calcularRotationHistory(currentQuickEntry.entrada, agora.toISOString());
+        
+        document.getElementById('quickSummaryBase').textContent = `Valor Base (${calc.faixasCount} faixas) - R$ ${calc.totalBase.toFixed(2).replace('.', ',')}`;
+        document.getElementById('quickSummaryExcedente').textContent = `Valor Excedente (${calc.excedenteCount} faixas) - R$ ${calc.totalExcedente.toFixed(2).replace('.', ',')}`;
+
+        var rotHtml = '';
+        for (var j = 0; j < calc.history.length; j++) {
+          var h = calc.history[j];
+          rotHtml += '<div class="rotation-item"><div class="rotation-label">' + h.label + '</div><div class="rotation-sub">R$ ' + h.valor.toFixed(2) + '</div></div>';
+        }
+        document.getElementById('quickRotationList').innerHTML = rotHtml;
+      };
+
+      updateUI();
+      quickEntryInterval = setInterval(updateUI, 1000);
+    }
+
+    function handleSearch() {
       const term = document.getElementById('searchInput').value.toUpperCase().trim();
       const rows = document.querySelectorAll('#activeTableBody tr');
-      rows.forEach(row => { row.style.display = row.querySelector('strong')?.textContent.includes(term) ? '' : 'none'; });
+      let matches = 0;
+      let lastMatchEntry = null;
+
+      rows.forEach(row => {
+        const plateText = row.querySelector('strong')?.textContent;
+        if (plateText && plateText.includes(term)) {
+          row.style.display = '';
+          matches++;
+          lastMatchEntry = activeEntries.find(e => e.placa === plateText);
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      if (term.length === 7 && lastMatchEntry && lastMatchEntry.placa === term) {
+        startQuickClock(lastMatchEntry);
+      } else if (matches === 1 && lastMatchEntry && term.length >= 3) {
+        startQuickClock(lastMatchEntry);
+      } else {
+        stopQuickClock();
+      }
+    }
+
+    document.getElementById('btnSearch').addEventListener('click', handleSearch);
+    document.getElementById('searchInput').addEventListener('input', handleSearch);
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleSearch();
+        if (currentQuickEntry) {
+          const id = currentQuickEntry.id;
+          stopQuickClock();
+          document.getElementById('searchInput').value = '';
+          handleSearch();
+          startCheckout(id);
+        }
+      }
+    });
+
+    document.getElementById('btnQuickCheckout').addEventListener('click', () => {
+      if (currentQuickEntry) {
+        const id = currentQuickEntry.id;
+        stopQuickClock();
+        document.getElementById('searchInput').value = '';
+        handleSearch();
+        startCheckout(id);
+      }
     });
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
