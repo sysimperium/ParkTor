@@ -282,9 +282,9 @@
           </div>
           <div class="tw">
             <table class="tab">
-              <thead><tr><th>Placa</th><th>Data</th><th>Saída</th><th>Permanência</th><th>Valor</th><th>Pagto</th></tr></thead>
+              <thead><tr><th>Placa</th><th>Data</th><th>Saída</th><th>Permanência</th><th>Valor</th><th>Pagto</th><th>Ação</th></tr></thead>
               <tbody id="historyTableBody">
-                <tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>
+                <tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>
               </tbody>
             </table>
           </div>
@@ -888,7 +888,7 @@
       else { if (dataInicio) query = query.gte('saida', `${dataInicio}T00:00:00`); if (dataFim) query = query.lte('saida', `${dataFim}T23:59:59`); }
       const { data } = await query.order('saida', { ascending: false });
       const tbody = document.getElementById('historyTableBody');
-      if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>'; return; }
+      if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhuma saída encontrada.</td></tr>'; return; }
       
       var histHtml = '';
       for (var n = 0; n < data.length; n++) {
@@ -900,9 +900,32 @@
           '<td>' + itemH.minutos_total + ' min</td>' +
           '<td>R$ ' + itemH.valor.toFixed(2).replace('.', ',') + '</td>' +
           '<td><span class="badge badge-blue">' + itemH.forma_pagamento.toUpperCase() + '</span></td>' +
+          '<td><button class="btn btn-ghost btn-sm" onclick="reprintReceiptFromHistory(\'' + itemH.id + '\')" title="Reimprimir"><i data-lucide="printer"></i></button></td>' +
         '</tr>';
       }
       tbody.innerHTML = histHtml;
+      lucide.createIcons();
+    }
+
+    async function reprintReceiptFromHistory(id) {
+      try {
+        const { data: entry, error: eErr } = await sb.from('valet_entries').select('*').eq('id', id).single();
+        if (eErr || !entry) throw new Error("Estadia não encontrada.");
+
+        const { data: payments, error: pErr } = await sb.from('valet_payments').select('*').eq('entry_id', id);
+        if (pErr) throw pErr;
+
+        // Recalcular histórico para o recibo
+        entry.calc = calcularRotationHistory(entry.entrada, entry.saida);
+        
+        // Formas de pagamento para o recibo
+        const formattedPayments = payments.map(p => ({ mode: p.forma_pagamento, valor: p.valor }));
+        
+        await printReceipt(entry, formattedPayments, entry.forma_pagamento);
+        showAlert('Sucesso', 'Reimpressão gerada!', 'success');
+      } catch (err) {
+        showAlert('Erro', err.message, 'danger');
+      }
     }
 
     checkAccess();
