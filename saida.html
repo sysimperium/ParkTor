@@ -208,28 +208,28 @@
         </div>
 
         <!-- RESULTADO RÁPIDO (PATCH 1.2.9) -->
-        <div id="quickResult" class="card anim-fadeInUp" style="display: none; border-top: 4px solid var(--gold-400);">
-          <div class="card-body" style="text-align: center;">
-            <div id="quickClock" style="font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; color: var(--gold-300); margin-bottom: 10px; letter-spacing: 2px;">00:00:00</div>
+        <div id="quickResult" class="card anim-fadeInUp" style="display: none; border-top: 4px solid var(--gold-400); background: rgba(18, 29, 23, 0.95);">
+          <div class="card-body" style="text-align: center; padding: 15px;">
+            <div id="quickClock" style="font-family: var(--font-display); font-size: 2.8rem; font-weight: 800; color: var(--gold-300); margin-bottom: 5px; letter-spacing: 2px;">00:00:00</div>
             
-            <div class="plate-preview-container" style="margin-bottom: 20px;">
+            <div class="plate-preview-container" style="margin-bottom: 15px; transform: scale(1.1);">
               <div id="quickPlateVisual" class="real-plate classic">
                 <div class="plate-header-text">BRASIL</div>
                 <div class="plate-text" id="quickPlateText">---</div>
               </div>
             </div>
 
-            <div id="quickRotation" class="rotation-history" style="text-align: left; max-width: 400px; margin: 0 auto;">
-              <p class="rotation-title">-- Faixas de Rotatividade --</p>
+            <div id="quickRotation" class="rotation-history" style="text-align: center; max-width: 400px; margin: 0 auto; padding: 12px; background: rgba(0,0,0,0.3);">
+              <p class="rotation-title" style="text-align: center; font-size: 0.75rem; margin-bottom: 8px;">-- Faixas de Rotatividade --</p>
               <div id="quickRotationList"></div>
-              <div id="quickFaixasSummary" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-align: right; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+              <div id="quickFaixasSummary" style="margin-top: 8px; font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-align: center; border-top: 1px dashed var(--border-color); padding-top: 6px;">
                 <div id="quickSummaryBase">Valor Base (0 faixas) - R$ 0,00</div>
                 <div id="quickSummaryExcedente">Valor Excedente (0 faixas) - R$ 0,00</div>
               </div>
             </div>
 
-            <div style="margin-top: 20px;">
-              <button class="btn btn-primary btn-lg btn-full" id="btnQuickCheckout">SAÍDA RÁPIDA</button>
+            <div style="margin-top: 15px;">
+              <button class="btn btn-primary btn-lg btn-full" id="btnQuickCheckout" style="font-size: 1.1rem; height: 55px;">SAÍDA RÁPIDA</button>
             </div>
           </div>
         </div>
@@ -770,13 +770,21 @@
         var rotHtml = '';
         for (var j = 0; j < calc.history.length; j++) {
           var h = calc.history[j];
-          rotHtml += '<div class="rotation-item"><div class="rotation-label">' + h.label + '</div><div class="rotation-sub">R$ ' + h.valor.toFixed(2) + '</div></div>';
+          rotHtml += '<div class="rotation-item" style="text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px; margin-bottom: 5px;">' +
+            '<div class="rotation-label" style="font-size: 0.85rem;">' + h.label + '</div>' +
+            '<div class="rotation-sub" style="font-size: 0.95rem; color: var(--gold-400);">R$ ' + h.valor.toFixed(2).replace('.', ',') + '</div>' +
+          '</div>';
         }
         document.getElementById('quickRotationList').innerHTML = rotHtml;
       };
 
       updateUI();
       quickEntryInterval = setInterval(updateUI, 1000);
+      
+      // Garante que o resultado fique visível (PATCH 1.2.9)
+      setTimeout(() => {
+        document.getElementById('quickResult').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
     }
 
     function handleSearch() {
