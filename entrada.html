@@ -35,9 +35,89 @@
     @media print {
       body * { visibility: hidden; }
     }
+
+    /* Checklist Avarias (PATCH 1.3.1) */
+    .checklist-container {
+      position: relative;
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #fff;
+      touch-action: none;
+    }
+    .checklist-img { width: 100%; display: block; user-select: none; -webkit-user-drag: none; }
+    .checklist-mark {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid #fff;
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+    .checklist-mark.risco { background: #000; }
+    .checklist-mark.amassado { background: #ef4444; }
+    .checklist-tools {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      justify-content: center;
+    }
+    .tool-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .tool-btn.active { border-color: var(--gold-400); color: var(--gold-400); background: rgba(212,168,68,0.1); }
+    .tool-btn .dot { width: 10px; height: 10px; border-radius: 50%; }
   </style>
 </head>
 <body>
+
+  <!-- MODAL CHECKLIST (PATCH 1.3.1) -->
+  <div class="modal-overlay" id="modalChecklist">
+    <div class="modal card anim-fadeInUp" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Checklist de Avarias</h3>
+        <button class="btn-close" onclick="closeChecklist()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="checklist-tools">
+          <button class="tool-btn active" id="btnToolRisco" onclick="setChecklistTool('risco')">
+            <span class="dot" style="background: #000;"></span> RISCOS
+          </button>
+          <button class="tool-btn" id="btnToolAmassado" onclick="setChecklistTool('amassado')">
+            <span class="dot" style="background: #ef4444;"></span> AMASSADOS
+          </button>
+        </div>
+
+        <div class="checklist-container" id="checklistArea">
+          <img src="imgs/ChkCar.png" class="checklist-img" draggable="false">
+          <div id="marksLayer"></div>
+        </div>
+        
+        <p class="pg-s" style="margin-top: 10px; text-align: center;">Clique na imagem para marcar as avarias.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="clearChecklist()">LIMPAR TUDO</button>
+        <button class="btn btn-primary" onclick="saveChecklist()">SALVAR CHECKLIST</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Container Oculto para Renderizar o PDF -->
   <div style="position: absolute; left: -9999px; top: -9999px;">
@@ -192,6 +272,12 @@
 
         <input type="text" id="plateInput" class="form-input plate-input" placeholder="ABC1234" maxlength="7" style="text-transform: uppercase;">
 
+        <div id="checklistBtnContainer" style="margin-top: 15px; display: none;">
+          <button class="btn btn-ghost btn-full" onclick="openChecklist()" style="border: 2px dashed var(--gold-400); color: var(--gold-400);">
+            <i data-lucide="check-square" size="18" style="margin-right: 8px;"></i> REALIZAR CHECKLIST
+          </button>
+        </div>
+
         <div style="margin-top: 24px;">
           <button id="btnConfirm" class="btn btn-primary btn-lg btn-full">
             <span>CONFIRMAR ENTRADA</span>
@@ -262,6 +348,50 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null, tenantId = null;
+    let currentChecklistMarks = [], currentTool = 'risco';
+
+    /* --- CHECKLIST LOGIC (PATCH 1.3.1) --- */
+    function openChecklist() {
+      document.getElementById('modalChecklist').classList.add('show');
+    }
+    function closeChecklist() {
+      document.getElementById('modalChecklist').classList.remove('show');
+    }
+    function setChecklistTool(tool) {
+      currentTool = tool;
+      document.getElementById('btnToolRisco').classList.toggle('active', tool === 'risco');
+      document.getElementById('btnToolAmassado').classList.toggle('active', tool === 'amassado');
+    }
+    document.getElementById('checklistArea').addEventListener('click', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      
+      const mark = { x, y, type: currentTool };
+      currentChecklistMarks.push(mark);
+      renderMarks();
+    });
+    function renderMarks() {
+      const layer = document.getElementById('marksLayer');
+      layer.innerHTML = currentChecklistMarks.map((m, i) => 
+        `<div class="checklist-mark ${m.type}" style="left: ${m.x}%; top: ${m.y}%;" onclick="removeMark(${i}, event)"></div>`
+      ).join('');
+    }
+    function removeMark(index, e) {
+      e.stopPropagation();
+      currentChecklistMarks.splice(index, 1);
+      renderMarks();
+    }
+    function clearChecklist() {
+      currentChecklistMarks = [];
+      renderMarks();
+    }
+    function saveChecklist() {
+      if (currentChecklistMarks.length === 0) {
+        showAlert('Aviso', 'Nenhuma avaria marcada.', 'warning');
+      }
+      closeChecklist();
+    }
 
     /* --- NOTIFICAÇÕES --- */
     function showAlert(title, text, type = 'warning') {
@@ -344,6 +474,10 @@
         document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
         if (currentUser.tenants.logo_url) {
           document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
+        }
+        // Checklist Visible? (PATCH 1.3.1)
+        if (currentUser.tenants.checklist_enabled) {
+          document.getElementById('checklistBtnContainer').style.display = 'block';
         }
       }
     }
@@ -520,13 +654,15 @@
         placa: plate,
         entrada: entryTime,
         operador_entrada_id: currentUser.id,
-        status: 'ativo'
+        status: 'ativo',
+        checklist_data: currentChecklistMarks.length > 0 ? currentChecklistMarks : null
       }]);
 
       if (error) {
         showAlert('Erro ao Registrar', 'Não foi possível salvar a entrada: ' + error.message, 'danger');
       } else {
         plateInputEl.value = '';
+        clearChecklist(); // Resetar checklist
         // Resetar Preview da Placa (PATCH 1.3.0)
         const preview = document.getElementById('platePreview');
         if (preview) preview.style.display = 'none';
