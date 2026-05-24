@@ -702,7 +702,12 @@
     }
 
     async function loadActive() {
-      const { data, error } = await sb.from('v_veiculos_ativos').select('*, checklist_data').eq('tenant_id', tenantId).order('entrada', { ascending: true });
+      const { data, error } = await sb.from('valet_entries')
+        .select('*, checklist_data')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'ativo')
+        .order('entrada', { ascending: true });
+        
       const tbody = document.getElementById('activeTableBody');
       if (error || !data || data.length === 0) {
         document.getElementById('activeCount').textContent = '0';
@@ -714,12 +719,16 @@
       document.getElementById('activeCount').textContent = data.length;
       
       var html = '';
+      const agora = new Date();
       for (var i = 0; i < data.length; i++) {
         var item = data[i];
+        const entrada = new Date(item.entrada);
+        const minutos = Math.floor((agora - entrada) / 60000);
+        
         html += '<tr>' +
           '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
-          '<td>' + new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
-          '<td><span class="badge badge-gold">' + Math.floor(item.minutos_estacionado) + ' min</span></td>' +
+          '<td>' + entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td><span class="badge badge-gold">' + minutos + ' min</span></td>' +
           '<td><button class="btn btn-ghost btn-sm" onclick="startCheckout(\'' + item.id + '\')">SAÍDA</button></td>' +
         '</tr>';
       }
