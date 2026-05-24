@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Central de Checklists</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { display: none; }
+    
+    /* Visualizador Checklist */
+    .checklist-viewer {
+      position: relative;
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #fff;
+    }
+    .checklist-img { width: 100%; display: block; user-select: none; }
+    .checklist-mark {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid #fff;
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+    .checklist-mark.risco { background: #000; }
+    .checklist-mark.amassado { background: #ef4444; }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      align-items: flex-end;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sb" id="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-ico"><img src="imgs/logoP.png" style="width: 100%; height: 100%; object-fit: contain;"></div>
+      <div>
+        <div class="sb-logo-n">PARKTOR</div>
+        <div class="sb-logo-s">Gestão Digital</div>
+      </div>
+    </div>
+
+    <div class="sb-tenant-info" id="tenantInfoBox" style="margin-top: 15px; padding: 10px; border-radius: 12px; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+      <div style="width: 60px; height: 60px; margin: 0 auto 8px auto; border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center;">
+        <img id="sb-tenant-logo" src="imgs/SuaMarcaAqui.png" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+      </div>
+      <div id="sb-tenant-name" style="font-size: 0.8rem; font-weight: 700; color: var(--gold-400); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">...</div>
+    </div>
+
+    <div class="sb-perf">
+      <div class="sb-av" id="sb-av-sidebar">A</div>
+      <div>
+        <div class="sb-nome" id="userNameSidebar">Admin</div>
+        <div class="sb-eq" id="userRoleSidebar">Administrador</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div id="navDashboard">
+        <div class="sb-sec">Principal</div>
+        <a href="dashboard.html" class="si">
+          <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+          <span class="si-l">Dashboard</span>
+        </a>
+      </div>
+
+      <div id="navOperacional">
+        <div class="sb-sec">Operacional</div>
+        <a href="entrada.html" class="si">
+          <span class="si-i"><i data-lucide="log-in"></i></span>
+          <span class="si-l">Nova Entrada</span>
+        </a>
+        <a href="saida.html" class="si">
+          <span class="si-i"><i data-lucide="log-out"></i></span>
+          <span class="si-l">Registrar Saída</span>
+        </a>
+      </div>
+
+      <div id="navGestao">
+        <div class="sb-sec">Gestão</div>
+        <a href="financeiro.html" class="si">
+          <span class="si-i"><i data-lucide="wallet"></i></span>
+          <span class="si-l">Financeiro</span>
+        </a>
+        <a href="checklist.html" class="si active">
+          <span class="si-i"><i data-lucide="clipboard-check"></i></span>
+          <span class="si-l">Checklists</span>
+        </a>
+        <a href="relatorios.html" class="si">
+          <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
+          <span class="si-l">Relatórios</span>
+        </a>
+        <a href="mensalistas.html" class="si">
+          <span class="si-i"><i data-lucide="calendar-days"></i></span>
+          <span class="si-l">Mensalistas</span>
+        </a>
+        <a href="config.html" class="si">
+          <span class="si-i"><i data-lucide="settings"></i></span>
+          <span class="si-l">Configurações</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sb-ft">
+      <div class="si si-logout" onclick="logout()">
+        <span class="si-i"><i data-lucide="door-open"></i></span>
+        <span class="si-l">Sair</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="cnt">
+    <header class="topbar">
+      <div class="tb-e">
+        <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
+        <div class="tb-t">Central de Checklists</div>
+      </div>
+      <div class="tb-d">
+        <div class="tb-av" id="tb-av-top">A</div>
+      </div>
+    </header>
+
+    <div class="pg">
+      <div class="pg-hd">
+        <div>
+          <h2 class="pg-t">Histórico de Avarias</h2>
+          <p class="pg-s">Consulte todos os veículos que entraram com danos registrados.</p>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="card anim-fadeInUp">
+        <div class="card-body">
+          <div class="filter-grid">
+            <div class="form-group">
+              <label class="form-label">Data Inicial</label>
+              <input type="date" id="chkDataInicio" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data Final</label>
+              <input type="date" id="chkDataFim" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Placa</label>
+              <input type="text" id="chkPlaca" class="form-input" placeholder="ABC1234" maxlength="7" style="text-transform: uppercase;">
+            </div>
+            <div class="form-group">
+              <button class="btn btn-primary btn-full" onclick="loadChecklists()">FILTRAR</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Listagem -->
+      <div class="card anim-fadeInUp" style="margin-top: 20px;">
+        <div class="tw">
+          <table class="tab">
+            <thead>
+              <tr>
+                <th>Placa</th>
+                <th>Data Entrada</th>
+                <th>Status Atual</th>
+                <th>Qtd. Avarias</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="checklistTableBody">
+              <tr><td colspan="5" style="text-align: center; padding: 40px;">Carregando registros...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL VISUALIZAR CHECKLIST -->
+  <div class="modal-overlay" id="modalViewChecklist">
+    <div class="modal card anim-fadeInUp" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Detalhes das Avarias</h3>
+        <button class="btn-close" onclick="closeViewChecklist()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="viewChecklistArea" class="checklist-viewer">
+          <img src="imgs/ChkCar.png" class="checklist-img">
+          <div id="viewMarksLayer"></div>
+        </div>
+        <div style="margin-top: 15px; display: flex; gap: 20px; justify-content: center; font-size: 0.8rem; font-weight: 600;">
+          <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 50%; background: #000; border: 1px solid #fff;"></span> RISCOS</div>
+          <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444; border: 1px solid #fff;"></span> AMASSADOS</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeViewChecklist()">FECHAR</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null, tenantId = null;
+
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      const { data: user } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+      if (!user || (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'root')) { window.location.href = 'dashboard.html'; return; }
+      
+      currentUser = user; tenantId = user.tenant_id;
+      
+      const hoje = new Date().toISOString().split('T')[0];
+      document.getElementById('chkDataInicio').value = hoje;
+      document.getElementById('chkDataFim').value = hoje;
+
+      renderUI();
+      loadChecklists();
+    }
+
+    function renderUI() {
+      document.getElementById('userNameSidebar').textContent = currentUser.nome.split(' ')[0];
+      document.getElementById('userRoleSidebar').textContent = currentUser.nivel_acesso.toUpperCase();
+      document.getElementById('sb-av-sidebar').textContent = currentUser.nome[0];
+      document.getElementById('tb-av-top').textContent = currentUser.nome[0];
+      if (currentUser.tenants) {
+        document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
+        if (currentUser.tenants.logo_url) document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
+      }
+      document.body.style.display = 'block';
+    }
+
+    async function loadChecklists() {
+      const dataInicio = document.getElementById('chkDataInicio').value;
+      const dataFim = document.getElementById('chkDataFim').value;
+      const placa = document.getElementById('chkPlaca').value.toUpperCase().trim();
+
+      let query = sb.from('valet_entries').select('*').eq('tenant_id', tenantId).not('checklist_data', 'is', null);
+
+      if (placa) {
+        query = query.ilike('placa', `%${placa}%`);
+      } else {
+        if (dataInicio) query = query.gte('entrada', `${dataInicio}T00:00:00`);
+        if (dataFim) query = query.lte('entrada', `${dataFim}T23:59:59`);
+      }
+
+      const { data, error } = await query.order('entrada', { ascending: false });
+      const tbody = document.getElementById('checklistTableBody');
+
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">Nenhum checklist encontrado com avarias.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => `
+        <tr>
+          <td><strong>${item.placa}</strong></td>
+          <td>${new Date(item.entrada).toLocaleString('pt-BR')}</td>
+          <td><span class="badge ${item.status === 'ativo' ? 'badge-gold' : 'badge-green'}">${item.status.toUpperCase()}</span></td>
+          <td><span class="badge badge-blue">${item.checklist_data.length} avarias</span></td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="openViewChecklist(${JSON.stringify(item.checklist_data).replace(/"/g, '&quot;')})" title="Ver Detalhes">
+              <i data-lucide="eye"></i> VER
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function openViewChecklist(marks) {
+      const layer = document.getElementById('viewMarksLayer');
+      layer.innerHTML = marks.map(m => `<div class="checklist-mark ${m.type}" style="left: ${m.x}%; top: ${m.y}%;"></div>`).join('');
+      document.getElementById('modalViewChecklist').classList.add('show');
+    }
+
+    function closeViewChecklist() {
+      document.getElementById('modalViewChecklist').classList.remove('show');
+    }
+
+    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
+    
+    init();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
