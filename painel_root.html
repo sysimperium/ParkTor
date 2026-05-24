@@ -240,10 +240,13 @@
             tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma fatura encontrada.</td></tr>';
             return;
         }
-        tbody.innerHTML = data.map(inv => `
+        tbody.innerHTML = data.map(inv => {
+            const dateParts = inv.vencimento.split('-');
+            const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+            return `
             <tr>
                 <td><strong>${inv.mes_referencia}</strong></td>
-                <td>${new Date(inv.vencimento).toLocaleDateString('pt-BR')}</td>
+                <td>${formattedDate}</td>
                 <td>R$ ${inv.valor.toFixed(2)}</td>
                 <td><span class="badge ${getStatusBadge(inv.status)}">${inv.status.toUpperCase()}</span></td>
                 <td>
@@ -257,7 +260,7 @@
                     </div>
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
     }
 
     function getStatusBadge(status) {
@@ -342,7 +345,8 @@
                 
                 if (existing) continue;
 
-                const vencimento = new Date(month + '-' + (t.dia_vencimento || 10)).toISOString();
+                const diaVenc = String(t.dia_vencimento || 10).padStart(2, '0');
+                const vencimento = `${month}-${diaVenc}`;
                 
                 await sb.from('platform_invoices').insert({
                     tenant_id: t.id,
