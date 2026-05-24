@@ -522,7 +522,7 @@
         const { data: { session } } = await sb.auth.getSession();
         if (!session) { window.location.href = 'index.html'; return; }
 
-        const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
+        const { data: user, error } = await sb.from('users').select('*, tenants(*, planos(*))').eq('id', session.user.id).single();
         if (error || !user) { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
         // Sidebar Visibility Logic (STRICT)
@@ -702,7 +702,7 @@
     }
 
     async function loadActive() {
-      const { data, error } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).order('entrada', { ascending: true });
+      const { data, error } = await sb.from('v_veiculos_ativos').select('*, checklist_data').eq('tenant_id', tenantId).order('entrada', { ascending: true });
       const tbody = document.getElementById('activeTableBody');
       if (error || !data || data.length === 0) {
         document.getElementById('activeCount').textContent = '0';
