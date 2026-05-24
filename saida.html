@@ -349,6 +349,43 @@
     </div>
   </div>
 
+  <!-- MODAL FECHAMENTO DE CAIXA -->
+  <div class="modal-overlay" id="modalCloseCashier">
+    <div class="modal anim-fadeInUp" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Fechar Caixa</h3>
+        <button class="btn-close" onclick="closeCloseCashier()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="pg-s" style="margin-bottom: 20px;">Informe os valores presentes no caixa para conferência.</p>
+        
+        <div class="form-group">
+          <label class="form-label">Dinheiro em Espécie</label>
+          <input type="number" id="closeCash" class="form-input" placeholder="0.00" step="0.01">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Total PIX</label>
+          <input type="number" id="closePix" class="form-input" placeholder="0.00" step="0.01">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Total Cartão</label>
+          <input type="number" id="closeCard" class="form-input" placeholder="0.00" step="0.01">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <textarea id="closeObs" class="form-input" style="height: 80px; resize: none;" placeholder="Alguma divergência ou observação?"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeCloseCashier()">CANCELAR</button>
+        <button class="btn btn-primary" onclick="confirmCashierClosure()" id="btnConfirmCloseCashier">CONFIRMAR FECHAMENTO</button>
+      </div>
+    </div>
+  </div>
+
   <!-- AVISOS -->
   <div class="modal-overlay" id="modalCustomAlert">
     <div class="modal card modal-alert anim-fadeInUp">
@@ -462,13 +499,81 @@
 
     async function toggleCashier() {
       if (currentCashier) {
-        await sb.from('cashier_sessions').update({ status: 'fechado', fechamento: new Date().toISOString() }).eq('id', currentCashier.id);
-        showAlert('Sucesso', 'Caixa fechado!', 'success');
+        openCloseCashier();
       } else {
         await sb.from('cashier_sessions').insert([{ tenant_id: tenantId, user_id: currentUser.id, status: 'aberto' }]);
         showAlert('Sucesso', 'Caixa aberto!', 'success');
+        checkCashierStatus();
       }
-      checkCashierStatus();
+    }
+
+    function openCloseCashier() {
+      document.getElementById('closeCash').value = '';
+      document.getElementById('closePix').value = '';
+      document.getElementById('closeCard').value = '';
+      document.getElementById('closeObs').value = '';
+      document.getElementById('modalCloseCashier').classList.add('show');
+    }
+
+    function closeCloseCashier() {
+      document.getElementById('modalCloseCashier').classList.remove('show');
+    }
+
+    async function confirmCashierClosure() {
+      const btn = document.getElementById('btnConfirmCloseCashier');
+      btn.classList.add('btn-loading');
+      
+      try {
+        // 1. Obter valores informados
+        const infCash = parseFloat(document.getElementById('closeCash').value) || 0;
+        const infPix = parseFloat(document.getElementById('closePix').value) || 0;
+        const infCard = parseFloat(document.getElementById('closeCard').value) || 0;
+        const obs = document.getElementById('closeObs').value;
+
+        // 2. Calcular valores do sistema (Soma de valet_payments para esta sessão)
+        // Buscamos todos os pagamentos vinculados a entradas que por sua vez estão vinculadas a esta sessão de caixa
+        const { data: entries } = await sb.from('valet_entries').select('id').eq('cashier_session_id', currentCashier.id);
+        const entryIds = entries ? entries.map(e => e.id) : [];
+        
+        let sysCash = 0, sysPix = 0, sysCard = 0;
+        
+        if (entryIds.length > 0) {
+          const { data: payments } = await sb.from('valet_payments').select('forma_pagamento, valor').in('entry_id', entryIds);
+          if (payments) {
+            payments.forEach(p => {
+              if (p.forma_pagamento === 'dinheiro') sysCash += p.valor;
+              else if (p.forma_pagamento === 'pix') sysPix += p.valor;
+              else if (p.forma_pagamento === 'cartao') sysCard += p.valor;
+            });
+          }
+        }
+
+        const totalSistema = sysCash + sysPix + sysCard;
+
+        // 3. Atualizar sessão de caixa
+        const { error } = await sb.from('cashier_sessions').update({
+          status: 'fechado',
+          fechamento: new Date().toISOString(),
+          valor_final: totalSistema, // Valor total registrado pelo sistema
+          valor_informado_dinheiro: infCash,
+          valor_informado_pix: infPix,
+          valor_informado_cartao: infCard,
+          valor_sistema_dinheiro: sysCash,
+          valor_sistema_pix: sysPix,
+          valor_sistema_cartao: sysCard,
+          observacoes: obs
+        }).eq('id', currentCashier.id);
+
+        if (error) throw error;
+
+        showAlert('Sucesso', 'Caixa fechado com sucesso!', 'success');
+        closeCloseCashier();
+        checkCashierStatus();
+      } catch (err) {
+        showAlert('Erro', 'Falha ao fechar caixa: ' + err.message, 'danger');
+      } finally {
+        btn.classList.remove('btn-loading');
+      }
     }
 
     async function loadActive() {

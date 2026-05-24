@@ -156,6 +156,7 @@
       <div class="fin-tabs anim-fadeInUp">
         <button class="fin-tab-btn active" onclick="switchFinTab('receitas', this)">RECEITAS</button>
         <button class="fin-tab-btn" onclick="switchFinTab('despesas', this)">DESPESAS</button>
+        <button class="fin-tab-btn" onclick="switchFinTab('conferencia', this)">CONFERÊNCIA</button>
       </div>
 
       <!-- ABA: RECEITAS -->
@@ -181,8 +182,52 @@
           </div>
         </div>
       </div>
+
+      <!-- ABA: CONFERÊNCIA (PATCH 1.3.0) -->
+      <div id="fin-conferencia" class="fin-content">
+        <div class="card anim-fadeInUp">
+          <div class="card-header">
+            <h3 class="card-title">Conferência de Fechamento de Caixa</h3>
+            <button class="btn btn-ghost btn-sm" onclick="loadConference()"><i data-lucide="refresh-cw"></i> ATUALIZAR</button>
+          </div>
+          <div class="tw">
+            <table class="tab">
+              <thead>
+                <tr>
+                  <th>Operador</th>
+                  <th>Abertura</th>
+                  <th>Fechamento</th>
+                  <th>Sistema</th>
+                  <th>Informado</th>
+                  <th>Diferença</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody id="conferenceTableBody">
+                <tr><td colspan="7" style="text-align: center; padding: 20px;">Selecione um período para carregar.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
+
+  <!-- MODAL DETALHES CONFERÊNCIA -->
+  <div class="modal-overlay" id="modalConferenceDetail">
+    <div class="modal anim-fadeInUp" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Detalhes da Conferência</h3>
+        <button class="btn-close" onclick="closeConferenceDetail()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" id="conferenceDetailContent">
+        <!-- Preenchido via JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeConferenceDetail()">FECHAR</button>
+      </div>
+    </div>
+  </div>
 
   <!-- BOTTOM NAV (Mobile) -->
   <nav class="bnav">
@@ -373,6 +418,98 @@
       document.querySelectorAll('.fin-tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById(`fin-${tab}`).classList.add('active');
       btn.classList.add('active');
+      if (tab === 'conferencia') loadConference();
+    }
+
+    async function loadConference() {
+      const monthVal = document.getElementById('filterMonth').value;
+      const [year, month] = monthVal.split('-');
+      const firstISO = new Date(year, month - 1, 1).toISOString();
+      const lastISO = new Date(year, month, 0, 23, 59, 59).toISOString();
+
+      const { data, error } = await sb.from('cashier_sessions')
+        .select('*, users(nome)')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'fechado')
+        .gte('fechamento', firstISO)
+        .lte('fechamento', lastISO)
+        .order('fechamento', { ascending: false });
+
+      const tbody = document.getElementById('conferenceTableBody');
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhuma sessão fechada neste período.</td></tr>';
+        return;
+      }
+
+      var html = '';
+      data.forEach(s => {
+        const sisTotal = (s.valor_sistema_dinheiro || 0) + (s.valor_sistema_pix || 0) + (s.valor_sistema_cartao || 0);
+        const infTotal = (s.valor_informado_dinheiro || 0) + (s.valor_informado_pix || 0) + (s.valor_informado_cartao || 0);
+        const diff = infTotal - sisTotal;
+        const diffClass = diff === 0 ? 'badge-green' : 'badge-red';
+
+        html += '<tr>' +
+          '<td>' + (s.users?.nome || 'Desconhecido') + '</td>' +
+          '<td>' + new Date(s.abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td>' + new Date(s.fechamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td>R$ ' + sisTotal.toFixed(2).replace('.', ',') + '</td>' +
+          '<td>R$ ' + infTotal.toFixed(2).replace('.', ',') + '</td>' +
+          '<td><span class="badge ' + diffClass + '">R$ ' + diff.toFixed(2).replace('.', ',') + '</span></td>' +
+          '<td><button class="btn btn-ghost btn-sm" onclick="openConferenceDetail(\'' + s.id + '\')"><i data-lucide="eye"></i></button></td>' +
+        '</tr>';
+      });
+      tbody.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    async function openConferenceDetail(id) {
+      const { data, error } = await sb.from('cashier_sessions').select('*, users(nome)').eq('id', id).single();
+      if (error || !data) return;
+
+      const sisTotal = (data.valor_sistema_dinheiro || 0) + (data.valor_sistema_pix || 0) + (data.valor_sistema_cartao || 0);
+      const infTotal = (data.valor_informado_dinheiro || 0) + (data.valor_informado_pix || 0) + (data.valor_informado_cartao || 0);
+      const diff = infTotal - sisTotal;
+
+      let html = `
+        <div style="margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+          <div class="info-row"><span>Operador:</span> <strong>${data.users?.nome || '---'}</strong></div>
+          <div class="info-row"><span>Abertura:</span> <strong>${new Date(data.abertura).toLocaleString('pt-BR')}</strong></div>
+          <div class="info-row"><span>Fechamento:</span> <strong>${new Date(data.fechamento).toLocaleString('pt-BR')}</strong></div>
+        </div>
+        
+        <p class="rotation-title">Comparativo Dinheiro</p>
+        <div class="info-row"><span>Sistema:</span> <strong>R$ ${data.valor_sistema_dinheiro.toFixed(2).replace('.', ',')}</strong></div>
+        <div class="info-row"><span>Informado:</span> <strong>R$ ${data.valor_informado_dinheiro.toFixed(2).replace('.', ',')}</strong></div>
+        
+        <p class="rotation-title" style="margin-top: 15px;">Comparativo PIX</p>
+        <div class="info-row"><span>Sistema:</span> <strong>R$ ${data.valor_sistema_pix.toFixed(2).replace('.', ',')}</strong></div>
+        <div class="info-row"><span>Informado:</span> <strong>R$ ${data.valor_informado_pix.toFixed(2).replace('.', ',')}</strong></div>
+        
+        <p class="rotation-title" style="margin-top: 15px;">Comparativo Cartão</p>
+        <div class="info-row"><span>Sistema:</span> <strong>R$ ${data.valor_sistema_cartao.toFixed(2).replace('.', ',')}</strong></div>
+        <div class="info-row"><span>Informado:</span> <strong>R$ ${data.valor_informado_cartao.toFixed(2).replace('.', ',')}</strong></div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <div class="info-row" style="margin-bottom: 0;">
+            <span style="font-weight: 700;">DIFERENÇA TOTAL:</span>
+            <strong style="color: ${diff >= 0 ? 'var(--green)' : 'var(--red)'}; font-size: 1.2rem;">R$ ${diff.toFixed(2).replace('.', ',')}</strong>
+          </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+          <p class="form-label">Observações do Operador:</p>
+          <div style="padding: 10px; background: var(--bg-elevated); border-radius: 6px; font-size: 0.9rem; color: var(--text-secondary); min-height: 40px;">
+            ${data.observacoes || 'Sem observações.'}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('conferenceDetailContent').innerHTML = html;
+      document.getElementById('modalConferenceDetail').classList.add('show');
+    }
+
+    function closeConferenceDetail() {
+      document.getElementById('modalConferenceDetail').classList.remove('show');
     }
 
     function openExpenseModal() { document.getElementById('modalExpense').classList.add('show'); }
