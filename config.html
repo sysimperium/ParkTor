@@ -146,18 +146,19 @@
               <div class="config-grid">
                 <div class="form-group">
                   <label class="form-label">Valor Base (R$)</label>
-                  <input type="number" id="cfgValorBase" class="form-input" step="0.50" disabled value="7.00">
-                  <small style="color: var(--text-muted);">Fixo v1.2.1: R$ 7,00 por 2h</small>
+                  <input type="number" id="cfgValorBase" class="form-input" step="0.50" value="7.00">
+                  <small style="color: var(--text-muted);">Valor de cada faixa de 2h</small>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Excedente Tolerância (R$)</label>
-                  <input type="number" id="cfgValorAdic" class="form-input" step="0.50" disabled value="3.00">
-                  <small style="color: var(--text-muted);">Fixo v1.2.1: R$ 3,00 até 20min</small>
+                  <input type="number" id="cfgValorAdic" class="form-input" step="0.50" value="3.00">
+                  <small style="color: var(--text-muted);">Acréscimo durante a carência</small>
                 </div>
               </div>
               <div class="form-group">
                 <label class="form-label">Carência (min)</label>
-                <input type="number" id="cfgCarencia" class="form-input" disabled value="20">
+                <input type="number" id="cfgCarencia" class="form-input" value="20">
+                <small style="color: var(--text-muted);">Tempo extra antes de consolidar a próxima faixa</small>
               </div>
             </div>
 
@@ -534,11 +535,10 @@
       
       const t = currentUser.tenants;
       if (t) {
-        document.getElementById('cfgValorBase').value = 7.00;
-        document.getElementById('cfgValorAdic').value = 3.00;
-        document.getElementById('cfgCarencia').value = 20;
-        document.getElementById('cfgVagas').value = t.total_vagas;
-        document.getElementById('cfgNome').value = t.nome;
+        document.getElementById('cfgValorBase').value = t.rotativo_valor_base || 7.00;
+        document.getElementById('cfgValorAdic').value = t.rotativo_excedente_valor || 3.00;
+        document.getElementById('cfgCarencia').value = t.rotativo_carencia_min || 20;
+        document.getElementById('cfgVagas').value = t.total_vagas;        document.getElementById('cfgNome').value = t.nome;
         document.getElementById('cfgPix').value = t.pix_key || '';
         document.getElementById('cfgValorDiaria').value = t.valor_diaria || 40.00;
         document.getElementById('cfgCustoFixo').value = t.custo_fixo_mensal || '';
@@ -631,7 +631,10 @@
         pix_key: document.getElementById('cfgPix').value,
         valor_diaria: parseFloat(document.getElementById('cfgValorDiaria').value),
         custo_fixo_mensal: parseFloat(document.getElementById('cfgCustoFixo').value) || 0,
-        print_enabled: document.getElementById('cfgPrintEnabled').checked
+        print_enabled: document.getElementById('cfgPrintEnabled').checked,
+        rotativo_valor_base: parseFloat(document.getElementById('cfgValorBase').value),
+        rotativo_excedente_valor: parseFloat(document.getElementById('cfgValorAdic').value),
+        rotativo_carencia_min: parseInt(document.getElementById('cfgCarencia').value)
       };
       
       try {

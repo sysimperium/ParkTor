@@ -439,51 +439,61 @@
       const saida = new Date(saidaStr);
       const totalMinutos = Math.floor((saida - entrada) / 60000);
       
-      if (totalMinutos <= 5) return { total: 0, history: [{ label: 'Tolerância 5min', valor: 0 }], minutos: totalMinutos, faixasCount: 0, totalBase: 0, totalExcedente: 0, excedenteCount: 0 };
-      
-      let history = []; 
-      const valorBase = 7.00; const valorAdic = 3.00;
-      let totalBase = 0; let totalExcedente = 0; let faixasCount = 0; let excedenteCount = 0;
+      const t = currentUser.tenants || {};
+      const valorBase = parseFloat(t.rotativo_valor_base) || 7.00;
+      const valorExcedente = parseFloat(t.rotativo_excedente_valor) || 3.00;
+      const carenciaMin = parseInt(t.rotativo_carencia_min) || 20;
+      const toleranciaFixa = 5; 
+      const duracaoFaixa = 120;
 
-      let rem = totalMinutos;
-      
-      // Ciclo 1 (Especial: Faixa 1)
-      faixasCount++;
-      totalBase += valorBase;
-      history.push({ label: `1ª. Faixa 2h`, valor: valorBase });
-
-      if (rem <= 125) { // 2h base + 5min tol
-        return { total: totalBase, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente: 0, excedenteCount: 0 };
-      }
-      if (rem <= 140) { // Até o fim do excedente da Faixa 1 (9:20)
-        excedenteCount = 1;
-        totalExcedente = valorAdic;
-        history.push({ label: `Excedente (1ª. Faixa)`, valor: valorAdic });
-        return { total: totalBase + totalExcedente, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
-      }
-
-      // Reinicia para ciclos subsequentes (2h base + tol + exc)
-      rem -= 140; 
-      while (rem > 0) {
-        faixasCount++;
-        totalBase += valorBase;
-        history.push({ label: `${faixasCount}ª. Faixa 2h`, valor: valorBase });
-        
-        if (rem <= 126) { // 2h base + 6min tol (Ex: 11:22 a 11:27)
-          totalExcedente = 0; excedenteCount = 0;
-          break;
-        }
-        if (rem <= 147) { // 2h base + tol + 21min exc (Ex: 11:28 a 11:48)
-          excedenteCount = 1;
-          totalExcedente = valorAdic;
-          history.push({ label: `Excedente (${faixasCount}ª. Faixa)`, valor: valorAdic });
-          break;
-        }
-        rem -= 147; // Pula para a próxima faixa
+      if (totalMinutos <= toleranciaFixa) {
+        return { 
+          total: 0, 
+          history: [{ label: 'Tolerância Inicial', valor: 0 }], 
+          minutos: totalMinutos, 
+          faixasCount: 0, 
+          totalBase: 0, 
+          totalExcedente: 0, 
+          excedenteCount: 0 
+        };
       }
       
-      const total = totalBase + totalExcedente;
-      return { total, history, minutos: totalMinutos, faixasCount, totalBase, totalExcedente, excedenteCount };
+      // 2. Determinar quantas faixas foram consolidadas
+      let faixasConsolidadas = 1;
+      if (totalMinutos > (duracaoFaixa + toleranciaFixa + carenciaMin)) {
+          faixasConsolidadas = 1 + Math.floor((totalMinutos - (toleranciaFixa + carenciaMin) - 1) / duracaoFaixa);
+      }
+
+      // 3. Verificar se incide o excedente sobre a última faixa consolidada
+      let temExcedente = false;
+      const limiteToleranciaUltimaFaixa = (faixasConsolidadas * duracaoFaixa) + toleranciaFixa;
+      const limiteCarenciaUltimaFaixa = limiteToleranciaUltimaFaixa + carenciaMin;
+
+      if (totalMinutos > limiteToleranciaUltimaFaixa && totalMinutos <= limiteCarenciaUltimaFaixa) {
+          temExcedente = true;
+      }
+
+      // 4. Montar Histórico e Total
+      let history = [];
+      for (let i = 1; i <= faixasConsolidadas; i++) {
+          history.push({ label: `${i}ª. Faixa 2h`, valor: valorBase });
+      }
+
+      if (temExcedente) {
+          history.push({ label: `Excedente (${faixasConsolidadas}ª. Faixa)`, valor: valorExcedente });
+      }
+
+      const total = (faixasConsolidadas * valorBase) + (temExcedente ? valorExcedente : 0);
+
+      return {
+          total,
+          history,
+          minutos: totalMinutos,
+          faixasCount: faixasConsolidadas,
+          totalBase: faixasConsolidadas * valorBase,
+          totalExcedente: temExcedente ? valorExcedente : 0,
+          excedenteCount: temExcedente ? 1 : 0
+      };
     }
 
     async function startCheckout(id) {
