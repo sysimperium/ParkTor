@@ -268,6 +268,11 @@
                 <label class="form-label">Placa</label>
                 <input type="text" id="histPlaca" class="form-input" placeholder="ABC1234" maxlength="7" style="text-transform: uppercase;">
               </div>
+              <div class="form-group" style="display: flex; align-items: center; justify-content: center; padding-top: 25px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">
+                  <input type="checkbox" id="histIsentos" style="width: 18px; height: 18px; accent-color: var(--gold-400);"> APENAS ISENTOS
+                </label>
+              </div>
               <div class="form-group" style="display: flex; align-items: flex-end;">
                 <button class="btn btn-primary btn-full" onclick="loadHistory()">FILTRAR</button>
               </div>
@@ -278,7 +283,6 @@
         <div class="card anim-fadeInUp">
           <div class="card-header">
             <h3 class="card-title">Histórico de Saídas</h3>
-            <button class="btn btn-ghost btn-sm" onclick="exportIsentos()"><i data-lucide="download"></i> RELATÓRIO ISENTOS</button>
           </div>
           <div class="tw">
             <table class="tab">
@@ -882,8 +886,16 @@
       let dataInicio = document.getElementById('histDataInicio').value;
       let dataFim = document.getElementById('histDataFim').value;
       const placa = document.getElementById('histPlaca').value.toUpperCase().trim();
+      const apenasIsentos = document.getElementById('histIsentos').checked;
+
       if (!dataInicio && !dataFim && !placa) { dataInicio = hoje; dataFim = hoje; document.getElementById('histDataInicio').value = hoje; document.getElementById('histDataFim').value = hoje; }
+      
       let query = sb.from('valet_entries').select('*').eq('tenant_id', tenantId).eq('status', 'finalizado');
+      
+      if (apenasIsentos) {
+        query = query.eq('valor', 0);
+      }
+
       if (placa) { query = query.ilike('placa', `%${placa}%`); } 
       else { if (dataInicio) query = query.gte('saida', `${dataInicio}T00:00:00`); if (dataFim) query = query.lte('saida', `${dataFim}T23:59:59`); }
       const { data } = await query.order('saida', { ascending: false });
