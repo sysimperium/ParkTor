@@ -357,26 +357,40 @@
         <button class="btn-close" onclick="closeCloseCashier()"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <p class="pg-s" style="margin-bottom: 20px;">Informe os valores presentes no caixa para conferência.</p>
-        
-        <div class="form-group">
-          <label class="form-label">Dinheiro em Espécie</label>
-          <input type="number" id="closeCash" class="form-input" placeholder="0.00" step="0.01">
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Total PIX</label>
-          <input type="number" id="closePix" class="form-input" placeholder="0.00" step="0.01">
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Total Cartão</label>
-          <input type="number" id="closeCard" class="form-input" placeholder="0.00" step="0.01">
+        <div id="closeCashierSummary" style="background: rgba(212,168,68,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(212,168,68,0.2);">
+          <p style="font-size: 0.75rem; color: var(--gold-400); font-weight: 700; margin-bottom: 5px; text-transform: uppercase;">Resumo do Sistema (Veículos Finalizados)</p>
+          <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800;">
+            <span>TOTAL ESPERADO:</span>
+            <span id="sysTotalLabel">R$ 0,00</span>
+          </div>
         </div>
 
+        <p class="pg-s" style="margin-bottom: 15px;">Informe os valores físicos para conferência:</p>
+        
+        <div class="config-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label class="form-label">Dinheiro</label>
+            <input type="number" id="closeCash" class="form-input" placeholder="0.00" step="0.01" oninput="updateCloseTotal()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">PIX</label>
+            <input type="number" id="closePix" class="form-input" placeholder="0.00" step="0.01" oninput="updateCloseTotal()">
+          </div>
+        </div>
+        
         <div class="form-group">
+          <label class="form-label">Cartão (Débito/Crédito)</label>
+          <input type="number" id="closeCard" class="form-input" placeholder="0.00" step="0.01" oninput="updateCloseTotal()">
+        </div>
+
+        <div style="margin-top: 10px; padding: 10px; background: var(--bg-elevated); border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.85rem; font-weight: 600;">SOMA INFORMADA:</span>
+          <strong id="infTotalLabel" style="font-size: 1rem;">R$ 0,00</strong>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
           <label class="form-label">Observações</label>
-          <textarea id="closeObs" class="form-input" style="height: 80px; resize: none;" placeholder="Alguma divergência ou observação?"></textarea>
+          <textarea id="closeObs" class="form-input" style="height: 60px; resize: none;" placeholder="Opcional..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -507,12 +521,66 @@
       }
     }
 
-    function openCloseCashier() {
-      document.getElementById('closeCash').value = '';
-      document.getElementById('closePix').value = '';
-      document.getElementById('closeCard').value = '';
-      document.getElementById('closeObs').value = '';
-      document.getElementById('modalCloseCashier').classList.add('show');
+    let sysCashTotal = 0, sysPixTotal = 0, sysCardTotal = 0, sysGrandTotal = 0;
+
+    function updateCloseTotal() {
+      const infCash = parseFloat(document.getElementById('closeCash').value) || 0;
+      const infPix = parseFloat(document.getElementById('closePix').value) || 0;
+      const infCard = parseFloat(document.getElementById('closeCard').value) || 0;
+      const total = infCash + infPix + infCard;
+      document.getElementById('infTotalLabel').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+      
+      const btn = document.getElementById('btnConfirmCloseCashier');
+      // Permite fechar apenas se os valores baterem (com pequena tolerância de arredondamento)
+      if (Math.abs(total - sysGrandTotal) < 0.01) {
+        btn.disabled = false;
+        document.getElementById('infTotalLabel').style.color = 'var(--green)';
+      } else {
+        btn.disabled = true;
+        document.getElementById('infTotalLabel').style.color = 'var(--red)';
+      }
+    }
+
+    async function openCloseCashier() {
+      const btn = document.getElementById('btnConfirmCloseCashier');
+      btn.disabled = true;
+      btn.textContent = 'CARREGANDO...';
+      
+      try {
+        // Calcular valores do sistema (Soma de valet_payments para esta sessão)
+        const { data: entries } = await sb.from('valet_entries').select('id').eq('cashier_session_id', currentCashier.id);
+        const entryIds = entries ? entries.map(e => e.id) : [];
+        
+        sysCashTotal = 0; sysPixTotal = 0; sysCardTotal = 0;
+        
+        if (entryIds.length > 0) {
+          const { data: payments } = await sb.from('valet_payments').select('forma_pagamento, valor').in('entry_id', entryIds);
+          if (payments) {
+            payments.forEach(p => {
+              if (p.forma_pagamento === 'dinheiro') sysCashTotal += p.valor;
+              else if (p.forma_pagamento === 'pix') sysPixTotal += p.valor;
+              else if (p.forma_pagamento === 'cartao') sysCardTotal += p.valor;
+            });
+          }
+        }
+
+        sysGrandTotal = sysCashTotal + sysPixTotal + sysCardTotal;
+        document.getElementById('sysTotalLabel').textContent = 'R$ ' + sysGrandTotal.toFixed(2).replace('.', ',');
+
+        document.getElementById('closeCash').value = '';
+        document.getElementById('closePix').value = '';
+        document.getElementById('closeCard').value = '';
+        document.getElementById('infTotalLabel').textContent = 'R$ 0,00';
+        document.getElementById('closeObs').value = '';
+        
+        document.getElementById('modalCloseCashier').classList.add('show');
+      } catch (err) {
+        showAlert('Erro', 'Erro ao preparar fechamento: ' + err.message, 'danger');
+      } finally {
+        btn.disabled = sysGrandTotal > 0; // Se houver valor, bloqueia até preencher. Se for 0, permite fechar.
+        if (sysGrandTotal === 0) btn.disabled = false;
+        btn.textContent = 'CONFIRMAR FECHAMENTO';
+      }
     }
 
     function closeCloseCashier() {
@@ -524,43 +592,22 @@
       btn.classList.add('btn-loading');
       
       try {
-        // 1. Obter valores informados
         const infCash = parseFloat(document.getElementById('closeCash').value) || 0;
         const infPix = parseFloat(document.getElementById('closePix').value) || 0;
         const infCard = parseFloat(document.getElementById('closeCard').value) || 0;
         const obs = document.getElementById('closeObs').value;
 
-        // 2. Calcular valores do sistema (Soma de valet_payments para esta sessão)
-        // Buscamos todos os pagamentos vinculados a entradas que por sua vez estão vinculadas a esta sessão de caixa
-        const { data: entries } = await sb.from('valet_entries').select('id').eq('cashier_session_id', currentCashier.id);
-        const entryIds = entries ? entries.map(e => e.id) : [];
-        
-        let sysCash = 0, sysPix = 0, sysCard = 0;
-        
-        if (entryIds.length > 0) {
-          const { data: payments } = await sb.from('valet_payments').select('forma_pagamento, valor').in('entry_id', entryIds);
-          if (payments) {
-            payments.forEach(p => {
-              if (p.forma_pagamento === 'dinheiro') sysCash += p.valor;
-              else if (p.forma_pagamento === 'pix') sysPix += p.valor;
-              else if (p.forma_pagamento === 'cartao') sysCard += p.valor;
-            });
-          }
-        }
-
-        const totalSistema = sysCash + sysPix + sysCard;
-
-        // 3. Atualizar sessão de caixa
+        // Atualizar sessão de caixa
         const { error } = await sb.from('cashier_sessions').update({
           status: 'fechado',
           fechamento: new Date().toISOString(),
-          valor_final: totalSistema, // Valor total registrado pelo sistema
+          valor_final: sysGrandTotal,
           valor_informado_dinheiro: infCash,
           valor_informado_pix: infPix,
           valor_informado_cartao: infCard,
-          valor_sistema_dinheiro: sysCash,
-          valor_sistema_pix: sysPix,
-          valor_sistema_cartao: sysCard,
+          valor_sistema_dinheiro: sysCashTotal,
+          valor_sistema_pix: sysPixTotal,
+          valor_sistema_cartao: sysCardTotal,
           observacoes: obs
         }).eq('id', currentCashier.id);
 
