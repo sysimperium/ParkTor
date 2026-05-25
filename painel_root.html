@@ -42,9 +42,17 @@
     </div>
     <nav class="sb-nav">
       <div class="sb-sec">Global</div>
+      <a href="#" class="si active" onclick="switchRootTab('tab-dash')">
+        <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
+        <span class="si-l">Dashboard Root</span>
+      </a>
       <a href="root.html" class="si">
         <span class="si-i"><i data-lucide="crown"></i></span>
         <span class="si-l">Tenants</span>
+      </a>
+      <a href="#" class="si" onclick="switchRootTab('tab-billing')">
+        <span class="si-i"><i data-lucide="wallet"></i></span>
+        <span class="si-l">Mensalidades</span>
       </a>
       <a href="planos_info.html" class="si">
         <span class="si-i"><i data-lucide="qr-code"></i></span>
@@ -54,12 +62,8 @@
         <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
         <span class="si-l">Relatórios</span>
       </a>
-      <a href="painel_root.html" class="si active">
-        <span class="si-i"><i data-lucide="layout-panel-left"></i></span>
-        <span class="si-l">Painel Root</span>
-      </a>
       <a href="#" class="si" onclick="switchRootTab('tab-pix')">
-        <span class="si-i"><i data-lucide="qr-code"></i></span>
+        <span class="si-i"><i data-lucide="settings-2"></i></span>
         <span class="si-l">Configuração PIX</span>
       </a>
     </nav>
@@ -75,12 +79,83 @@
     <header class="topbar">
       <div class="tb-e">
         <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
-        <div class="tb-t">Painel Financeiro Root</div>
+        <div class="tb-t" id="topbarTitle">Painel Root</div>
       </div>
     </header>
     
     <div class="pg">
-      <div id="tab-billing">
+      <!-- TAB DASHBOARD (DADOS GERAIS E NOTIFICAÇÕES) -->
+      <div id="tab-dash">
+        <div class="pg-hd">
+          <div><h2 class="pg-t">Dashboard Administrativo</h2><p class="pg-s">Visão geral da plataforma e alertas de pagamento.</p></div>
+        </div>
+
+        <!-- KPI CARDS -->
+        <div class="dash-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <div class="card anim-fadeInUp">
+            <div class="card-body">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="sico gold"><i data-lucide="building-2"></i></div>
+                <div><div class="pg-s">Estacionamentos</div><h2 id="kpiTenants">0</h2></div>
+              </div>
+            </div>
+          </div>
+          <div class="card anim-fadeInUp">
+            <div class="card-body">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="sico blue"><i data-lucide="car"></i></div>
+                <div><div class="pg-s">Capacidade Total</div><h2 id="kpiCapacity">0</h2></div>
+              </div>
+            </div>
+          </div>
+          <div class="card anim-fadeInUp">
+            <div class="card-body">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="sico red"><i data-lucide="alert-circle"></i></div>
+                <div><div class="pg-s">Em Atraso</div><h2 id="kpiOverdue">0</h2></div>
+              </div>
+            </div>
+          </div>
+          <div class="card anim-fadeInUp" id="cardPendingNotif" style="cursor: pointer;" onclick="switchRootTab('tab-billing')">
+            <div class="card-body">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="sico gold" id="iconPendingNotif"><i data-lucide="bell"></i></div>
+                <div><div class="pg-s">Aguardando Conf.</div><h2 id="kpiPending">0</h2></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTIFICAÇÕES DE PAGAMENTO -->
+        <div class="card anim-fadeInUp" style="margin-top: 20px;">
+          <div class="card-header">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 class="card-title">Alertas de Pagamento Informados</h3>
+              <span class="badge badge-gold" id="badgeTotalPending">0 PENDENTES</span>
+            </div>
+          </div>
+          <div class="tw">
+            <table class="tab">
+              <thead>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Estabelecimento</th>
+                  <th>Administrador</th>
+                  <th>Referência</th>
+                  <th>Valor</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody id="notifTableBody">
+                <tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">Nenhum pagamento aguardando confirmação.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB MENSALIDADES -->
+      <div id="tab-billing" style="display: none;">
         <div class="pg-hd">
           <div><h2 class="pg-t">Gestão de Mensalidades</h2><p class="pg-s">Gere cobranças e acompanhe o recebimento dos estacionamentos.</p></div>
           <button class="btn btn-primary" onclick="openBatchModal()">GERAR MENSALIDADES DO MÊS</button>
@@ -233,23 +308,89 @@
       const { data: user } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
       if (!user || user.nivel_acesso !== 'root') { window.location.href = 'dashboard.html'; return; }
       document.body.style.display = 'block';
-      loadTenants();
+      loadDashboardData();
+      loadPendingNotifications();
       loadPixKey();
+    }
+
+    async function loadDashboardData() {
+      const { count: totalTenants } = await sb.from('tenants').select('*', { count: 'exact', head: true });
+      document.getElementById('kpiTenants').textContent = totalTenants || 0;
+
+      const { data: tenantsData } = await sb.from('tenants').select('vagas');
+      const totalCapacity = tenantsData?.reduce((acc, t) => acc + (t.vagas || 0), 0) || 0;
+      document.getElementById('kpiCapacity').textContent = totalCapacity;
+
+      const today = new Date().toISOString().split('T')[0];
+      const { count: totalOverdue } = await sb.from('platform_invoices')
+        .select('*', { count: 'exact', head: true })
+        .or(`status.eq.atrasado,and(status.eq.pendente,vencimento.lt.${today})`);
+      document.getElementById('kpiOverdue').textContent = totalOverdue || 0;
+
+      const { count: totalPending } = await sb.from('platform_invoices')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'em_analise');
+      document.getElementById('kpiPending').textContent = totalPending || 0;
+      
+      if (totalPending > 0) document.getElementById('cardPendingNotif').style.border = '2px solid var(--gold-400)';
+      else document.getElementById('cardPendingNotif').style.border = '1px solid var(--border)';
+    }
+
+    async function loadPendingNotifications() {
+      const { data: enrichedData } = await sb.from('platform_invoices')
+        .select(`id, notificado_em, mes_referencia, valor, tenant_id, tenants ( nome )`)
+        .eq('status', 'em_analise')
+        .order('notificado_em', { ascending: false });
+
+      const tbody = document.getElementById('notifTableBody');
+      const badge = document.getElementById('badgeTotalPending');
+      
+      if (!enrichedData || enrichedData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">Nenhum pagamento aguardando confirmação.</td></tr>';
+        badge.textContent = '0 PENDENTES';
+        badge.className = 'badge badge-blue';
+        return;
+      }
+
+      badge.textContent = `${enrichedData.length} PENDENTES`;
+      badge.className = 'badge badge-gold';
+
+      const tenantIds = enrichedData.map(d => d.tenant_id);
+      const { data: admins } = await sb.from('users').select('nome, tenant_id').in('tenant_id', tenantIds).eq('nivel_acesso', 'admin');
+
+      tbody.innerHTML = enrichedData.map(inv => {
+        const date = inv.notificado_em ? new Date(inv.notificado_em).toLocaleString('pt-BR') : 'N/A';
+        const tenantName = inv.tenants?.nome || 'N/A';
+        const admin = admins?.find(a => a.tenant_id === inv.tenant_id);
+        const adminName = admin ? admin.nome : 'N/A';
+
+        return `
+          <tr>
+            <td>${date}</td>
+            <td><strong>${tenantName}</strong></td>
+            <td>${adminName}</td>
+            <td>${inv.mes_referencia}</td>
+            <td>R$ ${inv.valor.toFixed(2)}</td>
+            <td>
+              <button class="btn btn-primary btn-sm" onclick="confirmPaymentFromDash('${inv.id}', '${inv.tenant_id}')">CONFIRMAR</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function confirmPaymentFromDash(invoiceId, tenantId) {
+      selectedTenantId = tenantId;
+      await markAsPaid(invoiceId);
+      loadDashboardData();
+      loadPendingNotifications();
     }
 
     async function loadPixKey() {
       const { data } = await sb.from('platform_settings').select('key, value');
       if (data) {
-        const keyMap = {
-          'pix_key': 'pixKeyInput',
-          'pix_name': 'pixNameInput',
-          'pix_city': 'pixCityInput'
-        };
-        data.forEach(item => {
-          if (keyMap[item.key]) {
-            document.getElementById(keyMap[item.key]).value = item.value;
-          }
-        });
+        const keyMap = { 'pix_key': 'pixKeyInput', 'pix_name': 'pixNameInput', 'pix_city': 'pixCityInput' };
+        data.forEach(item => { if (keyMap[item.key]) document.getElementById(keyMap[item.key]).value = item.value; });
       }
     }
 
@@ -259,29 +400,28 @@
       const city = document.getElementById('pixCityInput').value.trim().toUpperCase();
       const btn = document.getElementById('btnSavePix');
       btn.disabled = true; btn.textContent = 'SALVANDO...';
-      
-      const settings = [
-        { key: 'pix_key', value: key },
-        { key: 'pix_name', value: name },
-        { key: 'pix_city', value: city }
-      ];
-      
+      const settings = [{ key: 'pix_key', value: key }, { key: 'pix_name', value: name }, { key: 'pix_city', value: city }];
       const { error } = await sb.from('platform_settings').upsert(settings, { onConflict: 'key' });
-      
       if (error) showAlert('Erro', 'Não foi possível salvar as configurações PIX.', 'danger');
       else showAlert('Sucesso', 'Configurações PIX atualizadas!', 'success');
-      
       btn.disabled = false; btn.textContent = 'SALVAR CONFIGURAÇÃO PIX';
     }
 
     function switchRootTab(tabId) {
+      document.getElementById('tab-dash').style.display = tabId === 'tab-dash' ? 'block' : 'none';
       document.getElementById('tab-billing').style.display = tabId === 'tab-billing' ? 'block' : 'none';
       document.getElementById('tab-pix').style.display = tabId === 'tab-pix' ? 'block' : 'none';
       
+      const titles = { 'tab-dash': 'Painel Root', 'tab-billing': 'Gestão Financeira', 'tab-pix': 'Configuração PIX' };
+      document.getElementById('topbarTitle').textContent = titles[tabId];
+
       document.querySelectorAll('.sb-nav .si').forEach(si => si.classList.remove('active'));
-      const activeSi = Array.from(document.querySelectorAll('.sb-nav .si')).find(si => si.getAttribute('onclick')?.includes(tabId) || si.getAttribute('href') === 'painel_root.html');
+      const activeSi = Array.from(document.querySelectorAll('.sb-nav .si')).find(si => si.getAttribute('onclick')?.includes(tabId));
       if (activeSi) activeSi.classList.add('active');
       
+      if (tabId === 'tab-dash') { loadDashboardData(); loadPendingNotifications(); }
+      else if (tabId === 'tab-billing') { loadTenants(); }
+
       if (window.innerWidth < 1024) closeMenu();
     }
 
