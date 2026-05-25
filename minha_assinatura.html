@@ -230,19 +230,38 @@
             const formattedVenc = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
             const formattedPagto = inv.data_pagamento ? new Date(inv.data_pagamento).toLocaleDateString('pt-BR') : '-';
             const showPayBtn = inv.status === 'pendente' || inv.status === 'atrasado';
+            const isInAnalysis = inv.status === 'em_analise';
 
             return `
             <tr>
                 <td><strong>${inv.mes_referencia}</strong></td>
                 <td>${formattedVenc}</td>
                 <td>R$ ${inv.valor.toFixed(2)}</td>
-                <td><span class="badge ${getStatusBadge(inv.status)}">${inv.status.toUpperCase()}</span></td>
+                <td><span class="badge ${getStatusBadge(inv.status)}">${getStatusLabel(inv.status)}</span></td>
                 <td>${formattedPagto}</td>
                 <td>
-                  ${showPayBtn ? `<button class="btn btn-primary btn-sm" onclick="openPixPayment('${inv.id}', ${inv.valor})">PAGAR PIX</button>` : '-'}
+                  <div style="display: flex; gap: 5px;">
+                    ${showPayBtn ? `<button class="btn btn-primary btn-sm" onclick="openPixPayment('${inv.id}', ${inv.valor})">PAGAR PIX</button>` : ''}
+                    ${showPayBtn ? `<button class="btn btn-ghost btn-sm" onclick="notifyPayment('${inv.id}')">INFORMAR PGTO</button>` : ''}
+                    ${isInAnalysis ? `<span style="font-size: 0.75rem; color: var(--gold-400); font-weight: 600;">AGUARDANDO CONFIRMAÇÃO</span>` : ''}
+                  </div>
                 </td>
             </tr>
         `}).join('');
+    }
+
+    async function notifyPayment(invoiceId) {
+      if (!confirm('Deseja informar que o pagamento já foi realizado? O suporte irá validar o recebimento.')) return;
+
+      const { error } = await sb.from('platform_invoices')
+        .update({ status: 'em_analise', notificado_em: new Date().toISOString() })
+        .eq('id', invoiceId);
+      
+      if (error) alert('Erro ao informar pagamento. Tente novamente.');
+      else {
+        alert('Notificação enviada com sucesso! Aguarde a confirmação do suporte.');
+        loadInvoices();
+      }
     }
 
     async function openPixPayment(invoiceId, valor) {
@@ -331,6 +350,11 @@
         if (status === 'pendente') return 'badge-gold';
         if (status === 'atrasado') return 'badge-red';
         return 'badge-blue';
+    }
+
+    function getStatusLabel(status) {
+        if (status === 'em_analise') return 'EM ANÁLISE';
+        return status.toUpperCase();
     }
 
     function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }

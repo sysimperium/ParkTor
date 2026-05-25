@@ -323,15 +323,20 @@
         tbody.innerHTML = data.map(inv => {
             const dateParts = inv.vencimento.split('-');
             const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+            const isInAnalysis = inv.status === 'em_analise';
+
             return `
             <tr>
                 <td><strong>${inv.mes_referencia}</strong></td>
                 <td>${formattedDate}</td>
                 <td>R$ ${inv.valor.toFixed(2)}</td>
-                <td><span class="badge ${getStatusBadge(inv.status)}">${inv.status.toUpperCase()}</span></td>
+                <td><span class="badge ${getStatusBadge(inv.status)}">${getStatusLabel(inv.status)}</span></td>
                 <td>
                     <div style="display: flex; gap: 5px;">
-                        ${inv.status === 'pendente' ? `
+                        ${isInAnalysis ? `
+                            <button class="btn btn-primary btn-sm" onclick="markAsPaid('${inv.id}')">CONFIRMAR</button>
+                        ` : ''}
+                        ${inv.status === 'pendente' || inv.status === 'atrasado' || isInAnalysis ? `
                             <button class="btn btn-ghost btn-sm" onclick="markAsPaid('${inv.id}')">DAR BAIXA</button>
                             <button class="btn btn-ghost btn-sm" style="color: var(--red-400);" onclick="deleteInvoice('${inv.id}')">DELETAR</button>
                         ` : `
@@ -347,7 +352,13 @@
         if (status === 'pago') return 'badge-green';
         if (status === 'pendente') return 'badge-gold';
         if (status === 'atrasado') return 'badge-red';
+        if (status === 'em_analise') return 'badge-blue';
         return 'badge-blue';
+    }
+
+    function getStatusLabel(status) {
+        if (status === 'em_analise') return 'EM ANÁLISE';
+        return status.toUpperCase();
     }
 
     async function markAsPaid(id) {
