@@ -303,6 +303,18 @@
     </div>
   </main>
 
+  <!-- MODAL ASSINATURA EXPIRADA (PATCH 1.3.1) -->
+  <div class="modal-overlay" id="modalSubscriptionExpired" style="z-index: 9999;">
+    <div class="modal card modal-alert anim-fadeInUp">
+      <div class="modal-icon danger"><i data-lucide="credit-card"></i></div>
+      <h3 class="modal-title">Assinatura Expirada</h3>
+      <p class="modal-text">O acesso às operações de Entrada e Saída está bloqueado devido a pendências na sua assinatura. Por favor, entre em contato com o administrador ou acesse "Minha Assinatura".</p>
+      <div style="display: flex; gap: 10px; justify-content: center;" id="btnAssinaturaContainer">
+        <a href="minha_assinatura.html" class="btn btn-primary">VER ASSINATURA</a>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAIS DE AVISO CUSTOMIZADOS -->
   <div class="modal-overlay" id="modalCustomAlert">
     <div class="modal card modal-alert anim-fadeInUp">
@@ -457,6 +469,21 @@
 
         currentUser = user;
         tenantId = user.tenant_id;
+
+        // VERIFICAÇÃO DE ASSINATURA (PATCH 1.3.1)
+        const { data: invoices } = await sb.from('platform_invoices')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .or(`status.eq.atrasado,and(status.eq.pendente,vencimento.lt.${new Date().toISOString().split('T')[0]})`)
+          .limit(1);
+
+        if (invoices && invoices.length > 0) {
+          document.getElementById('modalSubscriptionExpired').classList.add('show');
+          document.getElementById('btnConfirm').disabled = true;
+          if (user.nivel_acesso !== 'admin') {
+            document.getElementById('btnAssinaturaContainer').style.display = 'none';
+          }
+        }
 
         renderUI();
         loadHistory();
