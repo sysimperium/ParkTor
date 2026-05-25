@@ -58,6 +58,10 @@
         <span class="si-i"><i data-lucide="layout-panel-left"></i></span>
         <span class="si-l">Painel Root</span>
       </a>
+      <a href="#" class="si" onclick="switchRootTab('tab-pix')">
+        <span class="si-i"><i data-lucide="qr-code"></i></span>
+        <span class="si-l">Configuração PIX</span>
+      </a>
     </nav>
     <div class="sb-ft">
       <div class="si si-logout" onclick="logout()">
@@ -76,40 +80,59 @@
     </header>
     
     <div class="pg">
-      <div class="pg-hd">
-        <div><h2 class="pg-t">Gestão de Mensalidades</h2><p class="pg-s">Gere cobranças e acompanhe o recebimento dos estacionamentos.</p></div>
-        <button class="btn btn-primary" onclick="openBatchModal()">GERAR MENSALIDADES DO MÊS</button>
-      </div>
-
-      <div class="billing-grid">
-        <!-- LISTA DE ESTACIONAMENTOS -->
-        <div class="card anim-fadeInUp">
-          <div class="card-header"><h3 class="card-title">Estacionamentos</h3></div>
-          <div class="card-body" id="tenantList">
-            <p style="text-align: center; color: var(--text-muted);">Carregando...</p>
-          </div>
+      <div id="tab-billing">
+        <div class="pg-hd">
+          <div><h2 class="pg-t">Gestão de Mensalidades</h2><p class="pg-s">Gere cobranças e acompanhe o recebimento dos estacionamentos.</p></div>
+          <button class="btn btn-primary" onclick="openBatchModal()">GERAR MENSALIDADES DO MÊS</button>
         </div>
 
-        <!-- HISTÓRICO DE FATURAS -->
-        <div class="card anim-fadeInUp">
-          <div class="card-header">
-            <h3 class="card-title" id="historyTitle">Selecione um estacionamento</h3>
+        <div class="billing-grid">
+          <!-- LISTA DE ESTACIONAMENTOS -->
+          <div class="card anim-fadeInUp">
+            <div class="card-header"><h3 class="card-title">Estacionamentos</h3></div>
+            <div class="card-body" id="tenantList">
+              <p style="text-align: center; color: var(--text-muted);">Carregando...</p>
+            </div>
           </div>
-          <div class="tw">
-            <table class="tab">
-              <thead>
-                <tr>
-                  <th>Ref.</th>
-                  <th>Vencimento</th>
-                  <th>Valor</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody id="invoiceTableBody">
-                <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Aguardando seleção.</td></tr>
-              </tbody>
-            </table>
+
+          <!-- HISTÓRICO DE FATURAS -->
+          <div class="card anim-fadeInUp">
+            <div class="card-header">
+              <h3 class="card-title" id="historyTitle">Selecione um estacionamento</h3>
+            </div>
+            <div class="tw">
+              <table class="tab">
+                <thead>
+                  <tr>
+                    <th>Ref.</th>
+                    <th>Vencimento</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="invoiceTableBody">
+                  <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">Aguardando seleção.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEÇÃO CONFIGURAÇÃO PIX (PATCH 1.3.2) -->
+      <div id="tab-pix" style="display: none;">
+        <div class="pg-hd">
+          <div><h2 class="pg-t">Configuração PIX</h2><p class="pg-s">Defina a chave PIX padrão para recebimento das assinaturas.</p></div>
+        </div>
+        
+        <div class="card anim-fadeInUp" style="max-width: 500px; margin: 0 auto;">
+          <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">Chave PIX (E-mail, CPF, CNPJ ou Aleatória)</label>
+                <input type="text" id="pixKeyInput" class="form-input" placeholder="Sua chave PIX">
+            </div>
+            <button class="btn btn-primary btn-full" onclick="savePixKey()" id="btnSavePix" style="margin-top: 20px;">SALVAR CHAVE PIX</button>
           </div>
         </div>
       </div>
@@ -203,6 +226,36 @@
       if (!user || user.nivel_acesso !== 'root') { window.location.href = 'dashboard.html'; return; }
       document.body.style.display = 'block';
       loadTenants();
+      loadPixKey();
+    }
+
+    async function loadPixKey() {
+      const { data } = await sb.from('platform_settings').select('value').eq('key', 'pix_key').maybeSingle();
+      if (data) document.getElementById('pixKeyInput').value = data.value;
+    }
+
+    async function savePixKey() {
+      const key = document.getElementById('pixKeyInput').value.trim();
+      const btn = document.getElementById('btnSavePix');
+      btn.disabled = true; btn.textContent = 'SALVANDO...';
+      
+      const { error } = await sb.from('platform_settings').upsert({ key: 'pix_key', value: key }, { onConflict: 'key' });
+      
+      if (error) showAlert('Erro', 'Não foi possível salvar a chave PIX.', 'danger');
+      else showAlert('Sucesso', 'Chave PIX atualizada!', 'success');
+      
+      btn.disabled = false; btn.textContent = 'SALVAR CHAVE';
+    }
+
+    function switchRootTab(tabId) {
+      document.getElementById('tab-billing').style.display = tabId === 'tab-billing' ? 'block' : 'none';
+      document.getElementById('tab-pix').style.display = tabId === 'tab-pix' ? 'block' : 'none';
+      
+      document.querySelectorAll('.sb-nav .si').forEach(si => si.classList.remove('active'));
+      const activeSi = Array.from(document.querySelectorAll('.sb-nav .si')).find(si => si.getAttribute('onclick')?.includes(tabId) || si.getAttribute('href') === 'painel_root.html');
+      if (activeSi) activeSi.classList.add('active');
+      
+      if (window.innerWidth < 1024) closeMenu();
     }
 
     async function loadTenants() {

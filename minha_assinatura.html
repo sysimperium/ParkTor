@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link rel="stylesheet" href="style.css">
   <style>body { display: none; }</style>
 </head>
@@ -138,16 +139,44 @@
                 <th>Valor</th>
                 <th>Status</th>
                 <th>Pagamento</th>
+                <th>Ação</th>
               </tr>
             </thead>
             <tbody id="invoiceTableBody">
-              <tr><td colspan="5" style="text-align: center; padding: 20px;">Carregando faturas...</td></tr>
+              <tr><td colspan="6" style="text-align: center; padding: 20px;">Carregando faturas...</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
   </main>
+
+  <!-- MODAL PIX (PATCH 1.3.2) -->
+  <div class="modal-overlay" id="modalPix">
+    <div class="modal card anim-fadeInUp" style="max-width: 400px; text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">Pagamento via PIX</h3>
+        <button class="btn-close" onclick="closePixModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="pg-s" style="margin-bottom: 15px;">Escaneie o QR Code abaixo ou copie a chave para pagar.</p>
+        
+        <div id="qrcode" style="display: flex; justify-content: center; margin-bottom: 15px; background: white; padding: 10px; border-radius: 8px;"></div>
+        
+        <div class="form-group">
+          <label class="form-label">Copia e Cola</label>
+          <textarea id="pixPayload" class="form-input" style="height: 80px; font-size: 0.75rem; resize: none;" readonly></textarea>
+        </div>
+        
+        <button class="btn btn-ghost btn-full" onclick="copyPix()" id="btnCopyPix" style="margin-top: 10px;">
+          <i data-lucide="copy" size="18" style="margin-right: 8px;"></i> COPIAR CHAVE PIX
+        </button>
+      </div>
+      <div class="modal-footer">
+        <p style="font-size: 0.75rem; color: var(--text-secondary);">Após o pagamento, a baixa será realizada manualmente pelo suporte em até 24h.</p>
+      </div>
+    </div>
+  </div>
 
   <script>
     const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
@@ -156,6 +185,7 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUser = null;
+    let qrInstance = null;
 
     async function init() {
       const { data: { session } } = await sb.auth.getSession();
@@ -191,7 +221,7 @@
         
         const tbody = document.getElementById('invoiceTableBody');
         if (error || data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhuma fatura encontrada.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhuma fatura encontrada.</td></tr>';
             return;
         }
 
@@ -199,6 +229,8 @@
             const dateParts = inv.vencimento.split('-');
             const formattedVenc = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
             const formattedPagto = inv.data_pagamento ? new Date(inv.data_pagamento).toLocaleDateString('pt-BR') : '-';
+            const showPayBtn = inv.status === 'pendente' || inv.status === 'atrasado';
+
             return `
             <tr>
                 <td><strong>${inv.mes_referencia}</strong></td>
@@ -206,8 +238,87 @@
                 <td>R$ ${inv.valor.toFixed(2)}</td>
                 <td><span class="badge ${getStatusBadge(inv.status)}">${inv.status.toUpperCase()}</span></td>
                 <td>${formattedPagto}</td>
+                <td>
+                  ${showPayBtn ? `<button class="btn btn-primary btn-sm" onclick="openPixPayment('${inv.id}', ${inv.valor})">PAGAR PIX</button>` : '-'}
+                </td>
             </tr>
         `}).join('');
+    }
+
+    async function openPixPayment(invoiceId, valor) {
+      const { data: settings } = await sb.from('platform_settings').select('value').eq('key', 'pix_key').maybeSingle();
+      const pixKey = settings?.value;
+
+      if (!pixKey) {
+        alert('Chave PIX não configurada pelo administrador do sistema.');
+        return;
+      }
+
+      const payload = generatePixPayload(pixKey, 'ParkTor Subscription', 'PARKTOR', valor);
+      document.getElementById('pixPayload').value = payload;
+      
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = '';
+      qrInstance = new QRCode(qrContainer, {
+        text: payload,
+        width: 200,
+        height: 200,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.M
+      });
+
+      document.getElementById('modalPix').classList.add('show');
+    }
+
+    function closePixModal() {
+      document.getElementById('modalPix').classList.remove('show');
+    }
+
+    function copyPix() {
+      const payload = document.getElementById('pixPayload');
+      payload.select();
+      document.execCommand('copy');
+      const btn = document.getElementById('btnCopyPix');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i data-lucide="check" size="18" style="margin-right: 8px;"></i> COPIADO!';
+      lucide.createIcons();
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        lucide.createIcons();
+      }, 2000);
+    }
+
+    // PIX PAYLOAD GENERATOR (EMV QRCPS)
+    function generatePixPayload(key, description, name, amount) {
+      const pad = (id, val) => id + String(val.length).padStart(2, '0') + val;
+      
+      let payload = '000201'; // Payload Indicator
+      const pixInfo = pad('00', 'br.gov.bcb.pix') + pad('01', key) + (description ? pad('02', description.substring(0, 25)) : '');
+      payload += pad('26', pixInfo);
+      payload += '52040000'; // Merchant Category Code
+      payload += '5303986'; // Transaction Currency (Real)
+      payload += pad('54', amount.toFixed(2)); // Amount
+      payload += '5802BR'; // Country Code
+      payload += pad('59', name.substring(0, 25)); // Merchant Name
+      payload += pad('60', 'BRASILIA'); // Merchant City
+      payload += pad('62', pad('05', '***')); // Transaction ID
+      payload += '6304'; // CRC16 Placeholder
+
+      function crc16(data) {
+        let crc = 0xFFFF;
+        for (let i = 0; i < data.length; i++) {
+          crc ^= data.charCodeAt(i) << 8;
+          for (let j = 0; j < 8; j++) {
+            if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
+            else crc <<= 1;
+          }
+        }
+        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+      }
+
+      payload += crc16(payload);
+      return payload;
     }
 
     function getStatusBadge(status) {
