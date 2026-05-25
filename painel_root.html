@@ -322,8 +322,8 @@
       const { count: totalTenants } = await sb.from('tenants').select('*', { count: 'exact', head: true });
       document.getElementById('kpiTenants').textContent = totalTenants || 0;
 
-      const { data: tenantsData } = await sb.from('tenants').select('vagas');
-      const totalCapacity = tenantsData?.reduce((acc, t) => acc + (t.vagas || 0), 0) || 0;
+      const { data: tenantsData } = await sb.from('tenants').select('total_vagas');
+      const totalCapacity = tenantsData?.reduce((acc, t) => acc + (t.total_vagas || 0), 0) || 0;
       document.getElementById('kpiCapacity').textContent = totalCapacity;
 
       const today = new Date().toISOString().split('T')[0];
