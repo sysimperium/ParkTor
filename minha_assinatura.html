@@ -246,15 +246,20 @@
     }
 
     async function openPixPayment(invoiceId, valor) {
-      const { data: settings } = await sb.from('platform_settings').select('value').eq('key', 'pix_key').maybeSingle();
-      const pixKey = settings?.value;
+      const { data: settings } = await sb.from('platform_settings').select('key, value').in('key', ['pix_key', 'pix_name', 'pix_city']);
+      
+      const config = {};
+      settings?.forEach(s => config[s.key] = s.value);
 
-      if (!pixKey) {
+      if (!config.pix_key) {
         alert('Chave PIX não configurada pelo administrador do sistema.');
         return;
       }
 
-      const payload = generatePixPayload(pixKey, 'ParkTor Subscription', 'PARKTOR', valor);
+      const pixName = config.pix_name || 'PARKTOR';
+      const pixCity = config.pix_city || 'SAO PAULO';
+
+      const payload = generatePixPayload(config.pix_key, 'ASSINATURA PARKTOR', pixName, valor, pixCity);
       document.getElementById('pixPayload').value = payload;
       
       const qrContainer = document.getElementById('qrcode');
@@ -290,7 +295,7 @@
     }
 
     // PIX PAYLOAD GENERATOR (EMV QRCPS)
-    function generatePixPayload(key, description, name, amount) {
+    function generatePixPayload(key, description, name, amount, city) {
       const pad = (id, val) => id + String(val.length).padStart(2, '0') + val;
       
       let payload = '000201'; // Payload Indicator
@@ -300,8 +305,8 @@
       payload += '5303986'; // Transaction Currency (Real)
       payload += pad('54', amount.toFixed(2)); // Amount
       payload += '5802BR'; // Country Code
-      payload += pad('59', name.substring(0, 25)); // Merchant Name
-      payload += pad('60', 'BRASILIA'); // Merchant City
+      payload += pad('59', name.substring(0, 25).toUpperCase()); // Merchant Name
+      payload += pad('60', city.substring(0, 15).toUpperCase()); // Merchant City
       payload += pad('62', pad('05', '***')); // Transaction ID
       payload += '6304'; // CRC16 Placeholder
 
