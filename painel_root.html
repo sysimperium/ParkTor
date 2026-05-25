@@ -42,15 +42,15 @@
     </div>
     <nav class="sb-nav">
       <div class="sb-sec">Global</div>
-      <a href="#" class="si active" onclick="switchRootTab('tab-dash')">
+      <a href="#" class="si active" id="nav-dash" onclick="switchRootTab('tab-dash')">
         <span class="si-i"><i data-lucide="layout-dashboard"></i></span>
         <span class="si-l">Dashboard Root</span>
       </a>
       <a href="root.html" class="si">
-        <span class="si-i"><i data-lucide="crown"></i></span>
+        <span class="si-i"><i data-lucide="building-2"></i></span>
         <span class="si-l">Tenants</span>
       </a>
-      <a href="#" class="si" onclick="switchRootTab('tab-billing')">
+      <a href="#" class="si" id="nav-billing" onclick="switchRootTab('tab-billing')">
         <span class="si-i"><i data-lucide="wallet"></i></span>
         <span class="si-l">Mensalidades</span>
       </a>
@@ -62,7 +62,7 @@
         <span class="si-i"><i data-lucide="bar-chart-3"></i></span>
         <span class="si-l">Relatórios</span>
       </a>
-      <a href="#" class="si" onclick="switchRootTab('tab-pix')">
+      <a href="#" class="si" id="nav-pix" onclick="switchRootTab('tab-pix')">
         <span class="si-i"><i data-lucide="settings-2"></i></span>
         <span class="si-l">Configuração PIX</span>
       </a>
@@ -308,8 +308,13 @@
       const { data: user } = await sb.from('users').select('nivel_acesso').eq('id', session.user.id).single();
       if (!user || user.nivel_acesso !== 'root') { window.location.href = 'dashboard.html'; return; }
       document.body.style.display = 'block';
-      loadDashboardData();
-      loadPendingNotifications();
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const tab = urlParams.get('tab');
+      if (tab === 'billing') switchRootTab('tab-billing');
+      else if (tab === 'pix') switchRootTab('tab-pix');
+      else switchRootTab('tab-dash');
+
       loadPixKey();
     }
 
