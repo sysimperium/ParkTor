@@ -1083,6 +1083,29 @@
     }
 
     async function printTestTicket() {
+      const printMethod = localStorage.getItem('parktor_print_method') || 'browser';
+      if (printMethod === 'ble') {
+        try {
+          if (!printerDevice || !printerDevice.gatt || !printerDevice.gatt.connected) {
+            showAlert("Impressora Desconectada", "Por favor, conecte a impressora Bluetooth no topo da página primeiro.", "warning");
+            return;
+          }
+          if (!printerCharacteristic) {
+            printerCharacteristic = await getPrinterWriteCharacteristic(printerDevice);
+          }
+          if (!printerCharacteristic) {
+            throw new Error("Não foi possível encontrar a característica de escrita da impressora.");
+          }
+          const bytes = formatEscPosTicket("TESTE DE CONEXÃO", "TESTEOK", new Date().getTime());
+          await writeBytesToCharacteristic(printerCharacteristic, bytes);
+          showAlert("Sucesso", "Ticket de teste enviado!", "success");
+        } catch (err) {
+          console.error("Erro no teste de impressão Bluetooth direta:", err);
+          showAlert("Erro de Impressão", "Falha no teste: " + err.message, "danger");
+        }
+        return;
+      }
+
       const { jsPDF } = window.jspdf;
       const printerName = printerDevice ? printerDevice.name : "Bluetooth";
       
