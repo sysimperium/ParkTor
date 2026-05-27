@@ -115,7 +115,7 @@
             <div class="card-body">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <div class="sico green"><i data-lucide="navigation"></i></div>
-                <div><div class="pg-s">Carros Hoje</div><h2 id="kpiVehiclesToday">0</h2></div>
+                <div><div class="pg-s">Finalizados Hoje</div><h2 id="kpiVehiclesToday">0</h2></div>
               </div>
             </div>
           </div>
@@ -337,18 +337,19 @@
       const totalCapacity = tenantsData?.reduce((acc, t) => acc + (t.total_vagas || 0), 0) || 0;
       document.getElementById('kpiCapacity').textContent = totalCapacity;
 
-      // Calcular total de veículos hoje
+      // Calcular total de veículos finalizados hoje
       try {
         const now = new Date();
         const localStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const { count: totalVehiclesToday, error: entriesError } = await sb.from('valet_entries')
           .select('*', { count: 'exact', head: true })
-          .gte('entrada', localStart.toISOString());
+          .eq('status', 'finalizado')
+          .gte('saida', localStart.toISOString());
         
         if (entriesError) throw entriesError;
         document.getElementById('kpiVehiclesToday').textContent = totalVehiclesToday || 0;
       } catch (err) {
-        console.error('Erro ao buscar total de veículos hoje:', err);
+        console.error('Erro ao buscar total de veículos finalizados hoje:', err);
         document.getElementById('kpiVehiclesToday').textContent = '—';
       }
 
