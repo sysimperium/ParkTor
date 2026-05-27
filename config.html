@@ -295,6 +295,10 @@
                 <input type="checkbox" id="cfgChecklistEnabled" style="width: 20px; height: 20px; cursor: pointer;">
                 <label for="cfgChecklistEnabled" style="font-size: 0.9rem; cursor: pointer; color: var(--text-primary); font-weight: 600;">Habilitar Checklist de Avarias (Entrada)</label>
               </div>
+              <div style="display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 5px;">
+                <input type="checkbox" id="cfgOcrEnabled" style="width: 20px; height: 20px; cursor: pointer;">
+                <label for="cfgOcrEnabled" style="font-size: 0.9rem; cursor: pointer; color: var(--text-primary); font-weight: 600;">Habilitar Leitura de Placa por Foto (Entrada)</label>
+              </div>
             </div>
             <p class="pg-s" style="margin-top: 5px;">Desative se este estabelecimento não utiliza impressora térmica Bluetooth.</p>
           </div>
@@ -557,6 +561,7 @@
         document.getElementById('cfgCustoFixo').value = t.custo_fixo_mensal || '';
         document.getElementById('cfgPrintEnabled').checked = t.print_enabled !== false; 
         document.getElementById('cfgChecklistEnabled').checked = t.checklist_enabled === true; 
+        document.getElementById('cfgOcrEnabled').checked = t.ocr_enabled === true; 
         document.getElementById('txtPlano').textContent = (t.planos && t.planos.nome) ? t.planos.nome : 'Básico';
 
         if (t.logo_url) {
@@ -647,6 +652,7 @@
         custo_fixo_mensal: parseFloat(document.getElementById('cfgCustoFixo').value) || 0,
         print_enabled: document.getElementById('cfgPrintEnabled').checked,
         checklist_enabled: document.getElementById('cfgChecklistEnabled').checked,
+        ocr_enabled: document.getElementById('cfgOcrEnabled').checked,
         rotativo_valor_base: parseFloat(document.getElementById('cfgValorBase').value),
         rotativo_excedente_valor: parseFloat(document.getElementById('cfgValorAdic').value),
         rotativo_carencia_min: parseInt(document.getElementById('cfgCarencia').value)
