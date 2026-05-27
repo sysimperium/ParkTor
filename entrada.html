@@ -1162,7 +1162,6 @@
       pdf.addPage([58, pdfHeight]);
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
 
-      const printMethod = localStorage.getItem('parktor_print_method') || 'browser';
       if (printMethod === 'rawbt') {
         try {
           const dataUri = pdf.output('datauristring');
