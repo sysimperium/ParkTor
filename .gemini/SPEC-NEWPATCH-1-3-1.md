@@ -1,0 +1,4 @@
+## Ajustes necessarios para o sistema
+- Segue as anotações do que deve ser feito no sistema para conclusão da aplicação. Lembrando que deve seguir as normas de commit presentes no arquivo `.gemini/SPEC-GIT-WORKFLOW.md`. Não tem a necessidade de enviar para o github a cada alteração (executar o `git push`), commit tudo e ao final das changes, envie para o repositorio remoto.
+
+## Precisamos desenvolver uma maneira de após o vencimento da assinatura, o sistema fique bloqieado para Entrada e Saida, mas as outras funcionalidade, continuem, principálmente acessar a Minha Assinatura, precisa continuar ativa eacessivel
