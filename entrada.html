@@ -16,6 +16,12 @@
   <style>
     body { display: none; }
 
+    /* Status Dot da Impressora (PATCH 1.3.4) */
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; transition: background-color 0.3s, box-shadow 0.3s; }
+    .status-dot.red { background-color: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
+    .status-dot.green { background-color: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+    .status-dot.grey { background-color: #6b7280; box-shadow: 0 0 8px rgba(107, 114, 128, 0.6); }
+
     /* Estilos do Ticket PDF (PATCH 1.2.9) */
     #ticketPrint {
       width: 58mm;
@@ -252,6 +258,17 @@
     </header>
 
     <div class="pg">
+      <!-- Status da Impressora Bluetooth (PATCH 1.3.4) -->
+      <div id="printerStatusCard" class="card anim-fadeInUp" style="display: none; padding: 12px; margin-bottom: 20px; align-items: center; justify-content: space-between; gap: 10px; flex-direction: row;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="printerStatusIndicator" class="status-dot red"></div>
+          <span id="printerStatusText" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Verificando impressora...</span>
+        </div>
+        <button id="btnConnectPrinter" type="button" class="btn btn-ghost btn-sm" style="padding: 6px 12px; font-size: 0.8rem; color: var(--gold-400); border: 1px solid var(--border);" onclick="connectPrinter()">
+          CONECTAR
+        </button>
+      </div>
+
       <!-- Stats (PATCH 1.2.3) -->
       <div class="sgrid anim-stagger" style="margin-bottom: 20px;">
         <div class="scard">
@@ -552,6 +569,11 @@
         if (currentUser.tenants.ocr_enabled) {
           document.getElementById('btnCameraOCR').style.display = 'flex';
           lucide.createIcons();
+        }
+        // Printer Status Card Visible? (PATCH 1.3.4)
+        if (currentUser.tenants.print_enabled !== false) {
+          document.getElementById('printerStatusCard').style.display = 'flex';
+          checkPrinterStatus();
         }
       }
     }
@@ -857,6 +879,85 @@
         preview.querySelector('.plate-header-text').textContent = 'BRASIL';
       }
     });
+
+    // Lógica de Status da Impressora Bluetooth (PATCH 1.3.4)
+    let printerDevice = null;
+
+    async function checkPrinterStatus() {
+      const indicator = document.getElementById('printerStatusIndicator');
+      const text = document.getElementById('printerStatusText');
+      const btn = document.getElementById('btnConnectPrinter');
+
+      if (!navigator.bluetooth) {
+        indicator.className = 'status-dot grey';
+        text.textContent = 'Bluetooth não suportado neste dispositivo/navegador';
+        if (btn) btn.style.display = 'none';
+        return;
+      }
+
+      try {
+        const devices = await navigator.bluetooth.getDevices();
+        if (devices.length > 0) {
+          const device = devices[0];
+          
+          if (device.gatt) {
+            if (!device.gatt.connected) {
+              try {
+                // Tenta estabelecer conexão GATT rápida
+                await device.gatt.connect();
+              } catch (e) {
+                indicator.className = 'status-dot red';
+                text.textContent = 'Impressora pareada, mas desligada/inacessível';
+                return;
+              }
+            }
+            printerDevice = device;
+            indicator.className = 'status-dot green';
+            text.textContent = 'Impressora Conectada (' + device.name + ')';
+            device.addEventListener('gattserverdisconnected', onPrinterDisconnected);
+          } else {
+            indicator.className = 'status-dot green';
+            text.textContent = 'Impressora Pareada (' + device.name + ')';
+          }
+        } else {
+          indicator.className = 'status-dot red';
+          text.textContent = 'Nenhuma impressora Bluetooth pareada';
+        }
+      } catch (err) {
+        console.error("Erro ao verificar impressora:", err);
+        indicator.className = 'status-dot red';
+        text.textContent = 'Erro ao buscar status da impressora';
+      }
+    }
+
+    function onPrinterDisconnected() {
+      const indicator = document.getElementById('printerStatusIndicator');
+      const text = document.getElementById('printerStatusText');
+      indicator.className = 'status-dot red';
+      text.textContent = 'Impressora Desconectada';
+      printerDevice = null;
+    }
+
+    async function connectPrinter() {
+      if (!navigator.bluetooth) {
+        showAlert('Não Suportado', 'Seu navegador ou dispositivo não suporta Bluetooth.', 'warning');
+        return;
+      }
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '00001101-0000-1000-8000-00805f9b34fb']
+        });
+        
+        showAlert('Pareamento', `Impressora ${device.name} selecionada. Conectando...`, 'info');
+        await checkPrinterStatus();
+      } catch (err) {
+        console.error("Erro ao conectar impressora:", err);
+        if (err.name !== 'NotFoundError') {
+          showAlert('Erro de Conexão', 'Não foi possível emparelhar a impressora: ' + err.message, 'danger');
+        }
+      }
+    }
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
     
