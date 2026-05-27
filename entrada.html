@@ -264,9 +264,14 @@
           <div id="printerStatusIndicator" class="status-dot red"></div>
           <span id="printerStatusText" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Verificando impressora...</span>
         </div>
-        <button id="btnConnectPrinter" type="button" class="btn btn-ghost btn-sm" style="padding: 6px 12px; font-size: 0.8rem; color: var(--gold-400); border: 1px solid var(--border);" onclick="connectPrinter()">
-          CONECTAR
-        </button>
+        <div style="display: flex; gap: 8px;">
+          <button id="btnTestPrinter" type="button" class="btn btn-ghost btn-sm" style="display: none; padding: 6px 12px; font-size: 0.8rem; color: var(--gold-400); border: 1px solid var(--border);" onclick="printTestTicket()">
+            TESTAR IMPRESSÃO
+          </button>
+          <button id="btnConnectPrinter" type="button" class="btn btn-ghost btn-sm" style="padding: 6px 12px; font-size: 0.8rem; color: var(--gold-400); border: 1px solid var(--border);" onclick="connectPrinter()">
+            CONECTAR
+          </button>
+        </div>
       </div>
 
       <!-- Stats (PATCH 1.2.3) -->
@@ -887,11 +892,13 @@
       const indicator = document.getElementById('printerStatusIndicator');
       const text = document.getElementById('printerStatusText');
       const btn = document.getElementById('btnConnectPrinter');
+      const testBtn = document.getElementById('btnTestPrinter');
 
       if (!navigator.bluetooth) {
         indicator.className = 'status-dot grey';
         text.textContent = 'Bluetooth não suportado neste dispositivo/navegador';
         if (btn) btn.style.display = 'none';
+        if (testBtn) testBtn.style.display = 'none';
         return;
       }
 
@@ -908,34 +915,132 @@
               } catch (e) {
                 indicator.className = 'status-dot red';
                 text.textContent = 'Impressora pareada, mas desligada/inacessível';
+                if (testBtn) testBtn.style.display = 'none';
                 return;
               }
             }
             printerDevice = device;
             indicator.className = 'status-dot green';
             text.textContent = 'Impressora Conectada (' + device.name + ')';
+            if (testBtn) testBtn.style.display = 'inline-block';
             device.addEventListener('gattserverdisconnected', onPrinterDisconnected);
           } else {
             indicator.className = 'status-dot green';
             text.textContent = 'Impressora Pareada (' + device.name + ')';
+            if (testBtn) testBtn.style.display = 'inline-block';
           }
         } else {
           indicator.className = 'status-dot red';
           text.textContent = 'Nenhuma impressora Bluetooth pareada';
+          if (testBtn) testBtn.style.display = 'none';
         }
       } catch (err) {
         console.error("Erro ao verificar impressora:", err);
         indicator.className = 'status-dot red';
         text.textContent = 'Erro ao buscar status da impressora';
+        if (testBtn) testBtn.style.display = 'none';
       }
     }
 
     function onPrinterDisconnected() {
       const indicator = document.getElementById('printerStatusIndicator');
       const text = document.getElementById('printerStatusText');
+      const testBtn = document.getElementById('btnTestPrinter');
       indicator.className = 'status-dot red';
       text.textContent = 'Impressora Desconectada';
+      if (testBtn) testBtn.style.display = 'none';
       printerDevice = null;
+    }
+
+    async function printTestTicket() {
+      const { jsPDF } = window.jspdf;
+      const printerName = printerDevice ? printerDevice.name : "Bluetooth";
+      
+      // Salva estado original do ticketPrint
+      const originalEstName = document.getElementById('printEstName').textContent;
+      const originalPlate = document.getElementById('printPlate').textContent;
+      const originalDate = document.getElementById('printDate').textContent;
+      const originalTime = document.getElementById('printTime').textContent;
+      const originalPhotoDisplay = document.getElementById('printPhotoContainer').style.display;
+      
+      // Modifica temporariamente para o ticket de teste
+      document.getElementById('printEstName').textContent = "TESTE DE CONEXÃO";
+      document.getElementById('printPlate').textContent = "TESTEOK";
+      
+      const visual = document.getElementById('printPlateVisual');
+      const originalVisualClass = visual.className;
+      const originalHeaderVal = visual.querySelector('.plate-header-text').textContent;
+      
+      visual.className = 'real-plate classic';
+      visual.querySelector('.plate-header-text').textContent = 'PARKTOR';
+      
+      const now = new Date();
+      document.getElementById('printDate').textContent = `DATA: ${now.toLocaleDateString('pt-BR')}`;
+      document.getElementById('printTime').textContent = `HORA: ${now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
+      document.getElementById('printPhotoContainer').style.display = 'none';
+      
+      JsBarcode("#printBarcode", "TESTEOK", {
+        format: "CODE128",
+        width: 2,
+        height: 40,
+        displayValue: true,
+        fontSize: 14
+      });
+
+      // Capturar o elemento como imagem (html2canvas)
+      const ticketEl = document.getElementById('ticketPrint');
+      const canvas = await html2canvas(ticketEl, { 
+        scale: 2, 
+        backgroundColor: '#ffffff',
+        useCORS: true
+      });
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF({
+        unit: 'mm',
+        format: [58, 80]
+      });
+
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.deletePage(1);
+      pdf.addPage([58, pdfHeight]);
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, '_blank');
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        };
+      }
+      
+      // Restaura o estado original após a renderização
+      setTimeout(() => {
+        document.getElementById('printEstName').textContent = originalEstName;
+        document.getElementById('printPlate').textContent = originalPlate;
+        document.getElementById('printDate').textContent = originalDate;
+        document.getElementById('printTime').textContent = originalTime;
+        document.getElementById('printPhotoContainer').style.display = originalPhotoDisplay;
+        
+        visual.className = originalVisualClass;
+        visual.querySelector('.plate-header-text').textContent = originalHeaderVal;
+
+        if (originalPlate && originalPlate !== "---") {
+          JsBarcode("#printBarcode", originalPlate, {
+            format: "CODE128",
+            width: 2,
+            height: 40,
+            displayValue: true,
+            fontSize: 14
+          });
+        }
+      }, 1000);
     }
 
     async function connectPrinter() {
