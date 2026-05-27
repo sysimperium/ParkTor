@@ -1,5 +1,5 @@
 {
-  "name": "ParkTor",
+  "name": "ParkTor — Gestão Digital",
   "short_name": "ParkTor",
   "description": "Gestão de Estacionamento",
   "start_url": "index.html",
@@ -8,10 +8,10 @@
   "theme_color": "#000000",
   "icons": [
     {
-      "src": "imgs/logoP.png",
-      "sizes": "192x192 512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "imgs/logoP.ico",
+      "sizes": "16x16 32x32 48x48 64x64 128x128 192x192 256x256 512x512",
+      "type": "image/x-icon",
+      "purpose": "any"
     }
   ]
 }
