@@ -94,6 +94,11 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Cliente puro sem persistência em localStorage para consultas antes do login
+    const sbAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false }
+    });
 
     const ROUTES = { root: 'root.html', admin: 'dashboard.html', operador: 'saida.html', manobrista: 'entrada.html' };
 
@@ -114,13 +119,14 @@
       btn.classList.add('btn-loading');
 
       // 1. Buscar o e-mail associado ao username na tabela public.users
-      const { data: userData, error: userError } = await sb
+      const { data: userData, error: userError } = await sbAnon
         .from('users')
         .select('email')
         .ilike('username', usuario)
         .single();
 
       if (userError || !userData) {
+        if (userError) console.error('Erro de login lookup:', userError);
         btn.classList.remove('btn-loading');
         alert.classList.add('show');
         return;
@@ -170,25 +176,33 @@
         // Se contiver '@', assumimos que é e-mail
         if (inputVal.includes('@')) {
           // Validar se existe o e-mail na base de dados
-          const { data: userData, error: userError } = await sb
+          const { data: userData, error: userError } = await sbAnon
             .from('users')
             .select('email')
             .ilike('email', inputVal)
             .single();
           
-          if (userError || !userData) {
+          if (userError) {
+            console.error('Erro na consulta por e-mail:', userError);
+            throw new Error('Erro na consulta ao banco: ' + userError.message);
+          }
+          if (!userData) {
             throw new Error('E-mail não cadastrado no sistema.');
           }
           email = userData.email;
         } else {
           // Procurar o username
-          const { data: userData, error: userError } = await sb
+          const { data: userData, error: userError } = await sbAnon
             .from('users')
             .select('email')
             .ilike('username', inputVal)
             .single();
 
-          if (userError || !userData) {
+          if (userError) {
+            console.error('Erro na consulta por usuário:', userError);
+            throw new Error('Erro na consulta ao banco: ' + userError.message);
+          }
+          if (!userData) {
             throw new Error('Usuário não cadastrado no sistema.');
           }
           email = userData.email;
