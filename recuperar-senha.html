@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parktor — Recuperar Senha</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/x-icon" href="imgs/logoP.ico">
+  <link rel="apple-touch-icon" href="imgs/logoP.ico">
+  <link rel="manifest" href="manifest.json?v=2">
+</head>
+<body>
+
+  <main class="login-page">
+    <div class="login-container">
+      
+      <div class="login-logo">
+        <img src="imgs/logo.png" alt="PARKTOR — Gestão de Estacionamento">
+      </div>
+
+      <!-- Card de Formulário de Redefinição -->
+      <div class="login-card" id="recoveryCard" style="display: none;">
+        <h1 class="login-title">Nova Senha</h1>
+        <p class="login-subtitle">Insira sua nova senha abaixo para continuar</p>
+
+        <div class="alert alert-error" id="alertError" style="display: none; margin-bottom: 15px; padding: 10px; border-radius: var(--radius-sm); font-size: 0.85rem;">
+          <span>Erro ao atualizar senha.</span>
+        </div>
+
+        <div class="alert alert-success" id="alertSuccess" style="display: none; margin-bottom: 15px; padding: 10px; border-radius: var(--radius-sm); font-size: 0.85rem; background: var(--success-bg); color: var(--green-300); border: 1px solid var(--border);">
+          <span>Senha redefinida com sucesso! Redirecionando para o login...</span>
+        </div>
+
+        <form id="resetForm" class="login-form">
+          <div class="form-group">
+            <label class="form-label">Nova Senha</label>
+            <input type="password" id="novaSenha" class="form-input" placeholder="No mínimo 6 caracteres" minlength="6" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmar Senha</label>
+            <input type="password" id="confirmarSenha" class="form-input" placeholder="Repita a senha" minlength="6" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="btnReset">
+            <span>SALVAR NOVA SENHA</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Card de Link Expirado ou Inválido -->
+      <div class="login-card" id="invalidCard" style="display: none; text-align: center;">
+        <h1 class="login-title" style="color: #ef4444; margin-bottom: 10px;">Link Expirado ou Inválido</h1>
+        <p class="login-subtitle" style="margin-bottom: 24px;">O link de recuperação de senha é inválido ou já expirou. Por favor, solicite a redefinição novamente.</p>
+        
+        <a href="index.html" class="btn btn-primary btn-full btn-lg" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
+          <span>VOLTAR PARA O LOGIN</span>
+        </a>
+      </div>
+
+      <p class="login-version">
+        PARKTOR v1.2 &mdash; 2026
+      </p>
+
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let activeSession = null;
+
+    async function init() {
+      // 1. Tentar ler sessão atual
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        activeSession = session;
+        showCard('recovery');
+      }
+
+      // 2. Escutar mudanças de autenticação (como quando a hash da URL é processada)
+      sb.auth.onAuthStateChange(async (event, sessionData) => {
+        if (event === "PASSWORD_RECOVERY" || sessionData) {
+          activeSession = sessionData;
+          showCard('recovery');
+        }
+      });
+
+      // 3. Fallback após 2 segundos se nenhuma sessão for reconhecida
+      setTimeout(() => {
+        if (!activeSession) {
+          showCard('invalid');
+        }
+      }, 2000);
+    }
+
+    function showCard(type) {
+      if (type === 'recovery') {
+        document.getElementById('recoveryCard').style.display = 'block';
+        document.getElementById('invalidCard').style.display = 'none';
+      } else {
+        document.getElementById('recoveryCard').style.display = 'none';
+        document.getElementById('invalidCard').style.display = 'block';
+      }
+    }
+
+    document.getElementById('resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const novaSenha = document.getElementById('novaSenha').value;
+      const confirmarSenha = document.getElementById('confirmarSenha').value;
+      const btn = document.getElementById('btnReset');
+      const alertErr = document.getElementById('alertError');
+      const alertSucc = document.getElementById('alertSuccess');
+
+      alertErr.style.display = 'none';
+      alertSucc.style.display = 'none';
+
+      if (novaSenha !== confirmarSenha) {
+        alertErr.querySelector('span').textContent = 'As senhas não coincidem.';
+        alertErr.style.display = 'block';
+        return;
+      }
+
+      btn.classList.add('btn-loading');
+
+      try {
+        const { error } = await sb.auth.updateUser({ password: novaSenha });
+        if (error) throw error;
+
+        // Deslogar para garantir que o usuário precise digitar a nova senha no login
+        await sb.auth.signOut();
+
+        alertSucc.style.display = 'block';
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 3000);
+      } catch (err) {
+        console.error(err);
+        alertErr.querySelector('span').textContent = err.message || 'Erro ao redefinir a senha.';
+        alertErr.style.display = 'block';
+        btn.classList.remove('btn-loading');
+      }
+    });
+
+    init();
+    lucide.createIcons();
+  </script>
+
+</body>
+</html>

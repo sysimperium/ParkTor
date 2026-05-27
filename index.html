@@ -47,7 +47,38 @@
         </form>
 
         <div class="login-footer">
-          <a href="#">Esqueci minha senha</a>
+          <a href="#" onclick="openForgotModal(event)">Esqueci minha senha</a>
+        </div>
+      </div>
+
+      <!-- MODAL ESQUECI MINHA SENHA -->
+      <div class="modal-overlay" id="modalForgot" onclick="closeForgotModal()">
+        <div class="modal" style="max-width: 400px; padding: 24px; position: relative;" onclick="event.stopPropagation()">
+          <button type="button" class="btn btn-ghost" style="position: absolute; top: 12px; right: 12px; padding: 4px 8px; z-index: 10;" onclick="closeForgotModal()">
+            <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+          </button>
+          <h3 class="card-title" style="margin-bottom: 8px; font-family: var(--font-display); font-size: 1.25rem;">Recuperar Senha</h3>
+          <p class="pg-s" style="margin-bottom: 20px; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+            Digite o seu usuário ou o e-mail cadastrado. Um link de redefinição de senha será enviado para você.
+          </p>
+
+          <div class="alert alert-error" id="alertForgotError" style="display: none; margin-bottom: 15px; padding: 10px; border-radius: var(--radius-sm); font-size: 0.85rem;">
+            <span>Erro ao processar solicitação.</span>
+          </div>
+
+          <div class="alert alert-success" id="alertForgotSuccess" style="display: none; margin-bottom: 15px; padding: 10px; border-radius: var(--radius-sm); font-size: 0.85rem; background: var(--success-bg); color: var(--green-300); border: 1px solid var(--border);">
+            <span>E-mail enviado com sucesso.</span>
+          </div>
+
+          <form id="forgotForm" class="login-form">
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label class="form-label">Usuário ou E-mail</label>
+              <input type="text" id="forgotInput" class="form-input" placeholder="Ex: admin.central ou admin@email.com" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full btn-lg" id="btnForgotSubmit">
+              <span>ENVIAR E-MAIL DE RECUPERAÇÃO</span>
+            </button>
+          </form>
         </div>
       </div>
 
@@ -107,6 +138,90 @@
       }
 
       await rotearUsuario(data.user.id);
+    });
+
+    // Lógica para o modal de "Esqueci minha senha"
+    function openForgotModal(e) {
+      if (e) e.preventDefault();
+      document.getElementById('modalForgot').classList.add('show');
+      document.getElementById('forgotInput').value = '';
+      document.getElementById('alertForgotError').style.display = 'none';
+      document.getElementById('alertForgotSuccess').style.display = 'none';
+    }
+
+    function closeForgotModal() {
+      document.getElementById('modalForgot').classList.remove('show');
+    }
+
+    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inputVal = document.getElementById('forgotInput').value.trim();
+      const btn = document.getElementById('btnForgotSubmit');
+      const alertErr = document.getElementById('alertForgotError');
+      const alertSucc = document.getElementById('alertForgotSuccess');
+
+      alertErr.style.display = 'none';
+      alertSucc.style.display = 'none';
+      btn.classList.add('btn-loading');
+
+      try {
+        let email = '';
+        
+        // Se contiver '@', assumimos que é e-mail
+        if (inputVal.includes('@')) {
+          // Validar se existe o e-mail na base de dados
+          const { data: userData, error: userError } = await sb
+            .from('users')
+            .select('email')
+            .ilike('email', inputVal)
+            .single();
+          
+          if (userError || !userData) {
+            throw new Error('E-mail não cadastrado no sistema.');
+          }
+          email = userData.email;
+        } else {
+          // Procurar o username
+          const { data: userData, error: userError } = await sb
+            .from('users')
+            .select('email')
+            .ilike('username', inputVal)
+            .single();
+
+          if (userError || !userData) {
+            throw new Error('Usuário não cadastrado no sistema.');
+          }
+          email = userData.email;
+        }
+
+        // Enviar e-mail de recuperação
+        let baseUrl = window.location.href.split('?')[0].split('#')[0];
+        if (baseUrl.endsWith('/')) {
+          baseUrl += 'recuperar-senha.html';
+        } else if (baseUrl.endsWith('/index.html')) {
+          baseUrl = baseUrl.replace('/index.html', '/recuperar-senha.html');
+        } else {
+          baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/')) + '/recuperar-senha.html';
+        }
+
+        const { error: resetError } = await sb.auth.resetPasswordForEmail(email, {
+          redirectTo: baseUrl
+        });
+
+        if (resetError) {
+          throw resetError;
+        }
+
+        alertSucc.querySelector('span').textContent = 'E-mail de recuperação enviado! Verifique sua caixa de entrada para redefinir sua senha.';
+        alertSucc.style.display = 'block';
+        document.getElementById('forgotInput').value = '';
+      } catch (err) {
+        console.error(err);
+        alertErr.querySelector('span').textContent = err.message || 'Erro ao processar a solicitação.';
+        alertErr.style.display = 'block';
+      } finally {
+        btn.classList.remove('btn-loading');
+      }
     });
 
     lucide.createIcons();
