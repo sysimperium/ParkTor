@@ -510,6 +510,18 @@
       if (error) {
         showAlert('Erro ao Registrar', 'Não foi possível salvar a entrada: ' + error.message, 'danger');
       } else {
+        // Upsert na tabela global de veículos se houver marca ou modelo (PATCH 1.3.8)
+        if (marca || modelo) {
+          sb.from('veiculos').upsert({
+            placa: plate,
+            marca: marca,
+            modelo: modelo,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'placa' }).then(({ error: uErr }) => {
+            if (uErr) console.error("Erro ao salvar veiculo na base global:", uErr);
+          });
+        }
+
         plateInputEl.value = '';
         document.getElementById('marcaInput').value = '';
         document.getElementById('modeloInput').value = '';
@@ -523,17 +535,14 @@
 
     async function buscarVeiculoPorPlaca(plate) {
       try {
-        const { data, error } = await sb.from('valet_entries')
+        const { data, error } = await sb.from('veiculos')
           .select('marca, modelo')
           .eq('placa', plate)
-          .not('marca', 'is', null)
-          .order('entrada', { ascending: false })
-          .limit(1);
+          .maybeSingle();
           
-        if (data && data.length > 0) {
-          const v = data[0];
-          if (v.marca) document.getElementById('marcaInput').value = v.marca;
-          if (v.modelo) document.getElementById('modeloInput').value = v.modelo;
+        if (data) {
+          if (data.marca) document.getElementById('marcaInput').value = data.marca;
+          if (data.modelo) document.getElementById('modeloInput').value = data.modelo;
         }
       } catch (err) {
         console.error("Erro ao buscar histórico do veículo:", err);
