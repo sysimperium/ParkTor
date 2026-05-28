@@ -250,8 +250,8 @@
 
   <div class="public-container">
     <div class="public-header">
-      <div id="logoWrapper" class="public-logo-container" style="display: none;">
-        <img id="tenantLogo" src="" alt="Logo">
+      <div id="logoWrapper" class="public-logo-container" style="display: flex;">
+        <img id="tenantLogo" src="imgs/logoP.png" alt="Logo">
       </div>
       <div>
         <h1 id="tenantName" class="public-title">Parktor</h1>
@@ -336,6 +336,13 @@
     const urlParams = new URLSearchParams(window.location.search);
     const urlTenantId = urlParams.get('t') || urlParams.get('tenant');
 
+    function resetBranding() {
+      if (urlTenantId) return;
+      document.getElementById('tenantName').textContent = 'Parktor';
+      document.getElementById('tenantLogo').src = 'imgs/logoP.png';
+      document.getElementById('logoWrapper').style.display = 'flex';
+    }
+
     async function initBranding() {
       if (urlTenantId) {
         try {
@@ -346,11 +353,16 @@
               const img = document.getElementById('tenantLogo');
               img.src = data.logo_url;
               document.getElementById('logoWrapper').style.display = 'flex';
+            } else {
+              document.getElementById('tenantLogo').src = 'imgs/SuaMarcaAqui.png';
+              document.getElementById('logoWrapper').style.display = 'flex';
             }
           }
         } catch (e) {
           console.error("Erro ao carregar logo do estabelecimento:", e);
         }
+      } else {
+        resetBranding();
       }
     }
 
@@ -370,6 +382,7 @@
       if (activeInterval) clearInterval(activeInterval);
 
       if (!validarPlaca(plate)) {
+        resetBranding();
         resultsSection.style.display = 'none';
         errorSection.style.display = 'flex';
         document.getElementById('errorMessage').textContent = 'Placa inválida. Digite uma placa no padrão ABC1234 ou ABC1D23.';
@@ -396,6 +409,7 @@
         if (error) throw error;
 
         if (!data || data.length === 0) {
+          resetBranding();
           resultsSection.style.display = 'none';
           errorSection.style.display = 'flex';
           document.getElementById('errorMessage').textContent = `Veículo com a placa ${plate} não foi encontrado no pátio.`;
@@ -411,6 +425,9 @@
               const img = document.getElementById('tenantLogo');
               img.src = currentTenantData.logo_url;
               document.getElementById('logoWrapper').style.display = 'flex';
+            } else {
+              document.getElementById('tenantLogo').src = 'imgs/SuaMarcaAqui.png';
+              document.getElementById('logoWrapper').style.display = 'flex';
             }
           }
 
@@ -422,6 +439,7 @@
         }
       } catch (err) {
         console.error("Erro na consulta:", err);
+        resetBranding();
         resultsSection.style.display = 'none';
         errorSection.style.display = 'flex';
         document.getElementById('errorMessage').textContent = 'Erro ao realizar a busca no servidor. Tente novamente.';
