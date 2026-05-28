@@ -1,3 +1,6 @@
 sql/
 .gemini/
 .antigravitycli/
+node_modules/
+.env
+package-lock.json
