@@ -252,6 +252,16 @@
                 <input type="text" id="cfgPix" class="form-input" placeholder="Chave PIX">
               </div>
               <div class="form-group">
+                <label class="form-label">Nome do Beneficiário (PIX)</label>
+                <input type="text" id="cfgPixName" class="form-input" placeholder="Nome completo do titular" maxlength="25">
+              </div>
+            </div>
+            <div class="config-grid">
+              <div class="form-group">
+                <label class="form-label">Cidade do Beneficiário (PIX)</label>
+                <input type="text" id="cfgPixCity" class="form-input" placeholder="Ex: SAO PAULO" maxlength="15">
+              </div>
+              <div class="form-group">
               </div>
             </div>
             <button type="submit" id="btnSaveConfig" class="btn btn-primary btn-full btn-lg">SALVAR ALTERAÇÕES</button>
@@ -580,6 +590,8 @@
         document.getElementById('cfgVagas').value = t.total_vagas;        document.getElementById('cfgNome').value = t.nome;
         document.getElementById('cfgPixType').value = t.pix_type || '';
         document.getElementById('cfgPix').value = t.pix_key || '';
+        document.getElementById('cfgPixName').value = t.pix_name || '';
+        document.getElementById('cfgPixCity').value = t.pix_city || '';
         document.getElementById('cfgValorDiaria').value = t.valor_diaria || 40.00;
         document.getElementById('cfgCustoFixo').value = t.custo_fixo_mensal || '';
         document.getElementById('cfgPrintEnabled').checked = t.print_enabled !== false; 
@@ -677,6 +689,8 @@
         total_vagas: novasVagas, 
         pix_type: document.getElementById('cfgPixType').value,
         pix_key: document.getElementById('cfgPix').value,
+        pix_name: document.getElementById('cfgPixName').value,
+        pix_city: document.getElementById('cfgPixCity').value,
         valor_diaria: parseFloat(document.getElementById('cfgValorDiaria').value),
         custo_fixo_mensal: parseFloat(document.getElementById('cfgCustoFixo').value) || 0,
         print_enabled: document.getElementById('cfgPrintEnabled').checked,

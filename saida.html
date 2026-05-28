@@ -1030,7 +1030,9 @@
           btnCopy.style.display = 'block';
 
           const plate = selectedEntry ? selectedEntry.placa : '';
-          const payload = generatePixPayload(t.pix_key, t.pix_type, plate, t.nome || 'ESTABELECIMENTO', pixAmount, 'SAO PAULO');
+          const pixName = t.pix_name || t.nome || 'ESTABELECIMENTO';
+          const pixCity = t.pix_city || 'SAO PAULO';
+          const payload = generatePixPayload(t.pix_key, t.pix_type, plate, pixName, pixAmount, pixCity);
           pixCcInput.value = payload;
 
           new QRCode(pixQrEl, {
