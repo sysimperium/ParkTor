@@ -651,7 +651,7 @@
     }
 
     async function printTicket(plate, entryTime, photoUrl) {
-      const printMethod = localStorage.getItem('parktor_print_method') || 'browser';
+      const printMethod = localStorage.getItem('parktor_print_method') || 'ble';
       if (printMethod === 'ble' || (printerDevice && printerDevice.gatt && printerDevice.gatt.connected)) {
         try {
           if (!printerDevice || !printerDevice.gatt || !printerDevice.gatt.connected) {
@@ -1183,7 +1183,7 @@
     }
 
     async function printTestTicket() {
-      const printMethod = localStorage.getItem('parktor_print_method') || 'browser';
+      const printMethod = localStorage.getItem('parktor_print_method') || 'ble';
       if (printMethod === 'ble') {
         try {
           if (!printerDevice || !printerDevice.gatt || !printerDevice.gatt.connected) {
