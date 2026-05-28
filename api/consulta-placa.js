@@ -1,3 +1,5 @@
+const cheerio = require('cheerio');
+
 module.exports = async (req, res) => {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,6 +26,29 @@ module.exports = async (req, res) => {
   // Import got-scraping dynamically since it is an ESM module
   const { gotScraping } = await import('got-scraping');
 
+  function extractMarcaModelo(html) {
+    try {
+      const $ = cheerio.load(html);
+      let marcaLocal = null;
+      let modeloLocal = null;
+
+      $("table.fipeTablePriceDetail tr").each((index, element) => {
+        const key = $(element).find("td:first-child").text().replace(":", "").trim().toLowerCase();
+        const val = $(element).find("td:last-child").text().trim();
+        
+        if (key === 'marca') {
+          marcaLocal = val.toUpperCase();
+        } else if (key === 'modelo') {
+          modeloLocal = val.toUpperCase();
+        }
+      });
+      return { marca: marcaLocal, modelo: modeloLocal };
+    } catch (e) {
+      console.error("Erro no parser Cheerio:", e);
+      return { marca: null, modelo: null };
+    }
+  }
+
   // Source 1: tabelafipebrasil.com
   try {
     console.log(`Querying tabelafipebrasil.com for ${cleanedPlaca}...`);
@@ -33,13 +58,10 @@ module.exports = async (req, res) => {
     });
 
     if (tfbRes.statusCode === 200) {
-      const html = tfbRes.body;
-      const brandMatch = html.match(/Marca:<\/b>\s*<\/td>\s*<td>\s*(?:<a[^>]*>)?\s*([^<]+?)\s*(?:<\/a>)?\s*<\/td>/i);
-      const modelMatch = html.match(/Modelo:<\/b>\s*<\/td>\s*<td>\s*(?:<a[^>]*>)?\s*([^<]+?)\s*(?:<\/a>)?\s*<\/td>/i);
-      
-      if (brandMatch && modelMatch) {
-        brand = brandMatch[1].trim().toUpperCase();
-        model = modelMatch[1].trim().toUpperCase();
+      const parsed = extractMarcaModelo(tfbRes.body);
+      if (parsed.marca && parsed.modelo) {
+        brand = parsed.marca;
+        model = parsed.modelo;
         console.log(`Found on tabelafipebrasil.com: ${brand} - ${model}`);
       }
     } else {
@@ -59,13 +81,10 @@ module.exports = async (req, res) => {
       });
 
       if (kpRes.statusCode === 200) {
-        const html = kpRes.body;
-        const brandMatch = html.match(/Marca:<\/b>\s*<\/td>\s*<td>\s*(?:<a[^>]*>)?\s*([^<]+?)\s*(?:<\/a>)?\s*<\/td>/i);
-        const modelMatch = html.match(/Modelo:<\/b>\s*<\/td>\s*<td>\s*(?:<a[^>]*>)?\s*([^<]+?)\s*(?:<\/a>)?\s*<\/td>/i);
-
-        if (brandMatch && modelMatch) {
-          brand = brandMatch[1].trim().toUpperCase();
-          model = modelMatch[1].trim().toUpperCase();
+        const parsed = extractMarcaModelo(kpRes.body);
+        if (parsed.marca && parsed.modelo) {
+          brand = parsed.marca;
+          model = parsed.modelo;
           console.log(`Found on keplaca.com: ${brand} - ${model}`);
         }
       } else {
