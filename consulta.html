@@ -332,9 +332,16 @@
     let currentEntryData = null;
     let currentTenantData = null;
 
+    function isValidUUID(str) {
+      if (!str) return false;
+      const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return regex.test(str.trim());
+    }
+
     // Recupera Tenant ID da URL para pré-carregar branding
     const urlParams = new URLSearchParams(window.location.search);
-    const urlTenantId = urlParams.get('t') || urlParams.get('tenant');
+    const rawTenantId = urlParams.get('t') || urlParams.get('tenant');
+    const urlTenantId = isValidUUID(rawTenantId) ? rawTenantId.trim() : null;
 
     function resetBranding() {
       if (urlTenantId) return;
@@ -395,7 +402,7 @@
       try {
         let query = sb.from('valet_entries')
           .select('*, tenants(*)')
-          .eq('placa', plate)
+          .ilike('placa', plate)
           .eq('status', 'ativo')
           .order('entrada', { ascending: false });
 
