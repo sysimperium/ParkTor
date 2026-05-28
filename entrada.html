@@ -982,7 +982,7 @@
         // Se não encontrar na base local, busca na nossa API de consulta de placas
         console.log("Veículo não encontrado localmente. Consultando API externa...");
         let apiHost = '';
-        if (window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (window.location.protocol === 'file:') {
           apiHost = 'https://parktor.vercel.app';
         }
         const response = await fetch(`${apiHost}/api/consulta-placa?placa=${plate}`);
