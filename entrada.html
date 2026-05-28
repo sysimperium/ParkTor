@@ -651,6 +651,30 @@
     }
 
     async function printTicket(plate, entryTime, photoUrl) {
+      const printMethod = localStorage.getItem('parktor_print_method') || 'browser';
+      if (printMethod === 'ble' || (printerDevice && printerDevice.gatt && printerDevice.gatt.connected)) {
+        try {
+          if (!printerDevice || !printerDevice.gatt || !printerDevice.gatt.connected) {
+            showAlert("Impressora Desconectada", "Por favor, conecte a impressora Bluetooth no topo da página primeiro.", "warning");
+            return;
+          }
+          if (!printerCharacteristic) {
+            printerCharacteristic = await getPrinterWriteCharacteristic(printerDevice);
+          }
+          if (!printerCharacteristic) {
+            throw new Error("Não foi possível encontrar a característica de escrita da impressora.");
+          }
+          const estName = currentUser.tenants?.nome || "PARKTOR";
+          const bytes = formatEscPosTicket(estName, plate, entryTime);
+          await writeBytesToCharacteristic(printerCharacteristic, bytes);
+          showAlert("Sucesso", "Ticket enviado para a impressora!", "success");
+        } catch (err) {
+          console.error("Erro na impressão Bluetooth direta:", err);
+          showAlert("Erro de Impressão", "Falha ao imprimir via Bluetooth Direto: " + err.message, "danger");
+        }
+        return;
+      }
+
       const { jsPDF } = window.jspdf;
       const date = new Date(entryTime);
       
@@ -714,7 +738,6 @@
       pdf.addPage([58, pdfHeight]);
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
 
-      const printMethod = localStorage.getItem('parktor_print_method') || 'browser';
       if (printMethod === 'rawbt') {
         try {
           const dataUri = pdf.output('datauristring');
