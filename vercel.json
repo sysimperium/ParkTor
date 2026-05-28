@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/consulta.html",
+      "destination": "/api/consulta"
+    },
+    {
+      "source": "/consulta",
+      "destination": "/api/consulta"
+    }
+  ]
+}
