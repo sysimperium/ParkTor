@@ -144,6 +144,7 @@
           <div class="plate-text" id="printPlate" style="font-size: 22pt;">---</div>
         </div>
       </div>
+      <div id="printVehicleDetails" style="font-size: 11pt; font-weight: 700; text-align: center; margin-bottom: 2mm; display: none; color: #000; text-transform: uppercase;"></div>
 
       <div class="ticket-info">
         <div id="printDate">DATA: --/--/----</div>
@@ -322,6 +323,12 @@
           </button>
         </div>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;" onchange="processPlateImage(event)">
+
+        <!-- Campos para Marca e Modelo (PATCH 1.3.7) -->
+        <div id="vehicleDetailsContainer" style="display: flex; gap: 10px; margin-top: 12px; width: 100%;">
+          <input type="text" id="marcaInput" class="form-input" placeholder="Marca (ex: FIAT)" style="flex: 1; text-transform: uppercase; font-size: 0.9rem;">
+          <input type="text" id="modeloInput" class="form-input" placeholder="Modelo (ex: UNO)" style="flex: 1; text-transform: uppercase; font-size: 0.9rem;">
+        </div>
 
         <div id="checklistBtnContainer" style="margin-top: 15px; display: none;">
           <button class="btn btn-ghost btn-full" onclick="openChecklist()" style="border: 2px dashed var(--gold-400); color: var(--gold-400);">
@@ -650,7 +657,7 @@
       return regex.test(placa);
     }
 
-    async function printTicket(plate, entryTime, photoUrl) {
+    async function printTicket(plate, entryTime, photoUrl, marca, modelo) {
       const printMethod = localStorage.getItem('parktor_print_method') || 'ble';
       if (printMethod === 'ble' || (printerDevice && printerDevice.gatt && printerDevice.gatt.connected)) {
         try {
@@ -665,7 +672,7 @@
             throw new Error("Não foi possível encontrar a característica de escrita da impressora.");
           }
           const estName = currentUser.tenants?.nome || "PARKTOR";
-          let bytesList = Array.from(formatEscPosTicket(estName, plate, entryTime));
+          let bytesList = Array.from(formatEscPosTicket(estName, plate, entryTime, marca, modelo));
           
           if (photoUrl) {
             try {
@@ -706,6 +713,16 @@
       } else {
         visual.className = 'real-plate classic';
         visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+      }
+
+      // Ajustar Marca/Modelo no Impresso PDF (PATCH 1.3.7)
+      const vehicleDetailsEl = document.getElementById('printVehicleDetails');
+      if (marca || modelo) {
+        vehicleDetailsEl.textContent = `${marca || ''} ${modelo || ''}`.trim();
+        vehicleDetailsEl.style.display = 'block';
+      } else {
+        vehicleDetailsEl.textContent = '';
+        vehicleDetailsEl.style.display = 'none';
       }
 
       // Adicionar Foto da Placa/Veículo se houver (PATCH 1.3.4)
@@ -833,10 +850,15 @@
       const btn = document.getElementById('btnConfirm');
       btn.classList.add('btn-loading');
 
+      const marca = document.getElementById('marcaInput').value.toUpperCase().trim() || null;
+      const modelo = document.getElementById('modeloInput').value.toUpperCase().trim() || null;
+
       const entryTime = new Date().toISOString();
       const { error } = await sb.from('valet_entries').insert([{
         tenant_id: tenantId,
         placa: plate,
+        marca: marca,
+        modelo: modelo,
         entrada: entryTime,
         operador_entrada_id: currentUser.id,
         status: 'ativo',
@@ -853,6 +875,8 @@
           : null;
 
         plateInputEl.value = '';
+        document.getElementById('marcaInput').value = '';
+        document.getElementById('modeloInput').value = '';
         clearChecklist(); // Resetar checklist
         clearPhotoPreview(); // Esconder/limpar o preview da foto (PATCH 1.3.4)
         // Resetar Preview da Placa (PATCH 1.3.0)
@@ -863,7 +887,7 @@
         loadHistory();
         // Disparar Impressão (PATCH 1.2.5) — Agora Opcional (PATCH 1.2.9)
         if (currentUser.tenants?.print_enabled !== false) {
-          setTimeout(() => printTicket(plate, entryTime, currentPhotoDataUrl), 500);
+          setTimeout(() => printTicket(plate, entryTime, currentPhotoDataUrl, marca, modelo), 500);
         }
       }
       btn.classList.remove('btn-loading');
@@ -925,6 +949,25 @@
       document.getElementById('modalPhotoView').classList.remove('show');
     }
 
+    async function buscarVeiculoPorPlaca(plate) {
+      try {
+        const { data, error } = await sb.from('valet_entries')
+          .select('marca, modelo')
+          .eq('placa', plate)
+          .not('marca', 'is', null)
+          .order('entrada', { ascending: false })
+          .limit(1);
+          
+        if (data && data.length > 0) {
+          const v = data[0];
+          if (v.marca) document.getElementById('marcaInput').value = v.marca;
+          if (v.modelo) document.getElementById('modeloInput').value = v.modelo;
+        }
+      } catch (err) {
+        console.error("Erro ao buscar histórico do veículo:", err);
+      }
+    }
+
     document.getElementById('plateInput').addEventListener('input', (e) => {
       const val = e.target.value.toUpperCase().trim();
       const preview = document.getElementById('platePreview');
@@ -933,6 +976,8 @@
       if (val.length === 0) {
         preview.style.display = 'none';
         clearPhotoPreview();
+        document.getElementById('marcaInput').value = '';
+        document.getElementById('modeloInput').value = '';
         return;
       }
       
@@ -948,6 +993,10 @@
       } else {
         preview.className = 'real-plate classic';
         preview.querySelector('.plate-header-text').textContent = 'BRASIL';
+      }
+
+      if (val.length === 7) {
+        buscarVeiculoPorPlaca(val);
       }
     });
 
@@ -1058,7 +1107,7 @@
       }
     }
 
-    function formatEscPosTicket(establishmentName, plate, entryTime) {
+    function formatEscPosTicket(establishmentName, plate, entryTime, marca, modelo) {
       const encoder = new TextEncoder();
       const date = new Date(entryTime);
       const dateStr = date.toLocaleDateString('pt-BR');
@@ -1083,6 +1132,14 @@
       commands.push(0x1b, 0x21, 0x30);
       const plateBytes = encoder.encode("PLACA: " + plate + "\n\n");
       commands.push(...plateBytes);
+
+      // Marca e Modelo se houver (PATCH 1.3.7)
+      if (marca || modelo) {
+        commands.push(0x1b, 0x21, 0x08); // Negrito
+        const vehicleInfo = `${marca || ''} ${modelo || ''}`.trim();
+        const vehicleBytes = encoder.encode("VEICULO: " + vehicleInfo + "\n\n");
+        commands.push(...vehicleBytes);
+      }
 
       // Detalhes (Esquerda)
       commands.push(0x1b, 0x61, 0x00);

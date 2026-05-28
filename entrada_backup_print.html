@@ -51,6 +51,7 @@
         <p style="font-size: 8pt; margin: 1mm 0;">CONTROLE DE ENTRADA</p>
       </div>
       <div class="ticket-plate" id="printPlate">---</div>
+      <div id="printVehicleDetails" style="font-size: 11pt; font-weight: 700; text-align: center; margin-bottom: 2mm; display: none; color: #000; text-transform: uppercase;"></div>
       <div class="ticket-info">
         <div id="printDate">DATA: --/--/----</div>
         <div id="printTime">HORA: --:--</div>
@@ -178,6 +179,12 @@
         <p class="pg-s">Digite a placa para registrar a entrada</p>
 
         <input type="text" id="plateInput" class="form-input plate-input" placeholder="ABC1234" maxlength="7" style="text-transform: uppercase;">
+
+        <!-- Campos para Marca e Modelo (PATCH 1.3.7) -->
+        <div id="vehicleDetailsContainer" style="display: flex; gap: 10px; margin-top: 12px; width: 100%;">
+          <input type="text" id="marcaInput" class="form-input" placeholder="Marca (ex: FIAT)" style="flex: 1; text-transform: uppercase; font-size: 0.9rem;">
+          <input type="text" id="modeloInput" class="form-input" placeholder="Modelo (ex: UNO)" style="flex: 1; text-transform: uppercase; font-size: 0.9rem;">
+        </div>
 
         <div style="margin-top: 24px;">
           <button id="btnConfirm" class="btn btn-primary btn-lg btn-full">
@@ -370,11 +377,22 @@
       return regex.test(placa);
     }
 
-    async function printTicket(plate, entryTime) {
+    async function printTicket(plate, entryTime, marca, modelo) {
       const { jsPDF } = window.jspdf;
       const date = new Date(entryTime);
       
       document.getElementById('printPlate').textContent = plate;
+      
+      // Ajustar Marca/Modelo no Impresso PDF (PATCH 1.3.7)
+      const vehicleDetailsEl = document.getElementById('printVehicleDetails');
+      if (marca || modelo) {
+        vehicleDetailsEl.textContent = `${marca || ''} ${modelo || ''}`.trim();
+        vehicleDetailsEl.style.display = 'block';
+      } else {
+        vehicleDetailsEl.textContent = '';
+        vehicleDetailsEl.style.display = 'none';
+      }
+
       document.getElementById('printDate').textContent = `DATA: ${date.toLocaleDateString('pt-BR')}`;
       document.getElementById('printTime').textContent = `HORA: ${date.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
       
@@ -475,10 +493,15 @@
       const btn = document.getElementById('btnConfirm');
       btn.classList.add('btn-loading');
 
+      const marca = document.getElementById('marcaInput').value.toUpperCase().trim() || null;
+      const modelo = document.getElementById('modeloInput').value.toUpperCase().trim() || null;
+
       const entryTime = new Date().toISOString();
       const { error } = await sb.from('valet_entries').insert([{
         tenant_id: tenantId,
         placa: plate,
+        marca: marca,
+        modelo: modelo,
         entrada: entryTime,
         operador_entrada_id: currentUser.id,
         status: 'ativo'
@@ -488,12 +511,47 @@
         showAlert('Erro ao Registrar', 'Não foi possível salvar a entrada: ' + error.message, 'danger');
       } else {
         plateInputEl.value = '';
+        document.getElementById('marcaInput').value = '';
+        document.getElementById('modeloInput').value = '';
         showAlert('Sucesso', 'Entrada registrada com sucesso!', 'success');
         loadHistory();
         // Disparar Impressão (PATCH 1.2.5)
-        setTimeout(() => printTicket(plate, entryTime), 500);
+        setTimeout(() => printTicket(plate, entryTime, marca, modelo), 500);
       }
       btn.classList.remove('btn-loading');
+    });
+
+    async function buscarVeiculoPorPlaca(plate) {
+      try {
+        const { data, error } = await sb.from('valet_entries')
+          .select('marca, modelo')
+          .eq('placa', plate)
+          .not('marca', 'is', null)
+          .order('entrada', { ascending: false })
+          .limit(1);
+          
+        if (data && data.length > 0) {
+          const v = data[0];
+          if (v.marca) document.getElementById('marcaInput').value = v.marca;
+          if (v.modelo) document.getElementById('modeloInput').value = v.modelo;
+        }
+      } catch (err) {
+        console.error("Erro ao buscar histórico do veículo:", err);
+      }
+    }
+
+    document.getElementById('plateInput').addEventListener('input', (e) => {
+      const val = e.target.value.toUpperCase().trim();
+      
+      if (val.length === 0) {
+        document.getElementById('marcaInput').value = '';
+        document.getElementById('modeloInput').value = '';
+        return;
+      }
+
+      if (val.length === 7) {
+        buscarVeiculoPorPlaca(val);
+      }
     });
 
     async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
