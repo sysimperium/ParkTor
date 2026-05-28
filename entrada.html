@@ -967,17 +967,32 @@
 
     async function buscarVeiculoPorPlaca(plate) {
       try {
+        // Busca primeiro no banco de dados local
         const { data, error } = await sb.from('veiculos')
           .select('marca, modelo')
           .eq('placa', plate)
           .maybeSingle();
           
-        if (data) {
-          if (data.marca) document.getElementById('marcaInput').value = data.marca;
-          if (data.modelo) document.getElementById('modeloInput').value = data.modelo;
+        if (data && data.marca && data.modelo) {
+          document.getElementById('marcaInput').value = data.marca.toUpperCase();
+          document.getElementById('modeloInput').value = data.modelo.toUpperCase();
+          return;
+        }
+
+        // Se não encontrar na base local, busca na nossa API de consulta de placas
+        console.log("Veículo não encontrado localmente. Consultando API externa...");
+        const response = await fetch(`/api/consulta-placa?placa=${plate}`);
+        if (response.ok) {
+          const apiData = await response.json();
+          if (apiData.marca) {
+            document.getElementById('marcaInput').value = apiData.marca.toUpperCase();
+          }
+          if (apiData.modelo) {
+            document.getElementById('modeloInput').value = apiData.modelo.toUpperCase();
+          }
         }
       } catch (err) {
-        console.error("Erro ao buscar histórico do veículo:", err);
+        console.error("Erro ao buscar histórico ou consultar API do veículo:", err);
       }
     }
 

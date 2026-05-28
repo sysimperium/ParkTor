@@ -2,6 +2,8 @@
   "name": "parktor-backend",
   "version": "1.0.0",
   "dependencies": {
-    "@supabase/supabase-js": "^2.0.0"
+    "@supabase/supabase-js": "^2.0.0",
+    "api-placa-fipe": "^1.2.1",
+    "got-scraping": "^4.2.1"
   }
 }
