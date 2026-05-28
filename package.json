@@ -4,6 +4,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
     "cheerio": "^1.2.0",
-    "got-scraping": "^4.2.1"
+    "got-scraping": "^4.2.1",
+    "sinesp-api": "^3.0.0"
   }
 }
