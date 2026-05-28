@@ -123,6 +123,12 @@
         <span>PAGO:</span> <span id="recTotal">R$ 0,00</span>
       </div>
 
+      <!-- CONTAINER QR CODE PIX NO RECIBO (PATCH 1.3.6) -->
+      <div id="recPixQrContainer" style="display: none; text-align: center; margin-top: 3mm; margin-bottom: 3mm; padding: 2mm; border: 0.2mm solid #000; border-radius: 1mm;">
+        <div style="font-size: 7pt; font-weight: 700; margin-bottom: 1mm;">PAGAMENTO PIX</div>
+        <div id="recPixQrCode" style="display: inline-block; padding: 1mm; background: #fff;"></div>
+      </div>
+
       <p style="font-size: 7pt; margin-top: 3mm;">Obrigado e volte sempre!</p>
 
       <!-- CANHOTO DO CAIXA -->
@@ -1199,6 +1205,42 @@
       histEl.innerHTML = recHistHtml;
 
 
+      // Render PIX QR Code on printable receipt if enabled - PATCH 1.3.6
+      const recPixQrContainer = document.getElementById('recPixQrContainer');
+      const recPixQrCode = document.getElementById('recPixQrCode');
+      recPixQrCode.innerHTML = '';
+      
+      const hasPix = payments && payments.some(p => p.mode === 'pix');
+      const printPixQrEnabled = currentUser.tenants?.print_pix_qr === true;
+
+      if (hasPix && printPixQrEnabled) {
+        const pixPayment = payments.find(p => p.mode === 'pix');
+        const pixAmount = pixPayment ? pixPayment.valor : entryData.calc.total;
+        const t = currentUser.tenants || {};
+        if (t.pix_key) {
+          recPixQrContainer.style.display = 'block';
+          const plate = entryData.placa.toUpperCase();
+          const pixName = t.pix_name || t.nome || 'ESTABELECIMENTO';
+          const pixCity = t.pix_city || 'SAO PAULO';
+          const payload = generatePixPayload(t.pix_key, t.pix_type, plate, pixName, pixAmount, pixCity);
+          
+          new QRCode(recPixQrCode, {
+            text: payload,
+            width: 100,
+            height: 100,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.M
+          });
+          // Wait briefly for QR Code canvas to render before capturing
+          await new Promise(r => setTimeout(r, 200));
+        } else {
+          recPixQrContainer.style.display = 'none';
+        }
+      } else {
+        recPixQrContainer.style.display = 'none';
+      }
+
       const receiptEl = document.getElementById('receiptPrint');
       const canvas = await html2canvas(receiptEl, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
       const pdf = new jsPDF({ unit: 'mm', format: [58, (canvas.height * 58) / canvas.width] });
@@ -1468,6 +1510,24 @@
       }
     }
 
+    // Helper function for ESC/POS QR Code printing bytes
+    function getEscPosQrCodeBytes(payload) {
+      const encoder = new TextEncoder();
+      const dataBytes = encoder.encode(payload);
+      const len = dataBytes.length + 3;
+      const pL = len & 0xFF;
+      const pH = (len >> 8) & 0xFF;
+      
+      return [
+        0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00,
+        0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06,
+        0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x44, 0x31,
+        0x1D, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30,
+        ...dataBytes,
+        0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30
+      ];
+    }
+
     function formatEscPosReceipt(establishmentName, entryData, payments, mainPayMode, operatorName) {
       const encoder = new TextEncoder();
       const agora = new Date();
@@ -1524,6 +1584,29 @@
       commands.push(0x1b, 0x21, 0x30);
       const totalBytes = encoder.encode("TOTAL: R$ " + entryData.calc.total.toFixed(2).replace('.', ',') + "\n\n");
       commands.push(...totalBytes);
+
+      // PIX QR Code (ESC/POS direct print) - PATCH 1.3.6
+      const hasPix = payments && payments.some(p => p.mode === 'pix');
+      const printPixQrEnabled = currentUser.tenants?.print_pix_qr === true;
+
+      if (hasPix && printPixQrEnabled) {
+        const pixPayment = payments.find(p => p.mode === 'pix');
+        const pixAmount = pixPayment ? pixPayment.valor : entryData.calc.total;
+        const t = currentUser.tenants || {};
+        if (t.pix_key) {
+          commands.push(0x1b, 0x61, 0x01); // Centralizado
+          const qrhBytes = encoder.encode("--- ESCANEIE PARA PAGAR PIX ---\n");
+          commands.push(...qrhBytes);
+          
+          const plate = entryData.placa.toUpperCase();
+          const pixName = t.pix_name || t.nome || 'ESTABELECIMENTO';
+          const pixCity = t.pix_city || 'SAO PAULO';
+          const payload = generatePixPayload(t.pix_key, t.pix_type, plate, pixName, pixAmount, pixCity);
+          
+          commands.push(...getEscPosQrCodeBytes(payload));
+          commands.push(0x0a, 0x0a);
+        }
+      }
 
       // Voltar para texto normal
       commands.push(0x1b, 0x21, 0x00);

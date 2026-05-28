@@ -324,6 +324,10 @@
                 <input type="checkbox" id="cfgOcrEnabled" style="width: 20px; height: 20px; cursor: pointer;">
                 <label for="cfgOcrEnabled" style="font-size: 0.9rem; cursor: pointer; color: var(--text-primary); font-weight: 600;">Habilitar Leitura de Placa por Foto (Entrada)</label>
               </div>
+              <div style="display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 5px;">
+                <input type="checkbox" id="cfgPrintPixQr" style="width: 20px; height: 20px; cursor: pointer;">
+                <label for="cfgPrintPixQr" style="font-size: 0.9rem; cursor: pointer; color: var(--text-primary); font-weight: 600;">Imprimir QRCode PIX no Recibo de Saída</label>
+              </div>
               <div style="display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 5px;">
                 <label for="cfgPrintMethod" style="font-size: 0.9rem; color: var(--text-primary); font-weight: 600;">Método de Impressão (Deste Dispositivo)</label>
                 <select id="cfgPrintMethod" style="padding: 8px; font-size: 0.85rem; background: rgba(0,0,0,0.2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; outline: none; width: 100%;">
@@ -597,6 +601,7 @@
         document.getElementById('cfgPrintEnabled').checked = t.print_enabled !== false; 
         document.getElementById('cfgChecklistEnabled').checked = t.checklist_enabled === true; 
         document.getElementById('cfgOcrEnabled').checked = t.ocr_enabled === true; 
+        document.getElementById('cfgPrintPixQr').checked = t.print_pix_qr === true;
         
         // Carrega método de impressão local
         const savedPrintMethod = localStorage.getItem('parktor_print_method') || 'ble';
@@ -696,6 +701,7 @@
         print_enabled: document.getElementById('cfgPrintEnabled').checked,
         checklist_enabled: document.getElementById('cfgChecklistEnabled').checked,
         ocr_enabled: document.getElementById('cfgOcrEnabled').checked,
+        print_pix_qr: document.getElementById('cfgPrintPixQr').checked,
         rotativo_valor_base: parseFloat(document.getElementById('cfgValorBase').value),
         rotativo_excedente_valor: parseFloat(document.getElementById('cfgValorAdic').value),
         rotativo_carencia_min: parseInt(document.getElementById('cfgCarencia').value)
