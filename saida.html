@@ -969,7 +969,7 @@
 
     async function printReceipt(entryData, payments, mainPayMode) {
       const printMethod = localStorage.getItem('parktor_print_method') || 'browser';
-      if (printMethod === 'ble' || (printerDevice && printerDevice.gatt && printerDevice.gatt.connected)) {
+      if (printMethod === 'ble') {
         try {
           if (!printerDevice || !printerDevice.gatt || !printerDevice.gatt.connected) {
             showAlert("Impressora Desconectada", "Por favor, conecte a impressora Bluetooth no topo da página primeiro.", "warning");
