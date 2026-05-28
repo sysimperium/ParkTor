@@ -61,6 +61,16 @@
     }
     .checklist-mark.risco { background: #000; }
     .checklist-mark.amassado { background: #ef4444; }
+
+    /* Status Dot da Impressora (PATCH 1.3.4) */
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; transition: background-color 0.3s, box-shadow 0.3s; }
+    @keyframes blinkRed {
+      0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(239, 68, 68, 0.8); }
+      50% { opacity: 0.25; box-shadow: 0 0 2px rgba(239, 68, 68, 0.2); }
+    }
+    .status-dot.red { background-color: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); animation: blinkRed 1.5s infinite; }
+    .status-dot.green { background-color: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+    .status-dot.grey { background-color: #6b7280; box-shadow: 0 0 8px rgba(107, 114, 128, 0.6); }
   </style>
   <link rel="icon" type="image/x-icon" href="imgs/logoP.ico">
   <link rel="apple-touch-icon" href="imgs/logoP.ico">
@@ -1724,7 +1734,7 @@
       } catch (err) {
         console.error("Erro ao verificar impressora:", err);
         indicator.className = 'status-dot red';
-        text.textContent = 'Erro ao buscar status da impressora';
+        text.textContent = 'Impressora Desconectada';
         if (testBtn) testBtn.style.display = 'none';
       }
     }
