@@ -235,8 +235,23 @@
                 <small style="color: var(--text-muted);">Soma de Aluguel, Luz, Salários, etc.</small>
               </div>
               <div class="form-group">
+                <label class="form-label">Tipo de Chave PIX</label>
+                <select id="cfgPixType" class="form-input">
+                  <option value="">Selecione...</option>
+                  <option value="cpf">CPF</option>
+                  <option value="cnpj">CNPJ</option>
+                  <option value="celular">Celular</option>
+                  <option value="email">E-mail</option>
+                  <option value="aleatoria">Chave Aleatória</option>
+                </select>
+              </div>
+            </div>
+            <div class="config-grid">
+              <div class="form-group">
                 <label class="form-label">Chave PIX Recebimento</label>
                 <input type="text" id="cfgPix" class="form-input" placeholder="Chave PIX">
+              </div>
+              <div class="form-group">
               </div>
             </div>
             <button type="submit" id="btnSaveConfig" class="btn btn-primary btn-full btn-lg">SALVAR ALTERAÇÕES</button>
@@ -563,6 +578,7 @@
         document.getElementById('cfgValorAdic').value = t.rotativo_excedente_valor || 3.00;
         document.getElementById('cfgCarencia').value = t.rotativo_carencia_min || 20;
         document.getElementById('cfgVagas').value = t.total_vagas;        document.getElementById('cfgNome').value = t.nome;
+        document.getElementById('cfgPixType').value = t.pix_type || '';
         document.getElementById('cfgPix').value = t.pix_key || '';
         document.getElementById('cfgValorDiaria').value = t.valor_diaria || 40.00;
         document.getElementById('cfgCustoFixo').value = t.custo_fixo_mensal || '';
@@ -659,6 +675,7 @@
 
       const updates = { 
         total_vagas: novasVagas, 
+        pix_type: document.getElementById('cfgPixType').value,
         pix_key: document.getElementById('cfgPix').value,
         valor_diaria: parseFloat(document.getElementById('cfgValorDiaria').value),
         custo_fixo_mensal: parseFloat(document.getElementById('cfgCustoFixo').value) || 0,
