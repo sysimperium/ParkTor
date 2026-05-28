@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
   const tenantId = t || tenant;
 
   // Carrega o arquivo HTML estático de consulta
-  const htmlPath = path.join(process.cwd(), 'consulta.html');
+  const htmlPath = path.join(process.cwd(), 'consulta_template.html');
   let htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
   // Valores padrão (Branding global Parktor)
