@@ -560,6 +560,23 @@
 
       if (val.length === 7) {
         buscarVeiculoPorPlaca(val);
+        setTimeout(() => {
+          document.getElementById('marcaInput').focus();
+        }, 150);
+      }
+    });
+
+    document.getElementById('marcaInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('modeloInput').focus();
+      }
+    });
+
+    document.getElementById('modeloInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('btnConfirm').click();
       }
     });
 
