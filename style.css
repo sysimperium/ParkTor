@@ -1365,28 +1365,29 @@ select.form-input option {
   padding: 0 10px;
 }
 
+.plate-header-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
 /* Modelo Mercosul */
 .real-plate.mercosul {
   border-color: #003399;
 }
-.real-plate.mercosul::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0;
+.real-plate.mercosul .plate-header-band {
+  top: 0;
   height: 20px;
   background: #003399;
-  display: flex;
-  align-items: center;
 }
 .real-plate.mercosul .plate-header-text {
-  position: absolute;
-  top: 2px;
-  left: 0; right: 0;
   color: #fff;
   font-size: 10px;
   font-weight: 800;
-  text-align: center;
-  z-index: 2;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -1396,27 +1397,19 @@ select.form-input option {
   background: #c0c0c0;
   border-color: #555;
 }
-.real-plate.classic::before {
-  content: "";
-  position: absolute;
-  top: 4px; 
-  left: 50%;
-  transform: translateX(-50%);
-  width: 140px; /* Centered narrow strip */
+.real-plate.classic .plate-header-band {
+  top: 4px;
+  width: 140px;
+  margin: 0 auto; /* Centers without transform to fix html2canvas printing */
   height: 18px;
   background: #333;
   border-radius: 2px;
   border: 1px solid #777;
 }
 .real-plate.classic .plate-header-text {
-  position: absolute;
-  top: 6px;
-  left: 0; right: 0;
   color: #fff;
   font-size: 9px;
   font-weight: 700;
-  text-align: center;
-  z-index: 2;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -1427,8 +1420,9 @@ select.form-input option {
   font-size: 36px;
   color: #000;
   letter-spacing: 2px;
-  margin-top: 10px;
   text-transform: uppercase;
+  line-height: 1; /* Normalize vertical centering */
+  margin-top: 8px; /* Correctly centers letters visually */
 }
 
 
