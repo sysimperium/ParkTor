@@ -187,7 +187,7 @@ module.exports = async (req, res) => {
     await page.setExtraHTTPHeaders({ "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7" });
     await page.setCacheEnabled(true);
 
-    const url = `https://www.keplaca.com/placa/${cleanedPlaca.toLowerCase()}`;
+    const url = `https://www.keplaca.com/placa?placa-fipe=${cleanedPlaca}`;
     console.log(`Querying keplaca.com using Puppeteer Stealth: ${url}...`);
 
     await page.goto(url, {
