@@ -11,7 +11,8 @@
   ],
   "functions": {
     "api/consulta-placa.js": {
-      "includeFiles": "node_modules/{puppeteer-extra*,@sparticuz/chromium/bin}/**"
+      "includeFiles": "node_modules/{puppeteer-extra*,@sparticuz/chromium/bin}/**",
+      "maxDuration": 60
     }
   }
 }
