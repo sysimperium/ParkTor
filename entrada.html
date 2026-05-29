@@ -434,7 +434,7 @@
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let currentUser = null, tenantId = null;
+    let currentUser = null, tenantId = null, currentVehicleCidade = '';
     let currentChecklistMarks = [], currentTool = 'risco';
 
     /* --- CHECKLIST LOGIC (PATCH 1.3.1) --- */
@@ -875,12 +875,16 @@
       } else {
         // Upsert na tabela global de veículos se houver marca ou modelo (PATCH 1.3.8)
         if (marca || modelo) {
-          sb.from('veiculos').upsert({
+          const vehicleData = {
             placa: plate,
             marca: marca,
             modelo: modelo,
             updated_at: new Date().toISOString()
-          }, { onConflict: 'placa' }).then(({ error: uErr }) => {
+          };
+          if (currentVehicleCidade) {
+            vehicleData.cidade = currentVehicleCidade;
+          }
+          sb.from('veiculos').upsert(vehicleData, { onConflict: 'placa' }).then(({ error: uErr }) => {
             if (uErr) console.error("Erro ao salvar veiculo na base global:", uErr);
           });
         }
@@ -969,13 +973,22 @@
       try {
         // Busca primeiro no banco de dados local
         const { data, error } = await sb.from('veiculos')
-          .select('marca, modelo')
+          .select('marca, modelo, cidade')
           .eq('placa', plate)
           .maybeSingle();
           
         if (data && data.marca && data.modelo) {
           document.getElementById('marcaInput').value = data.marca.toUpperCase();
           document.getElementById('modeloInput').value = data.modelo.toUpperCase();
+          
+          if (data.cidade) {
+            currentVehicleCidade = data.cidade.toUpperCase();
+            const isMercosul = /[A-Z]/.test(plate[4]);
+            if (!isMercosul) {
+              const headerEl = document.querySelector('#platePreview .plate-header-text');
+              if (headerEl) headerEl.textContent = currentVehicleCidade;
+            }
+          }
           return;
         }
 
@@ -995,6 +1008,16 @@
           if (apiData.modelo) {
             document.getElementById('modeloInput').value = apiData.modelo.toUpperCase();
           }
+          
+          // Captura e formata a cidade retornada pela API (ex: SC - SÃO JOSÉ)
+          if (apiData.uf && apiData.municipio) {
+            currentVehicleCidade = `${apiData.uf} - ${apiData.municipio}`.toUpperCase();
+            const isMercosul = /[A-Z]/.test(plate[4]);
+            if (!isMercosul) {
+              const headerEl = document.querySelector('#platePreview .plate-header-text');
+              if (headerEl) headerEl.textContent = currentVehicleCidade;
+            }
+          }
         }
       } catch (err) {
         console.error("Erro ao buscar histórico ou consultar API do veículo:", err);
@@ -1011,7 +1034,12 @@
         clearPhotoPreview();
         document.getElementById('marcaInput').value = '';
         document.getElementById('modeloInput').value = '';
+        currentVehicleCidade = '';
         return;
+      }
+      
+      if (val.length < 7) {
+        currentVehicleCidade = '';
       }
       
       preview.style.display = 'flex';
@@ -1022,10 +1050,10 @@
       
       if (isMercosul && val.length >= 5) {
         preview.className = 'real-plate mercosul';
-        preview.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+        preview.querySelector('.plate-header-text').textContent = 'BRASIL';
       } else {
         preview.className = 'real-plate classic';
-        preview.querySelector('.plate-header-text').textContent = 'BRASIL';
+        preview.querySelector('.plate-header-text').textContent = currentVehicleCidade || 'BRASIL';
       }
 
       if (val.length === 7) {
