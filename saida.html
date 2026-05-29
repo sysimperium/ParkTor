@@ -113,7 +113,9 @@
       <!-- Placa Real no Recibo de Saída (PATCH 1.3.0) -->
       <div class="plate-preview-container" style="transform: scale(0.95); margin: 2mm auto;">
         <div id="recPlateVisual" class="real-plate classic" style="width: 100%; max-width: none;">
-          <div class="plate-header-text">BRASIL</div>
+          <div class="plate-header-band">
+            <div class="plate-header-text">BRASIL</div>
+          </div>
           <div class="plate-text" id="recPlate" style="font-size: 24pt;">---</div>
         </div>
       </div>
@@ -301,7 +303,9 @@
             
             <div class="plate-preview-container" style="margin-bottom: 15px; transform: scale(1.1);">
               <div id="quickPlateVisual" class="real-plate classic">
-                <div class="plate-header-text">BRASIL</div>
+                <div class="plate-header-band">
+                  <div class="plate-header-text">BRASIL</div>
+                </div>
                 <div class="plate-text" id="quickPlateText">---</div>
               </div>
             </div>
@@ -397,7 +401,9 @@
         <!-- Placa Real no Checkout (PATCH 1.3.0) -->
         <div class="plate-preview-container">
           <div id="checkPlateVisual" class="real-plate classic">
-            <div class="plate-header-text">BRASIL</div>
+            <div class="plate-header-band">
+              <div class="plate-header-text">BRASIL</div>
+            </div>
             <div class="plate-text" id="checkPlateText">---</div>
           </div>
         </div>
@@ -927,10 +933,18 @@
       const isMercosul = /[A-Z]/.test(plate[4]);
       if (isMercosul && plate.length >= 5) {
         visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
       } else {
         visual.className = 'real-plate classic';
         visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+        try {
+          const { data: vData } = await sb.from('veiculos').select('cidade').eq('placa', plate).maybeSingle();
+          if (vData && vData.cidade) {
+            visual.querySelector('.plate-header-text').textContent = vData.cidade.toUpperCase();
+          }
+        } catch (e) {
+          console.error("Erro ao buscar cidade do veículo:", e);
+        }
       }
 
       // Marca e Modelo no Checkout (PATCH 1.3.7)
@@ -1175,10 +1189,19 @@
       const isMercosul = /[A-Z]/.test(plate[4]);
       if (isMercosul && plate.length >= 5) {
         visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
       } else {
         visual.className = 'real-plate classic';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+        let cidadeVal = 'BRASIL';
+        try {
+          const { data: vData } = await sb.from('veiculos').select('cidade').eq('placa', plate).maybeSingle();
+          if (vData && vData.cidade) {
+            cidadeVal = vData.cidade.toUpperCase();
+          }
+        } catch (e) {
+          console.error("Erro ao buscar cidade do veículo:", e);
+        }
+        visual.querySelector('.plate-header-text').textContent = cidadeVal;
       }
 
       // Ajustar Marca/Modelo no Recibo PDF (PATCH 1.3.7)
@@ -1329,10 +1352,19 @@
       const isMercosul = /[A-Z]/.test(plate[4]);
       if (isMercosul && plate.length >= 5) {
         visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
       } else {
         visual.className = 'real-plate classic';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+        let cidadeVal = 'BRASIL';
+        try {
+          const { data: vData } = await sb.from('veiculos').select('cidade').eq('placa', plate).maybeSingle();
+          if (vData && vData.cidade) {
+            cidadeVal = vData.cidade.toUpperCase();
+          }
+        } catch (e) {
+          console.error("Erro ao buscar cidade do veículo:", e);
+        }
+        visual.querySelector('.plate-header-text').textContent = cidadeVal;
       }
 
       // Buscar se o veículo já entrou e saiu hoje

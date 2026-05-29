@@ -297,7 +297,9 @@
         <!-- Placa Visual -->
         <div class="plate-preview-container" style="margin-bottom: 20px;">
           <div id="plateVisual" class="real-plate classic">
-            <div class="plate-header-text">BRASIL</div>
+            <div class="plate-header-band">
+              <div class="plate-header-text">BRASIL</div>
+            </div>
             <div class="plate-text" id="plateVisualText">---</div>
           </div>
         </div>
@@ -440,6 +442,23 @@
           currentEntryData = data[0];
           currentTenantData = currentEntryData.tenants;
 
+          // Busca a cidade/estado do veículo na base global de veículos
+          currentEntryData.cidade = '';
+          sb.from('veiculos')
+            .select('cidade')
+            .eq('placa', currentEntryData.placa.toUpperCase())
+            .maybeSingle()
+            .then(({ data: vData }) => {
+              if (vData && vData.cidade) {
+                currentEntryData.cidade = vData.cidade.toUpperCase();
+                const isMercosul = /[A-Z]/.test(currentEntryData.placa.toUpperCase()[4]);
+                if (!isMercosul) {
+                  const headerEl = document.querySelector('#plateVisual .plate-header-text');
+                  if (headerEl) headerEl.textContent = currentEntryData.cidade;
+                }
+              }
+            });
+
           // Atualiza branding se não estava fixado na URL
           if (!urlTenantId && currentTenantData) {
             document.getElementById('tenantName').textContent = currentTenantData.nome;
@@ -482,10 +501,10 @@
       const isMercosul = /[A-Z]/.test(plate[4]);
       if (isMercosul && plate.length >= 5) {
         visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
       } else {
         visual.className = 'real-plate classic';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+        visual.querySelector('.plate-header-text').textContent = currentEntryData.cidade || 'BRASIL';
       }
 
       // Marca e Modelo
