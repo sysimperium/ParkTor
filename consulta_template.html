@@ -561,14 +561,14 @@
       
       // Determinar faixas consolidadas
       let faixasConsolidadas = 1;
-      if (totalMinutos > (duracaoFaixa + toleranciaFixa + carenciaMin)) {
-          faixasConsolidadas = 1 + Math.floor((totalMinutos - (toleranciaFixa + carenciaMin) - 1) / duracaoFaixa);
+      if (totalMinutos > (duracaoFaixa + carenciaMin)) {
+          faixasConsolidadas = 1 + Math.floor((totalMinutos - carenciaMin - 1) / duracaoFaixa);
       }
 
       // Verificar se incide o excedente
       let temExcedente = false;
       const limiteToleranciaUltimaFaixa = (faixasConsolidadas * duracaoFaixa) + toleranciaFixa;
-      const limiteCarenciaUltimaFaixa = limiteToleranciaUltimaFaixa + carenciaMin;
+      const limiteCarenciaUltimaFaixa = (faixasConsolidadas * duracaoFaixa) + carenciaMin;
 
       if (totalMinutos > limiteToleranciaUltimaFaixa && totalMinutos <= limiteCarenciaUltimaFaixa) {
           temExcedente = true;

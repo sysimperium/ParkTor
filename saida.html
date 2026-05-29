@@ -856,14 +856,14 @@
       let faixasConsolidadas = 1;
       const tolParaCalculo = isSegundaEntrada ? 0 : toleranciaFixa;
       
-      if (totalMinutos > (duracaoFaixa + tolParaCalculo + carenciaMin)) {
-          faixasConsolidadas = 1 + Math.floor((totalMinutos - (tolParaCalculo + carenciaMin) - 1) / duracaoFaixa);
+      if (totalMinutos > (duracaoFaixa + carenciaMin)) {
+          faixasConsolidadas = 1 + Math.floor((totalMinutos - carenciaMin - 1) / duracaoFaixa);
       }
 
       // 3. Verificar se incide o excedente sobre a última faixa consolidada
       let temExcedente = false;
       const limiteToleranciaUltimaFaixa = (faixasConsolidadas * duracaoFaixa) + tolParaCalculo;
-      const limiteCarenciaUltimaFaixa = limiteToleranciaUltimaFaixa + carenciaMin;
+      const limiteCarenciaUltimaFaixa = (faixasConsolidadas * duracaoFaixa) + carenciaMin;
 
       if (totalMinutos > limiteToleranciaUltimaFaixa && totalMinutos <= limiteCarenciaUltimaFaixa) {
           temExcedente = true;
