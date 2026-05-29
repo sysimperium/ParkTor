@@ -1,7 +1,6 @@
-import * as cheerio from 'cheerio';
-import { gotScraping } from 'got-scraping';
+const cheerio = require('cheerio');
 
-export default async (req, res) => {
+module.exports = async (req, res) => {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -31,6 +30,8 @@ export default async (req, res) => {
   if (apiBrasilBearer && apiBrasilDevice) {
     try {
       console.log(`Querying APIBrasil.io for ${cleanedPlaca}...`);
+      const { gotScraping } = await import('got-scraping');
+      
       const response = await gotScraping({
         url: 'https://gateway.apibrasil.io/api/v2/vehicles/dados',
         method: 'POST',
@@ -64,6 +65,7 @@ export default async (req, res) => {
   if (!brand || !model) {
     try {
       console.log(`Querying tabelafipebrasil.com for ${cleanedPlaca}...`);
+      const { gotScraping } = await import('got-scraping');
       const tfbRes = await gotScraping({
         url: `https://www.tabelafipebrasil.com/placa/${cleanedPlaca}`,
         timeout: { request: 5000 },
@@ -89,6 +91,7 @@ export default async (req, res) => {
   if (!brand || !model) {
     try {
       console.log(`Querying keplaca.com for ${cleanedPlaca}...`);
+      const { gotScraping } = await import('got-scraping');
       const kpRes = await gotScraping({
         url: `https://www.keplaca.com/placa/${cleanedPlaca.toLowerCase()}`,
         timeout: { request: 5000 },
