@@ -1,4 +1,8 @@
 const cheerio = require('cheerio');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+puppeteer.use(StealthPlugin());
 
 module.exports = async (req, res) => {
   // CORS Headers
@@ -20,151 +24,93 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Placa inválida. Deve conter 7 caracteres alfanuméricos.' });
   }
 
-  let brand = null;
-  let model = null;
+  let browser = null;
+  try {
+    let launchOptions = {
+      headless: true
+    };
 
-  // Source 1: APIBrasil.io (if configured in environment variables)
-  const apiBrasilBearer = process.env.APIBRASIL_BEARER_TOKEN || process.env.APIBRASIL_TOKEN;
-  const apiBrasilDevice = process.env.APIBRASIL_DEVICE_TOKEN;
-
-  if (apiBrasilBearer && apiBrasilDevice) {
-    try {
-      console.log(`Querying APIBrasil.io for ${cleanedPlaca}...`);
-      const { gotScraping } = await import('got-scraping');
-      
-      const response = await gotScraping({
-        url: 'https://gateway.apibrasil.io/api/v2/vehicles/dados',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiBrasilBearer}`,
-          'DeviceToken': apiBrasilDevice
-        },
-        json: { placa: cleanedPlaca },
-        timeout: { request: 6000 },
-        retry: { limit: 0 }
-      });
-
-      if (response.statusCode === 200) {
-        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
-        const found = findBrandModel(body);
-        if (found.marca && found.modelo) {
-          brand = found.marca.toUpperCase();
-          model = found.modelo.toUpperCase();
-          console.log(`Found on APIBrasil.io: ${brand} - ${model}`);
-        }
-      } else {
-        console.log(`APIBRASIL.io returned status: ${response.statusCode}`);
-      }
-    } catch (err) {
-      console.error(`Erro ao consultar APIBrasil.io: ${err.message}`);
-    }
-  }
-
-  // Source 2: tabelafipebrasil.com (scraper fallback)
-  if (!brand || !model) {
-    try {
-      console.log(`Querying tabelafipebrasil.com for ${cleanedPlaca}...`);
-      const { gotScraping } = await import('got-scraping');
-      const tfbRes = await gotScraping({
-        url: `https://www.tabelafipebrasil.com/placa/${cleanedPlaca}`,
-        timeout: { request: 5000 },
-        retry: { limit: 0 }
-      });
-
-      if (tfbRes.statusCode === 200) {
-        const parsed = extractMarcaModelo(tfbRes.body);
-        if (parsed.marca && parsed.modelo) {
-          brand = parsed.marca.toUpperCase();
-          model = parsed.modelo.toUpperCase();
-          console.log(`Found on tabelafipebrasil.com: ${brand} - ${model}`);
-        }
-      } else {
-        console.log(`tabelafipebrasil.com returned status: ${tfbRes.statusCode}`);
-      }
-    } catch (err) {
-      console.error(`Erro ao consultar tabelafipebrasil: ${err.message}`);
-    }
-  }
-
-  // Source 3: keplaca.com (scraper fallback)
-  if (!brand || !model) {
-    try {
-      console.log(`Querying keplaca.com for ${cleanedPlaca}...`);
-      const { gotScraping } = await import('got-scraping');
-      const kpRes = await gotScraping({
-        url: `https://www.keplaca.com/placa/${cleanedPlaca.toLowerCase()}`,
-        timeout: { request: 5000 },
-        retry: { limit: 0 }
-      });
-
-      if (kpRes.statusCode === 200) {
-        const parsed = extractMarcaModelo(kpRes.body);
-        if (parsed.marca && parsed.modelo) {
-          brand = parsed.marca.toUpperCase();
-          model = parsed.modelo.toUpperCase();
-          console.log(`Found on keplaca.com: ${brand} - ${model}`);
-        }
-      } else {
-        console.log(`keplaca.com returned status: ${kpRes.statusCode}`);
-      }
-    } catch (err) {
-      console.error(`Erro ao consultar keplaca: ${err.message}`);
-    }
-  }
-
-  // Return response in clean JSON format
-  if (brand && model) {
-    return res.status(200).json({ marca: brand, modelo: model });
-  } else {
-    return res.status(404).json({ error: 'Veículo não encontrado para a placa informada.' });
-  }
-
-  // Helper functions
-  function findBrandModel(obj) {
-    let marca = null;
-    let modelo = null;
-
-    function search(node) {
-      if (!node || typeof node !== 'object') return;
-      
-      if (node.marca && typeof node.marca === 'string') marca = node.marca;
-      if (node.brand && typeof node.brand === 'string') marca = node.brand;
-      
-      if (node.modelo && typeof node.modelo === 'string') modelo = node.modelo;
-      if (node.model && typeof node.model === 'string') modelo = node.model;
-      
-      for (const key in node) {
-        if (typeof node[key] === 'object') {
-          search(node[key]);
+    // Configuração para rodar na Vercel usando @sparticuz/chromium
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION) {
+      console.log("Running in Vercel. Configuring @sparticuz/chromium...");
+      const chromium = require('@sparticuz/chromium');
+      launchOptions = {
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+        ignoreHTTPSErrors: true,
+      };
+    } else {
+      console.log("Running locally. Launching standard Puppeteer...");
+      if (process.platform === 'win32') {
+        const paths = [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
+        ];
+        const fs = require('fs');
+        for (const p of paths) {
+          if (fs.existsSync(p)) {
+            launchOptions.executablePath = p;
+            break;
+          }
         }
       }
     }
 
-    search(obj);
-    return { marca, modelo };
-  }
+    browser = await puppeteer.launch(launchOptions);
+    const page = await browser.newPage();
 
-  function extractMarcaModelo(html) {
-    try {
-      const $ = cheerio.load(html);
-      let marcaLocal = null;
-      let modeloLocal = null;
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    );
+    await page.setExtraHTTPHeaders({ "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7" });
+    await page.setCacheEnabled(true);
 
-      $("table.fipeTablePriceDetail tr").each((index, element) => {
-        const key = $(element).find("td:first-child").text().replace(":", "").trim().toLowerCase();
-        const val = $(element).find("td:last-child").text().trim();
-        
-        if (key === 'marca') {
-          marcaLocal = val;
-        } else if (key === 'modelo') {
-          modeloLocal = val;
-        }
-      });
-      return { marca: marcaLocal, modelo: modeloLocal };
-    } catch (e) {
-      console.error("Erro no parser Cheerio:", e);
-      return { marca: null, modelo: null };
+    const url = `https://www.keplaca.com/placa/${cleanedPlaca.toLowerCase()}`;
+    console.log(`Querying keplaca.com using Puppeteer Stealth: ${url}...`);
+
+    await page.goto(url, {
+      waitUntil: "networkidle2",
+      timeout: 15000
+    });
+
+    const html = await page.content();
+    await browser.close();
+    browser = null;
+
+    const $ = cheerio.load(html);
+    let brand = null;
+    let model = null;
+
+    $("table.fipeTablePriceDetail tr").each((index, element) => {
+      const key = $(element).find("td:first-child").text().replace(":", "").trim().toLowerCase();
+      const val = $(element).find("td:last-child").text().trim();
+      
+      if (key === 'marca') {
+        brand = val.toUpperCase();
+      } else if (key === 'modelo') {
+        model = val.toUpperCase();
+      }
+    });
+
+    if (brand && model) {
+      console.log(`Found on keplaca.com: ${brand} - ${model}`);
+      return res.status(200).json({ marca: brand, modelo: model });
+    } else {
+      return res.status(404).json({ error: 'Veículo não encontrado para a placa informada.' });
     }
+
+  } catch (err) {
+    console.error(`Erro ao consultar keplaca: ${err.message}`);
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeErr) {
+        console.error("Erro ao fechar browser:", closeErr);
+      }
+    }
+    return res.status(500).json({ error: `Erro na consulta da placa: ${err.message}` });
   }
 };

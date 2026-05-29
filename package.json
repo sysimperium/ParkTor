@@ -5,6 +5,10 @@
     "@supabase/supabase-js": "^2.0.0",
     "cheerio": "^1.2.0",
     "got-scraping": "^4.2.1",
-    "sinesp-api": "^3.0.0"
+    "sinesp-api": "^3.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "puppeteer-core": "^22.6.0",
+    "@sparticuz/chromium": "^122.0.0"
   }
 }
