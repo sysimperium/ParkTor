@@ -38,7 +38,7 @@ const server = http.createServer(async (req, res) => {
     };
 
     try {
-      const handler = (await import('./api/consulta-placa.mjs')).default;
+      const handler = (await import('./api/consulta-placa.js')).default;
       await handler(mockReq, mockRes);
     } catch (err) {
       console.error(err);
