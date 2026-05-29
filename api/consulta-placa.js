@@ -218,7 +218,17 @@ module.exports = async (req, res) => {
       console.log(`Found on keplaca.com: ${brand} - ${model}`);
       return res.status(200).json({ marca: brand, modelo: model });
     } else {
-      return res.status(404).json({ error: 'Veículo não encontrado para a placa informada.' });
+      const pageTitle = $('title').text().trim();
+      const pageBodyText = $('body').text().trim().replace(/\s+/g, ' ').substring(0, 1000);
+      console.log(`Not found. Title: ${pageTitle}. Snippet: ${pageBodyText}`);
+      return res.status(404).json({ 
+        error: 'Veículo não encontrado para a placa informada.',
+        debug: {
+          title: pageTitle,
+          snippet: pageBodyText,
+          url: url
+        }
+      });
     }
 
   } catch (err) {
