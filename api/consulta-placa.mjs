@@ -1,6 +1,7 @@
-const cheerio = require('cheerio');
+import * as cheerio from 'cheerio';
+import { gotScraping } from 'got-scraping';
 
-module.exports = async (req, res) => {
+export default async (req, res) => {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -30,8 +31,6 @@ module.exports = async (req, res) => {
   if (apiBrasilBearer && apiBrasilDevice) {
     try {
       console.log(`Querying APIBrasil.io for ${cleanedPlaca}...`);
-      const { gotScraping } = await import('got-scraping');
-      
       const response = await gotScraping({
         url: 'https://gateway.apibrasil.io/api/v2/vehicles/dados',
         method: 'POST',
@@ -46,9 +45,7 @@ module.exports = async (req, res) => {
       });
 
       if (response.statusCode === 200) {
-        const body = JSON.parse(response.body);
-        
-        // Use recursive finder to parse brand and model from APIBrasil structure
+        const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
         const found = findBrandModel(body);
         if (found.marca && found.modelo) {
           brand = found.marca.toUpperCase();
@@ -63,11 +60,10 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Source 2: tabelafipebrasil.com (scraper fallback - works locally)
+  // Source 2: tabelafipebrasil.com (scraper fallback)
   if (!brand || !model) {
     try {
       console.log(`Querying tabelafipebrasil.com for ${cleanedPlaca}...`);
-      const { gotScraping } = await import('got-scraping');
       const tfbRes = await gotScraping({
         url: `https://www.tabelafipebrasil.com/placa/${cleanedPlaca}`,
         timeout: { request: 5000 },
@@ -89,11 +85,10 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Source 3: keplaca.com (scraper fallback - works locally)
+  // Source 3: keplaca.com (scraper fallback)
   if (!brand || !model) {
     try {
       console.log(`Querying keplaca.com for ${cleanedPlaca}...`);
-      const { gotScraping } = await import('got-scraping');
       const kpRes = await gotScraping({
         url: `https://www.keplaca.com/placa/${cleanedPlaca.toLowerCase()}`,
         timeout: { request: 5000 },

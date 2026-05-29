@@ -3,8 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-const handler = require('./api/consulta-placa.js');
-
 const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
@@ -40,6 +38,7 @@ const server = http.createServer(async (req, res) => {
     };
 
     try {
+      const handler = (await import('./api/consulta-placa.mjs')).default;
       await handler(mockReq, mockRes);
     } catch (err) {
       console.error(err);
