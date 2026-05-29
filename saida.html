@@ -822,7 +822,7 @@
       document.getElementById('searchInput').focus();
     }
 
-    function calcularRotationHistory(entradaStr, saidaStr) {
+    function calcularRotationHistory(entradaStr, saidaStr, isSegundaEntrada = false) {
       const entrada = new Date(entradaStr);
       const saida = new Date(saidaStr);
       const totalMinutos = Math.floor((saida - entrada) / 60000);
@@ -834,7 +834,7 @@
       const toleranciaFixa = 5; 
       const duracaoFaixa = 120;
 
-      if (totalMinutos <= toleranciaFixa) {
+      if (!isSegundaEntrada && totalMinutos <= toleranciaFixa) {
         return { 
           total: 0, 
           history: [{ label: 'Tolerância Inicial', valor: 0 }], 
@@ -848,13 +848,15 @@
       
       // 2. Determinar quantas faixas foram consolidadas
       let faixasConsolidadas = 1;
-      if (totalMinutos > (duracaoFaixa + toleranciaFixa + carenciaMin)) {
-          faixasConsolidadas = 1 + Math.floor((totalMinutos - (toleranciaFixa + carenciaMin) - 1) / duracaoFaixa);
+      const tolParaCalculo = isSegundaEntrada ? 0 : toleranciaFixa;
+      
+      if (totalMinutos > (duracaoFaixa + tolParaCalculo + carenciaMin)) {
+          faixasConsolidadas = 1 + Math.floor((totalMinutos - (tolParaCalculo + carenciaMin) - 1) / duracaoFaixa);
       }
 
       // 3. Verificar se incide o excedente sobre a última faixa consolidada
       let temExcedente = false;
-      const limiteToleranciaUltimaFaixa = (faixasConsolidadas * duracaoFaixa) + toleranciaFixa;
+      const limiteToleranciaUltimaFaixa = (faixasConsolidadas * duracaoFaixa) + tolParaCalculo;
       const limiteCarenciaUltimaFaixa = limiteToleranciaUltimaFaixa + carenciaMin;
 
       if (totalMinutos > limiteToleranciaUltimaFaixa && totalMinutos <= limiteCarenciaUltimaFaixa) {
@@ -890,7 +892,31 @@
       selectedEntry = data;
       const agora = new Date().toISOString();
       selectedEntry.saida = agora;
-      selectedEntry.calc = calcularRotationHistory(data.entrada, agora);
+      
+      // Verificar se o veículo já entrou e saiu hoje
+      let isSegundaEntrada = false;
+      const nowLocal = new Date();
+      const localYear = nowLocal.getFullYear();
+      const localMonth = String(nowLocal.getMonth() + 1).padStart(2, '0');
+      const localDay = String(nowLocal.getDate()).padStart(2, '0');
+      const todayStart = `${localYear}-${localMonth}-${localDay}T00:00:00`;
+      
+      try {
+        const { data: prevData } = await sb.from('valet_entries')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('placa', data.placa)
+          .eq('status', 'finalizado')
+          .gte('entrada', todayStart)
+          .limit(1);
+        if (prevData && prevData.length > 0) {
+          isSegundaEntrada = true;
+        }
+      } catch (err) {
+        console.error("Erro ao verificar reentrada no checkout:", err);
+      }
+
+      selectedEntry.calc = calcularRotationHistory(data.entrada, agora, isSegundaEntrada);
 
       // Lógica da Placa Real (PATCH 1.3.0)
       const plate = data.placa.toUpperCase();
@@ -1283,7 +1309,7 @@
       document.getElementById('quickResult').style.display = 'none';
     }
 
-    function startQuickClock(entry) {
+    async function startQuickClock(entry) {
       stopQuickClock();
       currentQuickEntry = entry;
       document.getElementById('quickResult').style.display = 'block';
@@ -1308,6 +1334,29 @@
         visual.querySelector('.plate-header-text').textContent = 'BRASIL';
       }
 
+      // Buscar se o veículo já entrou e saiu hoje
+      currentQuickEntry.isSegundaEntrada = false;
+      const nowLocal = new Date();
+      const localYear = nowLocal.getFullYear();
+      const localMonth = String(nowLocal.getMonth() + 1).padStart(2, '0');
+      const localDay = String(nowLocal.getDate()).padStart(2, '0');
+      const todayStart = `${localYear}-${localMonth}-${localDay}T00:00:00`;
+      
+      try {
+        const { data: prevData } = await sb.from('valet_entries')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('placa', entry.placa)
+          .eq('status', 'finalizado')
+          .gte('entrada', todayStart)
+          .limit(1);
+        if (prevData && prevData.length > 0) {
+          currentQuickEntry.isSegundaEntrada = true;
+        }
+      } catch (err) {
+        console.error("Erro ao verificar reentrada no quick-checkout:", err);
+      }
+
       const updateUI = () => {
         const agora = new Date();
         const entrada = new Date(currentQuickEntry.entrada);
@@ -1321,7 +1370,7 @@
           String(diffMins).padStart(2, '0') + ":" + 
           String(diffSecs).padStart(2, '0');
 
-        const calc = calcularRotationHistory(currentQuickEntry.entrada, agora.toISOString());
+        const calc = calcularRotationHistory(currentQuickEntry.entrada, agora.toISOString(), currentQuickEntry.isSegundaEntrada);
         
         document.getElementById('quickSummaryBase').textContent = `Valor Base (${calc.faixasCount} faixas) - R$ ${calc.totalBase.toFixed(2).replace('.', ',')}`;
         document.getElementById('quickSummaryExcedente').textContent = `Valor Excedente (${calc.excedenteCount} faixas) - R$ ${calc.totalExcedente.toFixed(2).replace('.', ',')}`;
@@ -1466,8 +1515,9 @@
         const { data: payments, error: pErr } = await sb.from('valet_payments').select('*').eq('entry_id', id);
         if (pErr) throw pErr;
 
-        // Recalcular histórico para o recibo
-        entry.calc = calcularRotationHistory(entry.entrada, entry.saida);
+        // Recalcular histórico para o recibo (com base se o valor era > 0 mesmo com tempo de tolerância)
+        const isSegundaEntrada = (entry.valor > 0 && entry.minutos_total <= 5);
+        entry.calc = calcularRotationHistory(entry.entrada, entry.saida, isSegundaEntrada);
         
         // Formas de pagamento para o recibo
         const formattedPayments = payments.map(p => ({ mode: p.forma_pagamento, valor: p.valor }));
