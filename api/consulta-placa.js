@@ -223,6 +223,40 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error(`Erro ao consultar keplaca: ${err.message}`);
     
+    // Coletar informações detalhadas para depuração
+    const debugInfo = {
+      error: err.message,
+      ldLibraryPath: process.env.LD_LIBRARY_PATH,
+      nodeVersion: process.version,
+      awsExecutionEnv: process.env.AWS_EXECUTION_ENV,
+      awsLambdaJsRuntime: process.env.AWS_LAMBDA_JS_RUNTIME,
+      tmpExists: fs.existsSync('/tmp'),
+      chromiumExists: fs.existsSync('/tmp/chromium'),
+      al2023Exists: fs.existsSync('/tmp/al2023'),
+      al2Exists: fs.existsSync('/tmp/al2'),
+    };
+    
+    if (debugInfo.al2023Exists) {
+      try {
+        debugInfo.al2023Files = fs.readdirSync('/tmp/al2023');
+        if (fs.existsSync('/tmp/al2023/lib')) {
+          debugInfo.al2023LibFiles = fs.readdirSync('/tmp/al2023/lib');
+        }
+      } catch (e) {
+        debugInfo.al2023ReadError = e.message;
+      }
+    }
+    if (debugInfo.al2Exists) {
+      try {
+        debugInfo.al2Files = fs.readdirSync('/tmp/al2');
+        if (fs.existsSync('/tmp/al2/lib')) {
+          debugInfo.al2LibFiles = fs.readdirSync('/tmp/al2/lib');
+        }
+      } catch (e) {
+        debugInfo.al2ReadError = e.message;
+      }
+    }
+    
     // Clean up page if it failed
     if (page) {
       try {
@@ -236,6 +270,9 @@ module.exports = async (req, res) => {
       launchPromise = null;
     }
     
-    return res.status(500).json({ error: `Erro na consulta da placa: ${err.message}` });
+    return res.status(500).json({ 
+      error: `Erro na consulta da placa: ${err.message}`,
+      debug: debugInfo
+    });
   }
 };
