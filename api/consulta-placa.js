@@ -157,10 +157,11 @@ module.exports = async (req, res) => {
   }
 
   const urls = [
-    { name: 'keplaca', url: 'https://www.keplaca.com/placa?placa-fipe=MLG5736' },
-    { name: 'tabelafipebrasil', url: 'https://www.tabelafipebrasil.com/placa/MLG5736' },
-    { name: 'placafipe', url: 'https://www.placafipe.com/placa/MLG5736' },
-    { name: 'placafipe_br', url: 'https://www.placafipe.com.br/placa/MLG5736' }
+    { name: 'qualveiculo', url: 'https://www.qualveiculo.net/placa/mlg5736' },
+    { name: 'qualveiculo_slash', url: 'https://www.qualveiculo.net/placa/mlg5736/' },
+    { name: 'placaon', url: 'https://www.placaon.com.br/consultar-placa/MLG5736' },
+    { name: 'placadoscarros', url: 'https://www.placadoscarros.com.br/placa/MLG5736' },
+    { name: 'infoplaca', url: 'https://www.infoplaca.com.br/placa/MLG5736' }
   ];
 
   let browser = null;
