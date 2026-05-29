@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
       console.log(`Querying keplaca.com for ${cleanedPlaca}...`);
       const { gotScraping } = await import('got-scraping');
       const kpRes = await gotScraping({
-        url: `https://www.keplaca.com/placa?placa-fipe=${cleanedPlaca.toLowerCase()}`,
+        url: `https://www.keplaca.com/placa/${cleanedPlaca.toLowerCase()}`,
         timeout: { request: 5000 },
         retry: { limit: 0 }
       });

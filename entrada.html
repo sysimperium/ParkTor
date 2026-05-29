@@ -985,7 +985,15 @@
         if (window.location.protocol === 'file:') {
           apiHost = 'https://parktor.vercel.app';
         }
-        const response = await fetch(`${apiHost}/api/consulta-placa?placa=${plate}`);
+        let response = await fetch(`${apiHost}/api/consulta-placa?placa=${plate}`);
+        
+        // Se a API local não responder ou retornar erro (ex: rodando em porta diferente ou servidor estático 404)
+        if (!response.ok && !apiHost) {
+          console.warn("API local retornou erro ou 404. Tentando API de produção na Vercel...");
+          apiHost = 'https://parktor.vercel.app';
+          response = await fetch(`${apiHost}/api/consulta-placa?placa=${plate}`);
+        }
+
         if (response.ok) {
           const apiData = await response.json();
           if (apiData.marca) {
