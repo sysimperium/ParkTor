@@ -1,3 +1,17 @@
+// Force AWS environment variables for Vercel Serverless environment
+// so that @sparticuz/chromium correctly identifies the runtime and extracts system libraries
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION) {
+  const nodeVersion = process.version;
+  console.log(`Setting up AWS environment variables for Vercel Node runtime: ${nodeVersion}`);
+  if (nodeVersion.startsWith('v20.') || nodeVersion.startsWith('v22.')) {
+    process.env.AWS_EXECUTION_ENV = 'AWS_Lambda_nodejs20.x';
+    process.env.AWS_LAMBDA_JS_RUNTIME = 'nodejs20.x';
+  } else {
+    process.env.AWS_EXECUTION_ENV = 'AWS_Lambda_nodejs18.x';
+    process.env.AWS_LAMBDA_JS_RUNTIME = 'nodejs18.x';
+  }
+}
+
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
