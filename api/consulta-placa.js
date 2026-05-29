@@ -2,6 +2,12 @@ const cheerio = require('cheerio');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
+// Forçar a Vercel a empacotar dependências dinâmicas do stealth
+try {
+  require('puppeteer-extra-plugin-user-preferences');
+  require('puppeteer-extra-plugin-user-data-dir');
+} catch (e) {}
+
 puppeteer.use(StealthPlugin());
 
 module.exports = async (req, res) => {
