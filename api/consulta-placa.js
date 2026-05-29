@@ -40,10 +40,17 @@ module.exports = async (req, res) => {
     if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION) {
       console.log("Running in Vercel. Configuring @sparticuz/chromium...");
       const chromium = require('@sparticuz/chromium');
+      const executablePath = await chromium.executablePath();
+      
+      // CRITICAL: Set LD_LIBRARY_PATH so Chromium can find libraries (like libnss3.so)
+      const path = require('path');
+      const execDir = path.dirname(executablePath);
+      process.env.LD_LIBRARY_PATH = execDir;
+
       launchOptions = {
-        args: chromium.args,
+        args: [...chromium.args, "--no-sandbox"],
         defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
+        executablePath: executablePath,
         headless: chromium.headless,
         ignoreHTTPSErrors: true,
       };
