@@ -45,7 +45,20 @@ module.exports = async (req, res) => {
       // CRITICAL: Set LD_LIBRARY_PATH so Chromium can find libraries (like libnss3.so)
       const path = require('path');
       const execDir = path.dirname(executablePath);
-      process.env.LD_LIBRARY_PATH = `${execDir}:${execDir}/lib:/tmp:/tmp/lib:${process.env.LD_LIBRARY_PATH || ''}`;
+      
+      let sparticuzBin = '';
+      try {
+        const sparticuzPath = require.resolve('@sparticuz/chromium');
+        if (sparticuzPath.includes('dist')) {
+          sparticuzBin = path.join(path.dirname(sparticuzPath), '..', 'bin');
+        } else {
+          sparticuzBin = path.join(path.dirname(sparticuzPath), 'bin');
+        }
+      } catch (e) {
+        console.error("Erro ao resolver bin do sparticuz:", e);
+      }
+
+      process.env.LD_LIBRARY_PATH = `${execDir}:${execDir}/lib:/tmp:/tmp/lib:${sparticuzBin}:${process.env.LD_LIBRARY_PATH || ''}`;
 
       launchOptions = {
         args: [...chromium.args, "--no-sandbox"],
