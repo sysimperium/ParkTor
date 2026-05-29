@@ -713,10 +713,10 @@
       const isMercosul = /[A-Z]/.test(plate[4]);
       if (isMercosul && plate.length >= 5) {
         visual.className = 'real-plate mercosul';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL - MERCOSUL';
+        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
       } else {
         visual.className = 'real-plate classic';
-        visual.querySelector('.plate-header-text').textContent = 'BRASIL';
+        visual.querySelector('.plate-header-text').textContent = currentVehicleCidade || 'BRASIL';
       }
 
       // Ajustar Marca/Modelo no Impresso PDF (PATCH 1.3.7)
