@@ -3,6 +3,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 // Forçar a Vercel a empacotar dependências dinâmicas do stealth
+// Reciclar containers da Vercel para limpar processos zumbis
 try {
   require('puppeteer-extra-plugin-user-preferences');
   require('puppeteer-extra-plugin-user-data-dir');
