@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
       // CRITICAL: Set LD_LIBRARY_PATH so Chromium can find libraries (like libnss3.so)
       const path = require('path');
       const execDir = path.dirname(executablePath);
-      process.env.LD_LIBRARY_PATH = execDir;
+      process.env.LD_LIBRARY_PATH = `${execDir}:${execDir}/lib:/tmp:/tmp/lib:${process.env.LD_LIBRARY_PATH || ''}`;
 
       launchOptions = {
         args: [...chromium.args, "--no-sandbox"],
