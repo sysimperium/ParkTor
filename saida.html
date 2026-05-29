@@ -907,6 +907,7 @@
           .eq('tenant_id', tenantId)
           .eq('placa', data.placa)
           .eq('status', 'finalizado')
+          .eq('valor', 0) // Apenas saídas isentas (valor R$ 0,00)
           .gte('entrada', todayStart)
           .limit(1);
         if (prevData && prevData.length > 0) {
@@ -1348,6 +1349,7 @@
           .eq('tenant_id', tenantId)
           .eq('placa', entry.placa)
           .eq('status', 'finalizado')
+          .eq('valor', 0) // Apenas saídas isentas (valor R$ 0,00)
           .gte('entrada', todayStart)
           .limit(1);
         if (prevData && prevData.length > 0) {
