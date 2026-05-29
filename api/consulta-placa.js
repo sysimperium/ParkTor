@@ -3,7 +3,8 @@
 if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION) {
   const nodeVersion = process.version;
   console.log(`Setting up AWS environment variables for Vercel Node runtime: ${nodeVersion}`);
-  if (nodeVersion.startsWith('v20.') || nodeVersion.startsWith('v22.')) {
+  const majorVersion = parseInt(nodeVersion.replace('v', '').split('.')[0], 10);
+  if (majorVersion >= 20) {
     process.env.AWS_EXECUTION_ENV = 'AWS_Lambda_nodejs20.x';
     process.env.AWS_LAMBDA_JS_RUNTIME = 'nodejs20.x';
   } else {
