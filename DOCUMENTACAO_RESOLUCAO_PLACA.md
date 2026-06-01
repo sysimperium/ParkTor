@@ -149,3 +149,5 @@ module.exports = async (req, res) => {
 * **Redução no Tamanho do Bundle (Vercel):** O tamanho total da função de API caiu de **50 MB** (limite máximo da Vercel) para apenas **3 KB**, eliminando qualquer falha ou lentidão de build/deploy.
 * **Estabilidade e Confiabilidade:** Como a API não manipula binários locais no servidor nem roda processos de navegador em segundo plano, os travamentos por arquivos bloqueados (`ETXTBSY`) e erros de bibliotecas Linux foram completamente eliminados.
 * **Resiliência (Retentativas):** A lógica de *retry* com *backoff* protege o sistema contra instabilidade momentânea ou rate limit no serviço externo.
+
+<!-- Vercel Deployment Trigger -->
