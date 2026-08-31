@@ -3,18 +3,36 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-const handler = require('./api/consulta-placa.js');
+const handlerConsulta = require('./api/consulta-placa.js');
+const handlerOcr = require('./api/ocr-placa.js');
 
 const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
 
   // Servir API do Vercel
-  if (pathname === '/api/consulta-placa') {
+  if (pathname === '/api/consulta-placa' || pathname === '/api/ocr-placa') {
+    let body = {};
+    if (req.method === 'POST') {
+      try {
+        const buffers = [];
+        for await (const chunk of req) {
+          buffers.push(chunk);
+        }
+        const rawBody = Buffer.concat(buffers).toString();
+        if (rawBody) {
+          body = JSON.parse(rawBody);
+        }
+      } catch (e) {
+        console.error('Erro ao ler body JSON:', e);
+      }
+    }
+
     const mockReq = {
       method: req.method,
       query: parsedUrl.query,
-      headers: req.headers
+      headers: req.headers,
+      body: body
     };
 
     const mockRes = {
@@ -40,7 +58,8 @@ const server = http.createServer(async (req, res) => {
     };
 
     try {
-      await handler(mockReq, mockRes);
+      const activeHandler = pathname === '/api/ocr-placa' ? handlerOcr : handlerConsulta;
+      await activeHandler(mockReq, mockRes);
     } catch (err) {
       console.error(err);
       res.statusCode = 500;
