@@ -3,14 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Parktor — Mensalistas</title>
+  <title>Parktor — Gestão de Mensalistas</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
-  <style>body { display: none; }</style>
+  <style>
+    body { display: none; }
+    .placas-tag-container { display: flex; flex-wrap: wrap; gap: 4px; }
+    .placa-tag {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--gold-300);
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .status-badge.ativo { background: var(--success-bg); color: var(--green-300); border: 1px solid rgba(34,197,94,0.3); }
+    .status-badge.atrasado { background: var(--danger-bg); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .status-badge.pausado { background: var(--warning-bg); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .status-badge.sem-valor { background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+    
+    .history-tab-btn {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .history-tab-btn.active {
+      background: var(--gold-400);
+      color: var(--bg-card);
+      border-color: var(--gold-400);
+    }
+  </style>
   <link rel="icon" type="image/x-icon" href="imgs/logoP.ico">
   <link rel="apple-touch-icon" href="imgs/logoP.ico">
   <link rel="manifest" href="manifest.json?v=2">
@@ -35,6 +79,7 @@
       </div>
       <div id="sb-tenant-name" style="font-size: 0.8rem; font-weight: 700; color: var(--gold-400); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">...</div>
     </div>
+
     <div class="sb-perf">
       <div class="sb-av" id="sb-av-sidebar">A</div>
       <div>
@@ -42,6 +87,7 @@
         <div class="sb-eq" id="userRoleSidebar">Administrador</div>
       </div>
     </div>
+
     <nav class="sb-nav">
       <div id="navDashboard">
         <div class="sb-sec">Principal</div>
@@ -87,6 +133,7 @@
         </a>
       </div>
     </nav>
+
     <div class="sb-ft">
       <div class="si si-logout" onclick="logout()">
         <span class="si-i"><i data-lucide="door-open"></i></span>
@@ -100,7 +147,7 @@
     <header class="topbar">
       <div class="tb-e">
         <button class="bhb" onclick="openMenu()"><i data-lucide="menu"></i></button>
-        <div class="tb-t">Mensalistas</div>
+        <div class="tb-t">Parktor — Mensalistas</div>
       </div>
       <div class="tb-d">
         <div class="tb-av" id="tb-av-top">A</div>
@@ -108,92 +155,821 @@
     </header>
 
     <div class="pg">
-      <div class="card anim-fadeInUp" style="min-height: 300px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px; text-align: center;">
-        <div style="width: 80px; height: 80px; background: var(--bg-body); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold-400);">
-            <i data-lucide="construction" size="40"></i>
-        </div>
-        <div>
-            <h2 class="pg-t">Em Desenvolvimento.</h2>
-            <p class="pg-s">Estamos preparando esta funcionalidade para você.</p>
+      
+      <!-- ALERTA DE MENSALISTAS SEM VALOR DEFINIDO (ADM) -->
+      <div id="alertSemValor" class="card anim-fadeInUp" style="display: none; background: rgba(59, 130, 246, 0.1); border: 1.5px solid var(--info); margin-bottom: 20px;">
+        <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="sico blue" style="width: 38px; height: 38px;"><i data-lucide="alert-circle"></i></div>
+            <div>
+              <div style="font-weight: 700; color: #93c5fd;">MENSALISTAS AGUARDANDO DEFINIÇÃO DE VALOR</div>
+              <div style="font-size: 0.85rem; color: var(--text-secondary);" id="alertSemValorText">Existem cadastros criados pela equipe sem valor de mensalidade definido.</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="filterBySemValor()">REVISAR AGORA</button>
         </div>
       </div>
+
+      <div class="pg-hd" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+          <h1 class="pg-t">Gestão de Mensalistas</h1>
+          <p class="pg-s">Controle de vagas fixas, contratos, múltiplas placas e histórico de uso.</p>
+        </div>
+        <button class="btn btn-primary" id="btnNovoMensalista" onclick="openModalMensalista()">
+          <i data-lucide="user-plus"></i> + NOVO MENSALISTA
+        </button>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="sgrid anim-stagger">
+        <div class="scard">
+          <div class="sico gold"><i data-lucide="users"></i></div>
+          <div>
+            <div class="slb">Total Mensalistas</div>
+            <div class="svl" id="statTotalMensalistas">0</div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="sico green"><i data-lucide="check-circle-2"></i></div>
+          <div>
+            <div class="slb">Em Dia</div>
+            <div class="svl" id="statEmDia">0</div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="sico red"><i data-lucide="alert-triangle"></i></div>
+          <div>
+            <div class="slb">Atrasados</div>
+            <div class="svl" id="statAtrasados">0</div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="sico blue"><i data-lucide="parking-circle"></i></div>
+          <div>
+            <div class="slb">Vagas Ocupadas Agora</div>
+            <div class="svl" id="statVagasPatio">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABELA E FILTROS -->
+      <div class="card anim-fadeInUp">
+        <div class="card-body">
+          <div class="filter-grid" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Buscar por Nome, Telefone ou Placa</label>
+              <div style="position: relative;">
+                <input type="text" id="searchInput" class="form-input" placeholder="Digite para filtrar..." oninput="filterMensalistas()">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label">Filtrar por Status</label>
+              <select id="statusFilter" class="form-input" onchange="filterMensalistas()">
+                <option value="todos">Todos os Status</option>
+                <option value="ativo">Em Dia (Ativo)</option>
+                <option value="atrasado">Atrasado</option>
+                <option value="pausado">Pausado (Cobra Rotativo)</option>
+                <option value="sem_valor">Sem Valor Definido</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
+              <button class="btn btn-ghost btn-full" onclick="resetFilters()">LIMPAR FILTROS</button>
+            </div>
+          </div>
+
+          <div class="tw">
+            <table class="tab">
+              <thead>
+                <tr>
+                  <th>Nome do Titular</th>
+                  <th>Placas Vinculadas</th>
+                  <th>Vagas</th>
+                  <th>Mensalidade</th>
+                  <th>Vencimento</th>
+                  <th>Status</th>
+                  <th style="text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="mensalistasTableBody">
+                <tr><td colspan="7" style="text-align: center; padding: 25px;">Carregando mensalistas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
-  <!-- BOTTOM NAV (Mobile) -->
-  <nav class="bnav">
-    <div class="bnis">
-      <a href="dashboard.html" class="bni" id="mobNavDash">
-        <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
-        <span class="bnlb">Dash</span>
-      </a>
-      <a href="entrada.html" class="bni" id="mobNavEntrada">
-        <span class="bnico"><i data-lucide="log-in"></i></span>
-        <span class="bnlb">Entrada</span>
-      </a>
-      <a href="saida.html" class="bni" id="mobNavSaida">
-        <span class="bnico"><i data-lucide="log-out"></i></span>
-        <span class="bnlb">Saída</span>
-      </a>
+  <!-- MODAL NOVO / EDITAR MENSALISTA -->
+  <div class="modal-overlay" id="modalMensalista" style="z-index: 9999;">
+    <div class="modal card anim-fadeInUp" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalMensalistaTitle">Novo Mensalista</h3>
+        <button class="btn-close" onclick="closeModalMensalista()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="formMensalista" onsubmit="saveMensalista(event)">
+          <input type="hidden" id="editMensalistaId">
+
+          <div class="config-grid">
+            <div class="form-group">
+              <label class="form-label">Nome Completo *</label>
+              <input type="text" id="mNome" class="form-input" placeholder="Ex: Dr. Roberto Silva" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone / WhatsApp *</label>
+              <input type="text" id="mTelefone" class="form-input" placeholder="(11) 98877-6655" required oninput="maskPhone(this)">
+            </div>
+          </div>
+
+          <div class="config-grid">
+            <div class="form-group">
+              <label class="form-label">CPF ou CNPJ</label>
+              <input type="text" id="mCpf" class="form-input" placeholder="000.000.000-00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">E-mail</label>
+              <input type="email" id="mEmail" class="form-input" placeholder="cliente@email.com">
+            </div>
+          </div>
+
+          <div class="config-grid">
+            <div class="form-group">
+              <label class="form-label">Vagas Contratadas *</label>
+              <input type="number" id="mVagas" class="form-input" min="1" value="1" required>
+              <small style="color: var(--text-muted);">Qtd. de carros simultâneos permitidos</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor Mensalidade (R$)</label>
+              <input type="number" id="mValor" class="form-input" step="0.50" min="0" placeholder="R$ 0,00 (Definido pelo ADM)">
+              <small style="color: var(--gold-400);">Pode ficar vazio para o Administrador definir</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dia do Vencimento *</label>
+              <input type="number" id="mDiaVenc" class="form-input" min="1" max="31" value="10" required>
+            </div>
+          </div>
+
+          <!-- SEÇÃO MÚLTIPLAS PLACAS -->
+          <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 0.85rem; font-weight: 700; color: var(--gold-400); text-transform: uppercase;">Veículos / Placas Vinculadas</span>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="addVehicleRow()">+ ADICIONAR PLACA</button>
+            </div>
+            <div id="vehiclesContainer" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Linhas de veículos dinâmicas -->
+            </div>
+          </div>
+
+          <!-- CHECKBOX DE SUSPENSÃO / COBRAR ROTATIVO -->
+          <div style="background: rgba(212,168,68,0.08); padding: 12px; border-radius: 8px; border: 1px solid rgba(212,168,68,0.2); margin-bottom: 15px; display: flex; align-items: flex-start; gap: 10px;">
+            <input type="checkbox" id="mCobrarRotativo" style="width: 18px; height: 18px; margin-top: 3px; cursor: pointer;">
+            <div>
+              <label for="mCobrarRotativo" style="font-size: 0.9rem; font-weight: 700; color: var(--gold-400); cursor: pointer;">
+                Suspender Mensalidade (Cobrar como Rotativo Padrão)
+              </label>
+              <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0;">
+                Marque se o cliente estiver de férias/pausado. O histórico permanece salvo, mas o pátio cobrará a tarifa normal.
+              </p>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Observações Internas</label>
+            <textarea id="mObs" class="form-input" rows="2" placeholder="Notas sobre vaga fixa, horário especial ou acordos..."></textarea>
+          </div>
+
+          <div class="modal-footer" style="padding-top: 15px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn btn-ghost" onclick="closeModalMensalista()">CANCELAR</button>
+            <button type="submit" class="btn btn-primary" id="btnSaveMensalista">SALVAR MENSALISTA</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </nav>
+  </div>
+
+  <!-- MODAL HISTÓRICO DE USO DA VAGA -->
+  <div class="modal-overlay" id="modalHistoricoUso" style="z-index: 9999;">
+    <div class="modal card anim-fadeInUp" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="histTitle">Histórico de Uso da Vaga</h3>
+          <p class="pg-s" id="histSubtitle">Relatório de frequência e tempo de permanência</p>
+        </div>
+        <button class="btn-close" onclick="closeModalHistorico()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- ABAS DE PERÍODOS -->
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px;">
+          <button class="history-tab-btn active" id="tabMesAtual" onclick="loadHistUso('mes_atual')">Mês Corrente</button>
+          <button class="history-tab-btn" id="tabMesAnterior" onclick="loadHistUso('mes_anterior')">Mês Anterior</button>
+          <button class="history-tab-btn" id="tabTrimestral" onclick="loadHistUso('trimestre')">3 Meses (Trimestre)</button>
+          <button class="history-tab-btn" id="tabSemestral" onclick="loadHistUso('semestre')">6 Meses (Semestre)</button>
+          <button class="history-tab-btn" id="tabAnual" onclick="loadHistUso('ano')">12 Meses (Anual)</button>
+        </div>
+
+        <!-- STATS DO PERÍODO -->
+        <div class="sgrid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 15px;">
+          <div class="scard" style="padding: 12px;">
+            <div class="sico gold" style="width: 36px; height: 36px;"><i data-lucide="log-in"></i></div>
+            <div>
+              <div class="slb">Total Entradas</div>
+              <div class="svl" id="histTotalEntradas" style="font-size: 1.2rem;">0</div>
+            </div>
+          </div>
+          <div class="scard" style="padding: 12px;">
+            <div class="sico blue" style="width: 36px; height: 36px;"><i data-lucide="clock"></i></div>
+            <div>
+              <div class="slb">Tempo Total</div>
+              <div class="svl" id="histTempoTotal" style="font-size: 1.2rem;">0h</div>
+            </div>
+          </div>
+          <div class="scard" style="padding: 12px;">
+            <div class="sico green" style="width: 36px; height: 36px;"><i data-lucide="calendar"></i></div>
+            <div>
+              <div class="slb">Média / Entrada</div>
+              <div class="svl" id="histMediaEstadia" style="font-size: 1.2rem;">0h</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABELA DE ENTRADAS NO PERÍODO -->
+        <div class="tw" style="max-height: 250px; overflow-y: auto;">
+          <table class="tab">
+            <thead>
+              <tr>
+                <th>Placa</th>
+                <th>Entrada</th>
+                <th>Saída</th>
+                <th>Permanência</th>
+              </tr>
+            </thead>
+            <tbody id="histTableBody">
+              <tr><td colspan="4" style="text-align: center; padding: 15px;">Carregando histórico...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding-top: 15px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+        <button class="btn btn-primary" onclick="closeModalHistorico()">FECHAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL COBRANÇA PIX / WHATSAPP -->
+  <div class="modal-overlay" id="modalPixCobranca" style="z-index: 9999;">
+    <div class="modal card anim-fadeInUp" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Cobrança de Mensalidade</h3>
+        <button class="btn-close" onclick="closeModalPix()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" style="text-align: center;">
+        <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(34,197,94,0.1); color: var(--green-300); display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
+          <i data-lucide="qr-code" size="30"></i>
+        </div>
+        
+        <h4 id="pixClienteNome" style="color: var(--text-primary); margin-bottom: 5px;">...</h4>
+        <div id="pixValorDisplay" style="font-size: 1.6rem; font-weight: 800; color: var(--gold-400); margin-bottom: 15px;">R$ 0,00</div>
+
+        <div class="form-group" style="text-align: left;">
+          <label class="form-label">Código PIX Copia e Cola</label>
+          <input type="text" id="pixCopiaColaInput" class="form-input" readonly onclick="this.select()" style="font-size: 0.8rem; text-align: center;">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+          <button class="btn btn-secondary btn-full" onclick="copyPixCode()">
+            <i data-lucide="copy"></i> COPIAR CÓDIGO PIX
+          </button>
+          <button class="btn btn-primary btn-full" id="btnEnviarWhatsApp" onclick="sendWhatsAppPix()">
+            <i data-lucide="message-circle"></i> ENVIAR NO WHATSAPP DO CLIENTE
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co', SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
-    const { createClient } = supabase; const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    let currentUser = null, tenantId = null;
+    const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
-    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
+    let currentUser = null, tenantId = null, tenantConfig = null;
+    let allMensalistas = [], activeHistMensalistaId = null;
 
-    async function init() {
+    function openMenu() { document.getElementById('sb').classList.add('open'); document.getElementById('overlay').classList.add('open'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+
+    async function checkAuth() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      currentUser = session.user;
+
+      const { data: profile } = await sb.from('users').select('*, tenants(*)').eq('id', currentUser.id).single();
+      if (!profile || profile.status === 'inativo') { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
+
+      tenantId = profile.tenant_id;
+      tenantConfig = profile.tenants;
+
+      const isAdmin = profile.nivel_acesso === 'admin' || profile.nivel_acesso === 'root';
+      const podeCadastrar = isAdmin || (tenantConfig && tenantConfig.operador_cadastra_mensalista);
+
+      if (!podeCadastrar) {
+        document.getElementById('btnNovoMensalista').style.display = 'none';
+      }
+
+      document.getElementById('userNameSidebar').innerText = profile.nome || 'Usuário';
+      document.getElementById('userRoleSidebar').innerText = profile.nivel_acesso?.toUpperCase() || 'OPERADOR';
+      document.getElementById('sb-av-sidebar').innerText = (profile.nome || 'U')[0].toUpperCase();
+      document.getElementById('tb-av-top').innerText = (profile.nome || 'U')[0].toUpperCase();
+
+      if (tenantConfig) {
+        document.getElementById('sb-tenant-name').innerText = tenantConfig.nome || 'Estacionamento';
+        if (tenantConfig.logo_url) document.getElementById('sb-tenant-logo').src = tenantConfig.logo_url;
+      }
+
+      document.body.style.display = 'block';
+      lucide.createIcons();
+      await loadMensalistas();
+    }
+
+    async function loadMensalistas() {
       try {
-        const { data: { session } } = await sb.auth.getSession();
-        if (!session) { window.location.href = 'index.html'; return; }
-        const { data: user, error } = await sb.from('users').select('*, tenants(*)').eq('id', session.user.id).single();
-        
-        if (error || !user) { window.location.href = 'index.html'; return; }
+        const { data: mensalistas, error } = await sb
+          .from('mensalistas')
+          .select(`
+            *,
+            mensalista_veiculos ( id, placa, marca, modelo, cor )
+          `)
+          .eq('tenant_id', tenantId)
+          .order('nome', { ascending: true });
 
-        currentUser = user; tenantId = user.tenant_id;
+        if (error) throw error;
+        allMensalistas = mensalistas || [];
 
-        // CONTROLE DE VISIBILIDADE DA SIDEBAR (STRICT)
-        if (user.nivel_acesso === 'manobrista') {
-          document.getElementById('navDashboard')?.remove();
-          document.getElementById('navSaida')?.remove();
-          document.getElementById('navGestao')?.remove();
-          document.getElementById('mobNavDash')?.remove();
-          document.getElementById('mobNavSaida')?.remove();
-        } else if (user.nivel_acesso === 'operador') {
-          document.getElementById('navDashboard')?.remove();
-          document.getElementById('navEntrada')?.remove();
-          document.getElementById('navGestao')?.remove();
-          document.getElementById('mobNavDash')?.remove();
-          document.getElementById('mobNavEntrada')?.remove();
-        }
+        // Buscar veículos ativos de mensalistas no pátio agora
+        const { data: entradasAtivas } = await sb
+          .from('valet_entries')
+          .select('id, mensalista_id')
+          .eq('tenant_id', tenantId)
+          .eq('tipo_estadia', 'mensalista')
+          .is('saida', null);
 
-        const firstName = user.nome.split(' ')[0];
-        document.getElementById('userNameSidebar').textContent = firstName;
-        document.getElementById('userRoleSidebar').textContent = user.nivel_acesso.toUpperCase();
-        document.getElementById('sb-av-sidebar').textContent = firstName[0];
-        document.getElementById('tb-av-top').textContent = firstName[0];
-        
-        if (currentUser.tenants) {
-          document.getElementById('sb-tenant-name').textContent = currentUser.tenants.nome;
-          if (currentUser.tenants.logo_url) {
-            document.getElementById('sb-tenant-logo').src = currentUser.tenants.logo_url;
-          }
-        }
+        const vagasOcupadasAgora = entradasAtivas ? entradasAtivas.length : 0;
+
+        renderKPICards(vagasOcupadasAgora);
+        renderTable(allMensalistas);
+
       } catch (err) {
-        console.error("Erro no init:", err);
-      } finally {
-        document.body.style.display = 'block';
+        console.error('Erro ao carregar mensalistas:', err);
+        document.getElementById('mensalistasTableBody').innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Erro ao carregar mensalistas: ${err.message}</td></tr>`;
       }
     }
 
-    async function logout() { await sb.auth.signOut(); window.location.href = 'index.html'; }
-    
-    init();
-    lucide.createIcons();
+    function renderKPICards(vagasOcupadas) {
+      const total = allMensalistas.length;
+      const emDia = allMensalistas.filter(m => m.status === 'ativo' && !m.cobrar_como_rotativo && m.valor_mensalidade > 0).length;
+      const atrasados = allMensalistas.filter(m => m.status === 'atrasado').length;
+      const semValor = allMensalistas.filter(m => !m.valor_mensalidade || Number(m.valor_mensalidade) === 0).length;
+
+      document.getElementById('statTotalMensalistas').innerText = total;
+      document.getElementById('statEmDia').innerText = emDia;
+      document.getElementById('statAtrasados').innerText = atrasados;
+      document.getElementById('statVagasPatio').innerText = vagasOcupadas;
+
+      if (semValor > 0) {
+        document.getElementById('alertSemValor').style.display = 'block';
+        document.getElementById('alertSemValorText').innerText = `Existem ${semValor} mensalista(s) cadastrado(s) sem valor de mensalidade definido pelo Administrador.`;
+      } else {
+        document.getElementById('alertSemValor').style.display = 'none';
+      }
+    }
+
+    function renderTable(list) {
+      const tbody = document.getElementById('mensalistasTableBody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-secondary);">Nenhum mensalista encontrado.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(m => {
+        const veiculos = m.mensalista_veiculos || [];
+        const placasHtml = veiculos.length > 0 
+          ? veiculos.map(v => `<span class="placa-tag">${v.placa} ${v.modelo ? `(${v.modelo})` : ''}</span>`).join(' ')
+          : '<span style="color: var(--text-muted); font-size: 0.75rem;">Sem placas</span>';
+
+        let statusBadge = '<span class="status-badge ativo">EM DIA</span>';
+        if (m.cobrar_como_rotativo) {
+          statusBadge = '<span class="status-badge pausado">PAUSADO (ROTATIVO)</span>';
+        } else if (m.status === 'atrasado') {
+          statusBadge = '<span class="status-badge atrasado">ATRASADO</span>';
+        } else if (!m.valor_mensalidade || Number(m.valor_mensalidade) === 0) {
+          statusBadge = '<span class="status-badge sem-valor">SEM VALOR</span>';
+        }
+
+        const valorFormatado = m.valor_mensalidade && Number(m.valor_mensalidade) > 0 
+          ? `R$ ${Number(m.valor_mensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : '<span style="color: #93c5fd; font-weight: 700; font-size: 0.8rem;">A Definir</span>';
+
+        return `
+          <tr>
+            <td>
+              <div style="font-weight: 700; color: var(--text-primary);">${m.nome}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${m.telefone || 'Sem telefone'}</div>
+            </td>
+            <td>
+              <div class="placas-tag-container">${placasHtml}</div>
+            </td>
+            <td><strong>${m.vagas_contratadas || 1}</strong> vaga(s)</td>
+            <td><strong>${valorFormatado}</strong></td>
+            <td>Dia ${m.dia_vencimento || 10}</td>
+            <td>${statusBadge}</td>
+            <td style="text-align: right;">
+              <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                <button class="btn btn-ghost btn-sm" title="Histórico de Uso" onclick="openModalHistorico('${m.id}', '${m.nome}')">
+                  <i data-lucide="bar-chart-2"></i>
+                </button>
+                <button class="btn btn-ghost btn-sm" title="Cobrar WhatsApp" style="color: var(--green-300);" onclick="openModalPix('${m.id}')">
+                  <i data-lucide="message-circle"></i>
+                </button>
+                <button class="btn btn-ghost btn-sm" title="Editar" onclick="editMensalista('${m.id}')">
+                  <i data-lucide="edit-2"></i>
+                </button>
+                <button class="btn btn-ghost btn-sm" title="Excluir" style="color: var(--danger);" onclick="deleteMensalista('${m.id}', '${m.nome}')">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function filterMensalistas() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+
+      const filtered = allMensalistas.filter(m => {
+        const matchSearch = m.nome.toLowerCase().includes(search) || 
+                            (m.telefone && m.telefone.includes(search)) ||
+                            (m.mensalista_veiculos && m.mensalista_veiculos.some(v => v.placa.toLowerCase().includes(search)));
+
+        let matchStatus = true;
+        if (status === 'ativo') matchStatus = m.status === 'ativo' && !m.cobrar_como_rotativo && m.valor_mensalidade > 0;
+        if (status === 'atrasado') matchStatus = m.status === 'atrasado';
+        if (status === 'pausado') matchStatus = m.cobrar_como_rotativo;
+        if (status === 'sem_valor') matchStatus = !m.valor_mensalidade || Number(m.valor_mensalidade) === 0;
+
+        return matchSearch && matchStatus;
+      });
+
+      renderTable(filtered);
+    }
+
+    function filterBySemValor() {
+      document.getElementById('statusFilter').value = 'sem_valor';
+      filterMensalistas();
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('statusFilter').value = 'todos';
+      renderTable(allMensalistas);
+    }
+
+    /* --- GESTÃO DE MODAL MENSALISTA --- */
+    function openModalMensalista() {
+      document.getElementById('formMensalista').reset();
+      document.getElementById('editMensalistaId').value = '';
+      document.getElementById('modalMensalistaTitle').innerText = 'Novo Mensalista';
+      document.getElementById('vehiclesContainer').innerHTML = '';
+      addVehicleRow(); // Inicia com 1 campo de placa
+      document.getElementById('modalMensalista').classList.add('show');
+      lucide.createIcons();
+    }
+
+    function closeModalMensalista() {
+      document.getElementById('modalMensalista').classList.remove('show');
+    }
+
+    function addVehicleRow(placa = '', marca = '', modelo = '', cor = '') {
+      const container = document.getElementById('vehiclesContainer');
+      const rowId = 'vRow_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
+      const div = document.createElement('div');
+      div.id = rowId;
+      div.style.display = 'flex';
+      div.style.gap = '8px';
+      div.style.alignItems = 'center';
+
+      div.innerHTML = `
+        <input type="text" class="form-input vehicle-placa" placeholder="PLACA (ABC1234)" value="${placa}" maxlength="7" style="text-transform: uppercase; width: 130px;" required>
+        <input type="text" class="form-input vehicle-marca" placeholder="Marca (ex: FIAT)" value="${marca}" style="text-transform: uppercase; flex: 1;">
+        <input type="text" class="form-input vehicle-modelo" placeholder="Modelo (ex: UNO)" value="${modelo}" style="text-transform: uppercase; flex: 1;">
+        <input type="text" class="form-input vehicle-cor" placeholder="Cor" value="${cor}" style="width: 100px;">
+        <button type="button" class="btn btn-ghost btn-sm" style="color: var(--danger); padding: 8px;" onclick="document.getElementById('${rowId}').remove()">
+          <i data-lucide="x"></i>
+        </button>
+      `;
+
+      container.appendChild(div);
+      lucide.createIcons();
+    }
+
+    function editMensalista(id) {
+      const m = allMensalistas.find(item => item.id === id);
+      if (!m) return;
+
+      document.getElementById('editMensalistaId').value = m.id;
+      document.getElementById('modalMensalistaTitle').innerText = 'Editar Mensalista — ' + m.nome;
+      document.getElementById('mNome').value = m.nome || '';
+      document.getElementById('mTelefone').value = m.telefone || '';
+      document.getElementById('mCpf').value = m.cpf_cnpj || '';
+      document.getElementById('mEmail').value = m.email || '';
+      document.getElementById('mVagas').value = m.vagas_contratadas || 1;
+      document.getElementById('mValor').value = m.valor_mensalidade || '';
+      document.getElementById('mDiaVenc').value = m.dia_vencimento || 10;
+      document.getElementById('mCobrarRotativo').checked = !!m.cobrar_como_rotativo;
+      document.getElementById('mObs').value = m.observacoes || '';
+
+      const container = document.getElementById('vehiclesContainer');
+      container.innerHTML = '';
+      const veiculos = m.mensalista_veiculos || [];
+      if (veiculos.length > 0) {
+        veiculos.forEach(v => addVehicleRow(v.placa, v.marca || '', v.modelo || '', v.cor || ''));
+      } else {
+        addVehicleRow();
+      }
+
+      document.getElementById('modalMensalista').classList.add('show');
+      lucide.createIcons();
+    }
+
+    async function saveMensalista(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btnSaveMensalista');
+      saveBtn.disabled = true;
+      saveBtn.innerText = 'SALVANDO...';
+
+      try {
+        const id = document.getElementById('editMensalistaId').value;
+        const nome = document.getElementById('mNome').value.trim();
+        const telefone = document.getElementById('mTelefone').value.trim();
+        const cpf_cnpj = document.getElementById('mCpf').value.trim() || null;
+        const email = document.getElementById('mEmail').value.trim() || null;
+        const vagas_contratadas = parseInt(document.getElementById('mVagas').value) || 1;
+        const valorInput = document.getElementById('mValor').value;
+        const valor_mensalidade = valorInput ? parseFloat(valorInput) : null;
+        const dia_vencimento = parseInt(document.getElementById('mDiaVenc').value) || 10;
+        const cobrar_como_rotativo = document.getElementById('mCobrarRotativo').checked;
+        const observacoes = document.getElementById('mObs').value.trim() || null;
+
+        // Extrair placas
+        const vehicleRows = document.querySelectorAll('#vehiclesContainer > div');
+        const veiculos = [];
+        vehicleRows.forEach(row => {
+          const placa = row.querySelector('.vehicle-placa').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const marca = row.querySelector('.vehicle-marca').value.trim().toUpperCase();
+          const modelo = row.querySelector('.vehicle-modelo').value.trim().toUpperCase();
+          const cor = row.querySelector('.vehicle-cor').value.trim().toUpperCase();
+          if (placa.length >= 6) {
+            veiculos.push({ placa, marca, modelo, cor, tenant_id: tenantId });
+          }
+        });
+
+        if (veiculos.length === 0) {
+          alert('Por favor, adicione pelo menos 1 placa válida com 7 dígitos.');
+          saveBtn.disabled = false;
+          saveBtn.innerText = 'SALVAR MENSALISTA';
+          return;
+        }
+
+        const payload = {
+          tenant_id: tenantId,
+          nome,
+          telefone,
+          cpf_cnpj,
+          email,
+          vagas_contratadas,
+          valor_mensalidade,
+          dia_vencimento,
+          cobrar_como_rotativo,
+          observacoes,
+          status: 'ativo'
+        };
+
+        let mensalistaId = id;
+        if (id) {
+          const { error } = await sb.from('mensalistas').update(payload).eq('id', id);
+          if (error) throw error;
+        } else {
+          const { data, error } = await sb.from('mensalistas').insert(payload).select().single();
+          if (error) throw error;
+          mensalistaId = data.id;
+        }
+
+        // Atualizar veículos
+        await sb.from('mensalista_veiculos').delete().eq('mensalista_id', mensalistaId);
+        const veiculosToInsert = veiculos.map(v => ({ ...v, mensalista_id: mensalistaId }));
+        const { error: vError } = await sb.from('mensalista_veiculos').insert(veiculosToInsert);
+        if (vError) throw vError;
+
+        closeModalMensalista();
+        await loadMensalistas();
+
+      } catch (err) {
+        alert('Erro ao salvar mensalista: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerText = 'SALVAR MENSALISTA';
+      }
+    }
+
+    async function deleteMensalista(id, nome) {
+      if (!confirm(`Tem certeza que deseja excluir o cadastro de ${nome}? Todo o histórico será removido.`)) return;
+      try {
+        const { error } = await sb.from('mensalistas').delete().eq('id', id);
+        if (error) throw error;
+        await loadMensalistas();
+      } catch (err) {
+        alert('Erro ao excluir: ' + err.message);
+      }
+    }
+
+    /* --- HISTÓRICO DE USO DA VAGA --- */
+    function openModalHistorico(id, nome) {
+      activeHistMensalistaId = id;
+      document.getElementById('histTitle').innerText = 'Histórico de Uso — ' + nome;
+      document.getElementById('modalHistoricoUso').classList.add('show');
+      loadHistUso('mes_atual');
+    }
+
+    function closeModalHistorico() {
+      document.getElementById('modalHistoricoUso').classList.remove('show');
+      activeHistMensalistaId = null;
+    }
+
+    async function loadHistUso(periodo) {
+      if (!activeHistMensalistaId) return;
+
+      document.querySelectorAll('.history-tab-btn').forEach(btn => btn.classList.remove('active'));
+      if (periodo === 'mes_atual') document.getElementById('tabMesAtual').classList.add('active');
+      if (periodo === 'mes_anterior') document.getElementById('tabMesAnterior').classList.add('active');
+      if (periodo === 'trimestre') document.getElementById('tabTrimestral').classList.add('active');
+      if (periodo === 'semestre') document.getElementById('tabSemestral').classList.add('active');
+      if (periodo === 'ano') document.getElementById('tabAnual').classList.add('active');
+
+      const tbody = document.getElementById('histTableBody');
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px;">Carregando histórico...</td></tr>`;
+
+      try {
+        const now = new Date();
+        let startDate = new Date();
+        let endDate = new Date();
+
+        if (periodo === 'mes_atual') {
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        } else if (periodo === 'mes_anterior') {
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        } else if (periodo === 'trimestre') {
+          startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+        } else if (periodo === 'semestre') {
+          startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+        } else if (periodo === 'ano') {
+          startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+        }
+
+        let query = sb.from('valet_entries')
+          .select('*')
+          .eq('tenant_id', tenantId)
+          .eq('mensalista_id', activeHistMensalistaId)
+          .gte('entrada', startDate.toISOString())
+          .order('entrada', { ascending: false });
+
+        if (periodo === 'mes_anterior') {
+          query = query.lte('entrada', endDate.toISOString());
+        }
+
+        const { data: estadias, error } = await query;
+        if (error) throw error;
+
+        const totalEntradas = estadias ? estadias.length : 0;
+        let totalMinutos = 0;
+
+        estadias?.forEach(e => {
+          if (e.entrada) {
+            const inTime = new Date(e.entrada);
+            const outTime = e.saida ? new Date(e.saida) : new Date();
+            const diffMin = Math.max(1, Math.round((outTime - inTime) / 60000));
+            totalMinutos += diffMin;
+          }
+        });
+
+        const totalHoras = (totalMinutos / 60).toFixed(1);
+        const mediaHoras = totalEntradas > 0 ? (totalMinutos / totalEntradas / 60).toFixed(1) : 0;
+
+        document.getElementById('histTotalEntradas').innerText = totalEntradas;
+        document.getElementById('histTempoTotal').innerText = totalHoras + 'h';
+        document.getElementById('histMediaEstadia').innerText = mediaHoras + 'h';
+
+        if (!estadias || estadias.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Nenhum uso registrado neste período.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = estadias.map(e => {
+          const inDate = new Date(e.entrada);
+          const outDate = e.saida ? new Date(e.saida) : null;
+          const duration = outDate ? Math.round((outDate - inDate) / 60000) : null;
+
+          return `
+            <tr>
+              <td><strong>${e.placa}</strong></td>
+              <td>${inDate.toLocaleDateString('pt-BR')} ${inDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
+              <td>${outDate ? `${outDate.toLocaleDateString('pt-BR')} ${outDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '<span style="color: var(--gold-400); font-weight: 700;">No Pátio</span>'}</td>
+              <td>${duration ? `${Math.floor(duration/60)}h ${duration%60}m` : 'Em andamento'}</td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger);">Erro: ${err.message}</td></tr>`;
+      }
+    }
+
+    /* --- COBRANÇA PIX & WHATSAPP --- */
+    let currentPixMensalista = null;
+
+    function openModalPix(id) {
+      const m = allMensalistas.find(item => item.id === id);
+      if (!m) return;
+      currentPixMensalista = m;
+
+      document.getElementById('pixClienteNome').innerText = m.nome;
+      const valor = m.valor_mensalidade ? Number(m.valor_mensalidade) : 0;
+      document.getElementById('pixValorDisplay').innerText = `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+      // Gerar PIX Copia e Cola Estático/Dinâmico básico
+      const chavePix = tenantConfig?.pix_chave || 'PARKTOR_CHAVE';
+      const pixCode = `00020126360014BR.GOV.BCB.PIX0114${chavePix}520400005303986540${valor.toFixed(2)}5802BR5913${(tenantConfig?.nome || 'PARKTOR').substring(0,13)}6008SAOPAULO62070503***6304`;
+      document.getElementById('pixCopiaColaInput').value = pixCode;
+
+      document.getElementById('modalPixCobranca').classList.add('show');
+      lucide.createIcons();
+    }
+
+    function closeModalPix() {
+      document.getElementById('modalPixCobranca').classList.remove('show');
+      currentPixMensalista = null;
+    }
+
+    function copyPixCode() {
+      const input = document.getElementById('pixCopiaColaInput');
+      input.select();
+      navigator.clipboard.writeText(input.value);
+      alert('Código PIX copiado com sucesso!');
+    }
+
+    function sendWhatsAppPix() {
+      if (!currentPixMensalista || !currentPixMensalista.telefone) {
+        alert('Telefone do cliente não cadastrado.');
+        return;
+      }
+      const rawPhone = currentPixMensalista.telefone.replace(/\D/g, '');
+      const valor = currentPixMensalista.valor_mensalidade ? Number(currentPixMensalista.valor_mensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00';
+      const estName = tenantConfig?.nome || 'Estacionamento';
+      const pixCode = document.getElementById('pixCopiaColaInput').value;
+
+      const msg = `Olá, ${currentPixMensalista.nome}! Segue o link de pagamento da mensalidade da sua vaga no *${estName}* no valor de *R$ ${valor}*.\n\n*Código PIX Copia e Cola:*\n${pixCode}\n\nAgradecemos a preferência! 🚗`;
+      const url = `https://api.whatsapp.com/send?phone=55${rawPhone}&text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
+
+    function maskPhone(input) {
+      let v = input.value.replace(/\D/g, '');
+      if (v.length > 11) v = v.substring(0, 11);
+      if (v.length > 10) {
+        input.value = `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`;
+      } else if (v.length > 6) {
+        input.value = `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`;
+      } else if (v.length > 2) {
+        input.value = `(${v.substring(0, 2)}) ${v.substring(2)}`;
+      } else {
+        input.value = v;
+      }
+    }
+
+    async function logout() {
+      await sb.auth.signOut();
+      window.location.href = 'index.html';
+    }
+
+    window.addEventListener('DOMContentLoaded', checkAuth);
   </script>
 </body>
 </html>

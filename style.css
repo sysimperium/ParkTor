@@ -1425,4 +1425,83 @@ select.form-input option {
   margin-top: 8px; /* Correctly centers letters visually */
 }
 
+/* ============ MENSALISTAS (PATCH 1.4.0) ============ */
+.mensalista-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(212, 168, 68, 0.15);
+  border: 1.5px solid var(--gold-400);
+  border-radius: var(--radius-sm);
+  color: var(--gold-300);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 0 0 14px rgba(212, 168, 68, 0.25);
+  animation: fadeIn 0.3s ease-out;
+}
+.mensalista-badge svg {
+  color: var(--gold-400);
+  width: 16px;
+  height: 16px;
+}
+
+.table-mensalista-card {
+  border-left: 4px solid var(--gold-400) !important;
+  background: rgba(212, 168, 68, 0.03);
+}
+
+@keyframes pulseAttention {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    border-color: var(--danger);
+  }
+  50% {
+    box-shadow: 0 0 16px 4px rgba(239, 68, 68, 0.4);
+    border-color: #fca5a5;
+  }
+}
+
+.row-saida-aviso {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-left: 4px solid var(--danger) !important;
+  animation: pulseAttention 2s infinite ease-in-out;
+}
+
+.btn-saida-chamativo {
+  background: linear-gradient(135deg, #ef4444, #b91c1c) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6) !important;
+  animation: softPulse 1.5s infinite;
+}
+
+.btn-avisar-saida {
+  background: rgba(212, 168, 68, 0.15);
+  color: var(--gold-300);
+  border: 1px solid var(--gold-400);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+.btn-avisar-saida:hover {
+  background: var(--gold-400);
+  color: var(--bg-card);
+}
+.btn-avisar-saida.enviado {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border-color: #60a5fa;
+  cursor: default;
+}
+
+
 

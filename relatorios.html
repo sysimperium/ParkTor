@@ -169,12 +169,13 @@
         </div>
       </div>
 
-      <!-- ABAS DOS 4 PILARES -->
+      <!-- ABAS DOS 4 PILARES + MENSALISTAS -->
       <div class="rep-tabs anim-fadeInUp">
         <button class="rep-tab-btn active" onclick="switchRepTab('financeiro')"><i data-lucide="wallet"></i> 1. FINANCEIRO</button>
         <button class="rep-tab-btn" onclick="switchRepTab('operacional')"><i data-lucide="car"></i> 2. OPERACIONAL</button>
         <button class="rep-tab-btn" onclick="switchRepTab('auditoria')"><i data-lucide="shield-check"></i> 3. AUDITORIA</button>
         <button class="rep-tab-btn" onclick="switchRepTab('performance')"><i data-lucide="users"></i> 4. PERFORMANCE</button>
+        <button class="rep-tab-btn" onclick="switchRepTab('mensalistas')"><i data-lucide="star"></i> 5. MENSALISTAS</button>
       </div>
 
       <!-- PILAR 1: FINANCEIRO -->
@@ -313,6 +314,31 @@
         </div>
       </div>
 
+      <!-- PILAR 5: MENSALISTAS (PATCH 1.4.0) -->
+      <div id="rep-mensalistas" class="rep-content">
+        <div class="pillar-info">
+          <p><strong>Gestão de Mensalistas:</strong> Previsão de receita recorrente (MRR), inadimplência e histórico de ocupação de vagas contratuais.</p>
+        </div>
+        <div class="sgrid anim-stagger">
+          <div class="scard"><div class="sico gold"><i data-lucide="award"></i></div><div><div class="slb">MRR Contratado</div><div class="svl" id="repMrrContratado">R$ 0,00</div></div></div>
+          <div class="scard"><div class="sico green"><i data-lucide="check-circle-2"></i></div><div><div class="slb">Mensalistas em Dia</div><div class="svl" id="repMensalistasEmDia">0</div></div></div>
+          <div class="scard"><div class="sico red"><i data-lucide="alert-circle"></i></div><div><div class="slb">Mensalidades Pendentes</div><div class="svl" id="repMensalistasPendentes">0</div></div></div>
+          <div class="scard"><div class="sico blue"><i data-lucide="car"></i></div><div><div class="slb">Vagas Contratadas</div><div class="svl" id="repVagasContratadas">0</div></div></div>
+        </div>
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title">Quadro Sintético de Assinaturas</h3>
+            <a href="mensalistas.html" class="btn btn-ghost btn-sm" style="color: var(--gold-400);">Gerenciar Mensalistas</a>
+          </div>
+          <div class="tw">
+            <table class="tab">
+              <thead><tr><th>Nome</th><th>Telefone</th><th>Vagas</th><th>Valor</th><th>Vencimento</th><th>Status</th></tr></thead>
+              <tbody id="repMensalistasTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -425,6 +451,58 @@
       processOperacional(entries);
       processAuditoria(entries);
       processPerformance(entries);
+      processMensalistasReport();
+    }
+
+    async function processMensalistasReport() {
+      try {
+        const { data: mensalistas } = await sb.from('mensalistas')
+          .select('*, mensalista_veiculos(*)')
+          .eq('tenant_id', tenantId);
+
+        if (!mensalistas) return;
+
+        let mrr = 0;
+        let emDiaCount = 0;
+        let pendenteCount = 0;
+        let vagasContratadasTotal = 0;
+
+        mensalistas.forEach(m => {
+          const v = parseFloat(m.valor_mensalidade) || 0;
+          mrr += v;
+          vagasContratadasTotal += (m.vagas_contratadas || 1);
+          if (m.status_pagamento === 'em_dia' || m.status_pagamento === 'pago') emDiaCount++;
+          else pendenteCount++;
+        });
+
+        document.getElementById('repMrrContratado').textContent = 'R$ ' + mrr.toFixed(2).replace('.', ',');
+        document.getElementById('repMensalistasEmDia').textContent = emDiaCount;
+        document.getElementById('repMensalistasPendentes').textContent = pendenteCount;
+        document.getElementById('repVagasContratadas').textContent = vagasContratadasTotal;
+
+        const tbody = document.getElementById('repMensalistasTable');
+        if (mensalistas.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Nenhum mensalista cadastrado.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = mensalistas.map(m => {
+          const statusBadge = m.status_pagamento === 'atrasado' 
+            ? '<span class="badge badge-red">ATRASADO</span>' 
+            : '<span class="badge badge-green">EM DIA</span>';
+          return `<tr>
+            <td><strong>${m.nome}</strong></td>
+            <td>${m.telefone || '-'}</td>
+            <td>${m.vagas_contratadas || 1}</td>
+            <td>R$ ${(parseFloat(m.valor_mensalidade) || 0).toFixed(2).replace('.', ',')}</td>
+            <td>Dia ${m.dia_vencimento || 10}</td>
+            <td>${statusBadge}</td>
+          </tr>`;
+        }).join('');
+        lucide.createIcons();
+      } catch (e) {
+        console.error("Erro ao gerar relatório de mensalistas:", e);
+      }
     }
 
     function processTicketMedio(data) {

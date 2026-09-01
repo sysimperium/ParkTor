@@ -327,6 +327,10 @@
                 <input type="checkbox" id="cfgPrintPixQr" style="width: 20px; height: 20px; cursor: pointer;">
                 <label for="cfgPrintPixQr" style="font-size: 0.9rem; cursor: pointer; color: var(--text-primary); font-weight: 600;">Imprimir QRCode PIX no Recibo de Saída</label>
               </div>
+              <div style="display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 5px;">
+                <input type="checkbox" id="cfgOperadorCadastraMensalista" style="width: 20px; height: 20px; cursor: pointer;">
+                <label for="cfgOperadorCadastraMensalista" style="font-size: 0.9rem; cursor: pointer; color: var(--text-primary); font-weight: 600;">Permitir que operadores e manobristas cadastrem novos mensalistas</label>
+              </div>
               <div style="display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 5px;">
                 <label for="cfgPrintMethod" style="font-size: 0.9rem; color: var(--text-primary); font-weight: 600;">Método de Impressão (Deste Dispositivo)</label>
                 <select id="cfgPrintMethod" style="padding: 8px; font-size: 0.85rem; background: rgba(0,0,0,0.2); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; outline: none; width: 100%;">
@@ -618,6 +622,7 @@
         document.getElementById('cfgChecklistEnabled').checked = t.checklist_enabled === true; 
         document.getElementById('cfgOcrEnabled').checked = t.ocr_enabled === true; 
         document.getElementById('cfgPrintPixQr').checked = t.print_pix_qr === true;
+        document.getElementById('cfgOperadorCadastraMensalista').checked = t.operador_cadastra_mensalista === true;
         
         // Carrega método de impressão local
         const savedPrintMethod = localStorage.getItem('parktor_print_method') || 'ble';
@@ -648,7 +653,7 @@
           "<td><strong>" + s.nome + "</strong></td>" +
           "<td>" + (s.username || '-') + "</td>" +
           "<td><span class='badge badge-blue'>" + s.nivel_acesso.toUpperCase() + "</span></td>" +
-          "<td><span class='badge " + (s.status === 'ativo' ? 'badge-green' : 'badge-red') + "'>" + s.status.toUpperCase() + "</span></td>" +
+          "<td><span class='badge " + (s.status === 'ativo' ? 'badge-green' : 'badge-gold') + "'>" + s.status.toUpperCase() + "</span></td>" +
           "<td style='display: flex; gap: 5px;'>" +
             "<button class='btn btn-ghost btn-sm' onclick=\"openEditStaffModal('" + s.id + "')\">EDITAR</button>" +
             "<button class='btn btn-ghost btn-sm' onclick=\"toggleStaffStatus('" + s.id + "', '" + s.status + "')\">" +
@@ -658,6 +663,7 @@
           "</td>" +
         "</tr>";
       }).join('');
+      lucide.createIcons();
     }
 
     // Copiar link de consulta (PATCH 1.3.9)
@@ -672,6 +678,7 @@
       });
     });
 
+    // UPLOAD DE LOGO (PATCH 1.2.7)
     document.getElementById('logoFile').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -734,6 +741,7 @@
         checklist_enabled: document.getElementById('cfgChecklistEnabled').checked,
         ocr_enabled: document.getElementById('cfgOcrEnabled').checked,
         print_pix_qr: document.getElementById('cfgPrintPixQr').checked,
+        operador_cadastra_mensalista: document.getElementById('cfgOperadorCadastraMensalista').checked,
         rotativo_valor_base: parseFloat(document.getElementById('cfgValorBase').value),
         rotativo_excedente_valor: parseFloat(document.getElementById('cfgValorAdic').value),
         rotativo_carencia_min: parseInt(document.getElementById('cfgCarencia').value)

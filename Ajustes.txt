@@ -1,0 +1,40 @@
+ - Ajuste
+
+##1 Quanto ao Selo Dourado/Verde "MENSALISTA"
+
+Nos Elementos do Selo, em Subtítulo com Dados Cruciais: Nome do titular, quantidade de vagas contratadas e telefone/WhatsApp de contato rápido são desnecessarios para o manobrista, não precosa deles e em CONFIRMAR ENTRADA MENSALISTA, não precisa do valor 0,00, pra não confundir o manobrista... O botão de confirmação verde principal passa a exibir apenas ✓ CONFIRMAR ENTRADA MENSALISTA
+
+
+Na Tabela de Veículos no Pátio (Entrada, Saída e Dashboard)... 
+
+Hoje no perfil do manobrista mostra:
+
+
+   Foto                  │ Placa                 │ Entrada              │ Status        │
+  ───────────────────────┼───────────────────────┼──────────────────────┼───────────────┼
+                         │ BRA2E19               │ 08:30                │ Ativo         │
+  ──────
+
+
+No perfil do operadop (caxa) mostra:
+
+
+
+   Placa                 │ Entrada               │ Permanência          │ Ação        │
+  ───────────────────────┼───────────────────────┼──────────────────────┼─────────────┼
+   BRA2E19               │ 08:30                 │ 11 min               │ Saída       │
+  ──────
+
+No manobrista e operador de caixa quero que crie uma nova tabela (visual) abaixo VEICULOS ESTACIONADOS... MENSALISTAS (que só "aparece" se entra um mensalista) nessa nova tabela (nos mesmo padrão da tabela acima VEICULOS ESTACIONADOS) terá um botão AVISAR SAÍDA que o manobrista clica para informar no CAIXA a saida do memnsalista, no caixa "aparecerá" um botão que chame a atenção na tela do operador de caixa para confirmar a saida e a liberação da VAGA para que a parte de finalização fique sempre com o caixa
+
+
+No dashboad do proprietario, també é preciso uma nova tabela VEICULOS EM PÁTIO (MENSALISTAS)
+
+
+Acho que não fui muito claro aqui nessa parte: Consulta de Placas Unificada com Informações Ricas... Pois quando falei da conslta, eu me referia a essa consulta feita pelo motorista (proprietario) https://parktor.vercel.app/consulta.html?t=d536985e-e5df-4702-a2a2-cb1f0bda1c4a é a Consulte o status da sua estadia em tempo real preciso que a do mensalista tenha informações uteis ao mensalçiosta, pois não tem logica informar o tempo, pois para um mesalista, não importa o tempo
+
+
+
+No Controle de Acesso para Novos Cadastros, o valor da mensalidade pode fica vazio, pois não precisa ser preenchido pelo manobrista/caixa.. mas apenas pelo DONO, ao cadstrar ele consegue salvar com o valor zerado.. e no painel do ADM um alerta Mensalista sem mensalidade
+
+

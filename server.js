@@ -10,62 +10,71 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
 
-  // Servir API do Vercel
-  if (pathname === '/api/consulta-placa' || pathname === '/api/ocr-placa') {
-    let body = {};
-    if (req.method === 'POST') {
+  // Servir APIs dinâmicas da pasta /api/
+  if (pathname.startsWith('/api/')) {
+    const apiName = pathname.replace('/api/', '').split('/')[0];
+    const apiFile = path.join(__dirname, 'api', `${apiName}.js`);
+
+    if (fs.existsSync(apiFile)) {
+      let body = {};
+      if (req.method === 'POST') {
+        try {
+          const buffers = [];
+          for await (const chunk of req) {
+            buffers.push(chunk);
+          }
+          const rawBody = Buffer.concat(buffers).toString();
+          if (rawBody) {
+            body = JSON.parse(rawBody);
+          }
+        } catch (e) {
+          console.error('Erro ao ler body JSON:', e);
+        }
+      }
+
+      const mockReq = {
+        method: req.method,
+        query: parsedUrl.query,
+        headers: req.headers,
+        body: body
+      };
+
+      const mockRes = {
+        statusCode: 200,
+        headers: {},
+        setHeader(name, val) {
+          this.headers[name] = val;
+          res.setHeader(name, val);
+        },
+        status(code) {
+          this.statusCode = code;
+          res.statusCode = code;
+          return this;
+        },
+        json(data) {
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify(data));
+          return this;
+        },
+        send(data) {
+          res.end(data);
+          return this;
+        },
+        end(data) {
+          res.end(data);
+        }
+      };
+
       try {
-        const buffers = [];
-        for await (const chunk of req) {
-          buffers.push(chunk);
-        }
-        const rawBody = Buffer.concat(buffers).toString();
-        if (rawBody) {
-          body = JSON.parse(rawBody);
-        }
-      } catch (e) {
-        console.error('Erro ao ler body JSON:', e);
+        const handler = require(apiFile);
+        await handler(mockReq, mockRes);
+      } catch (err) {
+        console.error(`Erro na rota ${pathname}:`, err);
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: err.message }));
       }
+      return;
     }
-
-    const mockReq = {
-      method: req.method,
-      query: parsedUrl.query,
-      headers: req.headers,
-      body: body
-    };
-
-    const mockRes = {
-      statusCode: 200,
-      headers: {},
-      setHeader(name, val) {
-        this.headers[name] = val;
-        res.setHeader(name, val);
-      },
-      status(code) {
-        this.statusCode = code;
-        res.statusCode = code;
-        return this;
-      },
-      json(data) {
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.end(JSON.stringify(data));
-        return this;
-      },
-      end(data) {
-        res.end(data);
-      }
-    };
-
-    try {
-      const activeHandler = pathname === '/api/ocr-placa' ? handlerOcr : handlerConsulta;
-      await activeHandler(mockReq, mockRes);
-    } catch (err) {
-      console.error(err);
-      res.statusCode = 500;
-      res.end(JSON.stringify({ error: err.message }));
-    }
-    return;
   }
 
   // Servir arquivos estáticos

@@ -306,8 +306,26 @@
 
         <div id="vehicleDetails" style="font-size: 1.1rem; font-weight: 700; text-align: center; margin-top: -8px; margin-bottom: 20px; color: var(--gold-400); text-transform: uppercase;"></div>
 
-        <!-- Grade de Info -->
-        <div class="info-grid">
+        <!-- Painel Exclusivo para Mensalista (PATCH 1.4.0) -->
+        <div id="mensalistaSection" style="display: none; background: rgba(212, 168, 68, 0.08); border: 1px solid var(--gold-400); border-radius: var(--radius-md); padding: 18px; text-align: center; margin-bottom: 20px;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(212, 168, 68, 0.2); border-radius: 20px; color: var(--gold-300); font-weight: 800; font-size: 0.85rem; margin-bottom: 12px;">
+            <i data-lucide="star" style="width: 16px; height: 16px;"></i> CLIENTE MENSALISTA
+          </div>
+          <h4 id="mensalistaNomeDisplay" style="font-size: 1.2rem; color: var(--text-primary); margin-bottom: 6px;">...</h4>
+          <p style="font-size: 0.85rem; color: var(--green-300); font-weight: 700; margin-bottom: 12px;">
+            ✓ Veículo Estacionado com Segurança
+          </p>
+          <div style="border-top: 1px dashed var(--border); padding-top: 12px; font-size: 0.85rem; color: var(--text-secondary);">
+            <div><strong>Horário de Entrada:</strong> <span id="mInfoEntrada">--:--</span></div>
+            <div style="margin-top: 4px;"><strong>Status do Contrato:</strong> <span id="mInfoStatus" style="color: var(--green-300); font-weight: 700;">Mensalidade em Dia</span></div>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 14px;">
+            Tarifa mensal inclusa. Não é necessário efetuar pagamento na saída.
+          </p>
+        </div>
+
+        <!-- Grade de Info Rotativo -->
+        <div class="info-grid" id="rotativoInfoGrid">
           <div class="info-item">
             <div class="info-label">Entrada</div>
             <div id="infoEntrada" class="info-val">00:00</div>
@@ -318,8 +336,8 @@
           </div>
         </div>
 
-        <!-- Detalhamento de Tarifa -->
-        <div class="tariff-details">
+        <!-- Detalhamento de Tarifa Rotativo -->
+        <div class="tariff-details" id="rotativoTariffDetails">
           <h3 class="tariff-title">Tarifa Estimada</h3>
           <div class="rotation-list" id="rotationList">
             <!-- Dinamico -->
@@ -331,7 +349,7 @@
         </div>
 
         <!-- Alerta de Consulta -->
-        <div class="alert-banner">
+        <div class="alert-banner" id="rotativoAlertBanner">
           <i data-lucide="info" size="18"></i>
           <p class="alert-text">Esse valor é atualizado em tempo real para sua comodidade e serve como referência. O pagamento deverá ser realizado diretamente no caixa de saída.</p>
         </div>
@@ -418,9 +436,10 @@
 
       try {
         let query = sb.from('valet_entries')
-          .select('*, tenants(*)')
+          .select('*, tenants(*), mensalistas(*)')
           .ilike('placa', plate)
           .eq('status', 'ativo')
+          .is('saida', null)
           .order('entrada', { ascending: false });
 
         // Se o tenant_id foi passado na URL, filtra por ele para maior precisão
@@ -517,29 +536,52 @@
         vehicleDetailsEl.style.display = 'none';
       }
 
-      // Horários
-      const entrada = new Date(currentEntryData.entrada);
-      document.getElementById('infoEntrada').textContent = entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const isMensalista = currentEntryData.tipo_estadia === 'mensalista' || !!currentEntryData.mensalista_id;
 
-      // Cálculo de Permanência e Faixas
-      const agora = new Date();
-      const calc = calcularRotationHistory(entrada, agora, currentTenantData);
+      if (isMensalista) {
+        document.getElementById('mensalistaSection').style.display = 'block';
+        document.getElementById('rotativoInfoGrid').style.display = 'none';
+        document.getElementById('rotativoTariffDetails').style.display = 'none';
+        document.getElementById('rotativoAlertBanner').style.display = 'none';
 
-      document.getElementById('infoTempo').textContent = `${calc.minutos} min`;
-      document.getElementById('infoTotal').textContent = `R$ ${calc.total.toFixed(2).replace('.', ',')}`;
+        const mNome = currentEntryData.mensalistas?.nome || 'Assinante Mensalista';
+        document.getElementById('mensalistaNomeDisplay').textContent = mNome;
+        const entrada = new Date(currentEntryData.entrada);
+        document.getElementById('mInfoEntrada').textContent = `${entrada.toLocaleDateString('pt-BR')} às ${entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        const diaVenc = currentEntryData.mensalistas?.dia_vencimento || 10;
+        document.getElementById('mInfoStatus').textContent = `Mensalidade em Dia (Vencimento Dia ${diaVenc})`;
+      } else {
+        document.getElementById('mensalistaSection').style.display = 'none';
+        document.getElementById('rotativoInfoGrid').style.display = 'grid';
+        document.getElementById('rotativoTariffDetails').style.display = 'block';
+        document.getElementById('rotativoAlertBanner').style.display = 'flex';
 
-      // Monta faixas na lista
-      const listEl = document.getElementById('rotationList');
-      let html = '';
-      calc.history.forEach(h => {
-        html += `
-          <div class="rotation-item">
-            <span class="rotation-label">${h.label}</span>
-            <span class="rotation-value">R$ ${h.valor.toFixed(2).replace('.', ',')}</span>
-          </div>
-        `;
-      });
-      listEl.innerHTML = html;
+        // Horários
+        const entrada = new Date(currentEntryData.entrada);
+        document.getElementById('infoEntrada').textContent = entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        // Cálculo de Permanência e Faixas
+        const agora = new Date();
+        const calc = calcularRotationHistory(entrada, agora, currentTenantData);
+
+        document.getElementById('infoTempo').textContent = `${calc.minutos} min`;
+        document.getElementById('infoTotal').textContent = `R$ ${calc.total.toFixed(2).replace('.', ',')}`;
+
+        // Monta faixas na lista
+        const listEl = document.getElementById('rotationList');
+        let html = '';
+        calc.history.forEach(h => {
+          html += `
+            <div class="rotation-item">
+              <span class="rotation-label">${h.label}</span>
+              <span class="rotation-value">R$ ${h.valor.toFixed(2).replace('.', ',')}</span>
+            </div>
+          `;
+        });
+        listEl.innerHTML = html;
+      }
+
+      lucide.createIcons();
     }
 
     function calcularRotationHistory(entrada, saida, tenantData) {

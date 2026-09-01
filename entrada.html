@@ -305,6 +305,9 @@
 
         <!-- Preview da Placa Dinâmica (PATCH 1.3.0) -->
         <div class="plate-preview-container">
+          <div id="mensalistaBadge" class="mensalista-badge" style="display: none; margin-bottom: 12px;">
+            <i data-lucide="star"></i> MENSALISTA
+          </div>
           <div id="platePreview" class="real-plate classic" style="display: none;">
             <div class="plate-header-band">
               <div class="plate-header-text">BRASIL</div>
@@ -358,6 +361,24 @@
             <thead><tr><th id="thFoto">Foto</th><th>Placa</th><th>Entrada</th><th>Status</th></tr></thead>
             <tbody id="historyTableBody">
               <tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum veículo no pátio.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TABELA MENSALISTAS NO PÁTIO (PATCH 1.4.0) -->
+      <div class="card table-mensalista-card anim-fadeInUp" id="cardMensalistasPatio" style="display: none; margin-top: 20px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="card-title" style="color: var(--gold-400); display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="star" style="width: 18px; height: 18px;"></i> Mensalistas no Pátio
+          </h3>
+          <span class="badge badge-gold" id="mensalistasPatioCount">0</span>
+        </div>
+        <div class="tw">
+          <table class="tab">
+            <thead><tr><th id="thFotoMensalista">Foto</th><th>Placa</th><th>Entrada</th><th>Ação</th></tr></thead>
+            <tbody id="mensalistasTableBody">
+              <tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum mensalista no pátio.</td></tr>
             </tbody>
           </table>
         </div>
@@ -610,6 +631,7 @@
         .select('*', { count: 'exact' })
         .eq('tenant_id', tenantId)
         .eq('status', 'ativo')
+        .is('saida', null)
         .order('entrada', { ascending: false });
 
       // Atualiza Stats (PATCH 1.2.3)
@@ -631,32 +653,94 @@
 
       const tbody = document.getElementById('historyTableBody');
       const isOcrEnabled = !!(currentUser.tenants && currentUser.tenants.ocr_enabled);
+      
       if (error || !data || data.length === 0) {
         const cols = isOcrEnabled ? 4 : 3;
         tbody.innerHTML = '<tr><td colspan="' + cols + '" style="text-align: center; padding: 20px;">Nenhum veículo no pátio.</td></tr>';
+        document.getElementById('cardMensalistasPatio').style.display = 'none';
         return;
       }
 
-      var html = '';
-      for (var i = 0; i < data.length; i++) {
-        var item = data[i];
-        
-        let photoTd = '';
-        if (isOcrEnabled) {
-          photoTd = item.placa_foto_url 
-            ? '<td><img src="' + item.placa_foto_url + '" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--border);" onclick="openPhotoModal(\'' + item.placa_foto_url + '\')"></td>'
-            : '<td><div style="width: 40px; height: 30px; border-radius: 4px; border: 1px dotted var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);"><i data-lucide="image-off" size="14"></i></div></td>';
-        }
+      // Separar Rotativos vs Mensalistas (PATCH 1.4.0)
+      const rotativos = data.filter(e => e.tipo_estadia !== 'mensalista');
+      const mensalistas = data.filter(e => e.tipo_estadia === 'mensalista');
 
-        html += '<tr>' +
-          photoTd +
-          '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
-          '<td>' + new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
-          '<td><span class="badge ' + (item.status === 'ativo' ? 'badge-gold' : 'badge-green') + '">' + item.status.toUpperCase() + '</span></td>' +
-        '</tr>';
+      // 1. Renderiza Rotativos
+      if (rotativos.length === 0) {
+        const cols = isOcrEnabled ? 4 : 3;
+        tbody.innerHTML = '<tr><td colspan="' + cols + '" style="text-align: center; padding: 20px;">Nenhum veículo rotativo no pátio.</td></tr>';
+      } else {
+        var html = '';
+        for (var i = 0; i < rotativos.length; i++) {
+          var item = rotativos[i];
+          let photoTd = '';
+          if (isOcrEnabled) {
+            photoTd = item.placa_foto_url 
+              ? '<td><img src="' + item.placa_foto_url + '" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--border);" onclick="openPhotoModal(\'' + item.placa_foto_url + '\')"></td>'
+              : '<td><div style="width: 40px; height: 30px; border-radius: 4px; border: 1px dotted var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);"><i data-lucide="image-off" size="14"></i></div></td>';
+          }
+
+          html += '<tr>' +
+            photoTd +
+            '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
+            '<td>' + new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+            '<td><span class="badge ' + (item.status === 'ativo' ? 'badge-gold' : 'badge-green') + '">' + item.status.toUpperCase() + '</span></td>' +
+          '</tr>';
+        }
+        tbody.innerHTML = html;
       }
-      tbody.innerHTML = html;
+
+      // 2. Renderiza Mensalistas no Pátio (PATCH 1.4.0)
+      const cardMensalistas = document.getElementById('cardMensalistasPatio');
+      const tbodyMensalistas = document.getElementById('mensalistasTableBody');
+      const thFotoMensalista = document.getElementById('thFotoMensalista');
+      if (thFotoMensalista) thFotoMensalista.style.display = isOcrEnabled ? '' : 'none';
+
+      if (mensalistas.length > 0) {
+        cardMensalistas.style.display = 'block';
+        document.getElementById('mensalistasPatioCount').textContent = mensalistas.length;
+
+        var mHtml = '';
+        for (var j = 0; j < mensalistas.length; j++) {
+          var mItem = mensalistas[j];
+          let photoTd = '';
+          if (isOcrEnabled) {
+            photoTd = mItem.placa_foto_url 
+              ? '<td><img src="' + mItem.placa_foto_url + '" style="width: 40px; height: 30px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid var(--border);" onclick="openPhotoModal(\'' + mItem.placa_foto_url + '\')"></td>'
+              : '<td><div style="width: 40px; height: 30px; border-radius: 4px; border: 1px dotted var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);"><i data-lucide="image-off" size="14"></i></div></td>';
+          }
+
+          const btnAcao = mItem.aviso_saida_solicitado 
+            ? `<button class="btn-avisar-saida enviado" disabled><i data-lucide="check"></i> Aviso Enviado ⏳</button>`
+            : `<button class="btn-avisar-saida" onclick="avisarSaida('${mItem.id}')"><i data-lucide="bell"></i> AVISAR SAÍDA</button>`;
+
+          mHtml += '<tr>' +
+            photoTd +
+            '<td><strong style="font-family: var(--font-display); letter-spacing: 1px; color: var(--gold-300);">' + mItem.placa + '</strong></td>' +
+            '<td>' + new Date(mItem.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+            '<td>' + btnAcao + '</td>' +
+          '</tr>';
+        }
+        tbodyMensalistas.innerHTML = mHtml;
+      } else {
+        cardMensalistas.style.display = 'none';
+        tbodyMensalistas.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum mensalista no pátio.</td></tr>';
+      }
+
       lucide.createIcons();
+    }
+
+    async function avisarSaida(entryId) {
+      try {
+        const { error } = await sb.from('valet_entries')
+          .update({ aviso_saida_solicitado: true, aviso_saida_em: new Date().toISOString() })
+          .eq('id', entryId);
+        if (error) throw error;
+        showAlert('Aviso Enviado', 'O operador do caixa foi notificado da saída deste mensalista.', 'success');
+        await loadHistory();
+      } catch (err) {
+        showAlert('Erro', 'Não foi possível avisar o caixa: ' + err.message, 'danger');
+      }
     }
 
     // Validação de Placa (Brasil: XXX9999 ou XXX9X99)
@@ -852,7 +936,38 @@
         console.error('Erro ao verificar duplicidade:', err);
       }
 
-      const confirmed = await showConfirm('Confirmar Entrada', `Deseja registrar a entrada da placa ${plate}?`);
+      // VERIFICAÇÃO DE VAGAS CONTRATADAS DO MENSALISTA (PATCH 1.4.0)
+      if (currentMensalista) {
+        try {
+          const { data: activeMEntries } = await sb.from('valet_entries')
+            .select('id, placa')
+            .eq('tenant_id', tenantId)
+            .eq('mensalista_id', currentMensalista.id)
+            .eq('status', 'ativo')
+            .is('saida', null);
+
+          const vagasContratadas = currentMensalista.vagas_contratadas || 1;
+          if (activeMEntries && activeMEntries.length >= vagasContratadas) {
+            const placasOcupando = activeMEntries.map(e => e.placa).join(', ');
+            const treatAsRotativo = await showConfirm(
+              'Vaga Já Ocupada',
+              `O mensalista possui ${vagasContratadas} vaga(s) contratada(s), já ocupada(s) pelo veículo [${placasOcupando}]. Deseja registrar este veículo como ROTATIVO AVULSO?`
+            );
+            if (!treatAsRotativo) {
+              return;
+            } else {
+              currentMensalista = null;
+            }
+          }
+        } catch (mCheckErr) {
+          console.error("Erro ao checar vagas de mensalista:", mCheckErr);
+        }
+      }
+
+      const confirmed = await showConfirm(
+        currentMensalista ? 'Confirmar Entrada Mensalista' : 'Confirmar Entrada',
+        `Deseja registrar a entrada da placa ${plate}${currentMensalista ? ' (MENSALISTA)' : ''}?`
+      );
       if (!confirmed) return;
 
       const btn = document.getElementById('btnConfirm');
@@ -870,6 +985,9 @@
         entrada: entryTime,
         operador_entrada_id: currentUser.id,
         status: 'ativo',
+        mensalista_id: currentMensalista ? currentMensalista.id : null,
+        tipo_estadia: currentMensalista ? 'mensalista' : 'rotativo',
+        aviso_saida_solicitado: false,
         checklist_data: currentChecklistMarks.length > 0 ? currentChecklistMarks : null,
         placa_foto_url: uploadedPlatePhotoUrl
       }]);
@@ -906,6 +1024,12 @@
         // Resetar Preview da Placa (PATCH 1.3.0)
         const preview = document.getElementById('platePreview');
         if (preview) preview.style.display = 'none';
+
+        currentMensalista = null;
+        const mBadge = document.getElementById('mensalistaBadge');
+        if (mBadge) mBadge.style.display = 'none';
+        const confirmBtnText = document.querySelector('#btnConfirm span');
+        if (confirmBtnText) confirmBtnText.textContent = 'CONFIRMAR ENTRADA';
         
         showAlert('Sucesso', 'Entrada registrada com sucesso!', 'success');
         loadHistory();
@@ -1002,9 +1126,35 @@
       document.getElementById('modalPhotoView').classList.remove('show');
     }
 
+    let currentMensalista = null;
+
     async function buscarVeiculoPorPlaca(plate) {
       try {
-        // Busca primeiro no banco de dados local
+        // 1. Verifica se a placa pertence a um Mensalista Ativo
+        const { data: mvData } = await sb.from('mensalista_veiculos')
+          .select('*, mensalistas(*)')
+          .eq('tenant_id', tenantId)
+          .eq('placa', plate)
+          .maybeSingle();
+
+        if (mvData && mvData.mensalistas && !mvData.mensalistas.cobrar_como_rotativo) {
+          currentMensalista = mvData.mensalistas;
+          const mBadge = document.getElementById('mensalistaBadge');
+          if (mBadge) mBadge.style.display = 'inline-flex';
+          const confirmBtnText = document.querySelector('#btnConfirm span');
+          if (confirmBtnText) confirmBtnText.textContent = '✓ CONFIRMAR ENTRADA MENSALISTA';
+          if (mvData.marca) document.getElementById('marcaInput').value = mvData.marca.toUpperCase();
+          if (mvData.modelo) document.getElementById('modeloInput').value = mvData.modelo.toUpperCase();
+          lucide.createIcons();
+        } else {
+          currentMensalista = null;
+          const mBadge = document.getElementById('mensalistaBadge');
+          if (mBadge) mBadge.style.display = 'none';
+          const confirmBtnText = document.querySelector('#btnConfirm span');
+          if (confirmBtnText) confirmBtnText.textContent = 'CONFIRMAR ENTRADA';
+        }
+
+        // 2. Busca primeiro no banco de dados local
         const { data, error } = await sb.from('veiculos')
           .select('marca, modelo, cidade')
           .eq('placa', plate)
@@ -1068,11 +1218,21 @@
         document.getElementById('marcaInput').value = '';
         document.getElementById('modeloInput').value = '';
         currentVehicleCidade = '';
+        currentMensalista = null;
+        const mBadge = document.getElementById('mensalistaBadge');
+        if (mBadge) mBadge.style.display = 'none';
+        const confirmBtnText = document.querySelector('#btnConfirm span');
+        if (confirmBtnText) confirmBtnText.textContent = 'CONFIRMAR ENTRADA';
         return;
       }
       
       if (val.length < 7) {
         currentVehicleCidade = '';
+        currentMensalista = null;
+        const mBadge = document.getElementById('mensalistaBadge');
+        if (mBadge) mBadge.style.display = 'none';
+        const confirmBtnText = document.querySelector('#btnConfirm span');
+        if (confirmBtnText) confirmBtnText.textContent = 'CONFIRMAR ENTRADA';
       }
       
       preview.style.display = 'flex';

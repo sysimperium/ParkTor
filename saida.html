@@ -342,6 +342,24 @@
             </table>
           </div>
         </div>
+
+        <!-- TABELA MENSALISTAS NO PÁTIO (PATCH 1.4.0) -->
+        <div class="card table-mensalista-card anim-fadeInUp" id="cardMensalistasPatioSaida" style="display: none; margin-top: 20px;">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="color: var(--gold-400); display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="star" style="width: 18px; height: 18px;"></i> Mensalistas no Pátio
+            </h3>
+            <span class="badge badge-gold" id="mensalistasPatioSaidaCount">0</span>
+          </div>
+          <div class="tw">
+            <table class="tab">
+              <thead><tr><th>Placa</th><th>Entrada</th><th>Permanência</th><th>Ação</th></tr></thead>
+              <tbody id="mensalistasSaidaTableBody">
+                <tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum mensalista no pátio.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- SEÇÃO HISTÓRICO -->
@@ -798,34 +816,116 @@
         .select('*, checklist_data')
         .eq('tenant_id', tenantId)
         .eq('status', 'ativo')
+        .is('saida', null)
         .order('entrada', { ascending: true });
         
       const tbody = document.getElementById('activeTableBody');
       if (error || !data || data.length === 0) {
         document.getElementById('activeCount').textContent = '0';
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Pátio vazio</td></tr>';
+        document.getElementById('cardMensalistasPatioSaida').style.display = 'none';
         activeEntries = [];
         return;
       }
       activeEntries = data;
-      document.getElementById('activeCount').textContent = data.length;
+
+      // Separar Rotativos vs Mensalistas (PATCH 1.4.0)
+      const rotativos = data.filter(e => e.tipo_estadia !== 'mensalista');
+      const mensalistas = data.filter(e => e.tipo_estadia === 'mensalista');
+
+      document.getElementById('activeCount').textContent = rotativos.length;
       
-      var html = '';
-      const agora = new Date();
-      for (var i = 0; i < data.length; i++) {
-        var item = data[i];
-        const entrada = new Date(item.entrada);
-        const minutos = Math.floor((agora - entrada) / 60000);
-        
-        html += '<tr>' +
-          '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
-          '<td>' + entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
-          '<td><span class="badge badge-gold">' + minutos + ' min</span></td>' +
-          '<td><button class="btn btn-ghost btn-sm" onclick="startCheckout(\'' + item.id + '\')">SAÍDA</button></td>' +
-        '</tr>';
+      // 1. Renderiza Rotativos
+      if (rotativos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum veículo rotativo no pátio.</td></tr>';
+      } else {
+        var html = '';
+        const agora = new Date();
+        for (var i = 0; i < rotativos.length; i++) {
+          var item = rotativos[i];
+          const entrada = new Date(item.entrada);
+          const minutos = Math.floor((agora - entrada) / 60000);
+          
+          html += '<tr>' +
+            '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
+            '<td>' + entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+            '<td><span class="badge badge-gold">' + minutos + ' min</span></td>' +
+            '<td><button class="btn btn-ghost btn-sm" onclick="startCheckout(\'' + item.id + '\')">SAÍDA</button></td>' +
+          '</tr>';
+        }
+        tbody.innerHTML = html;
       }
-      tbody.innerHTML = html;
+
+      // 2. Renderiza Mensalistas no Pátio (PATCH 1.4.0)
+      const cardMensalistas = document.getElementById('cardMensalistasPatioSaida');
+      const tbodyMensalistas = document.getElementById('mensalistasSaidaTableBody');
+
+      if (mensalistas.length > 0) {
+        cardMensalistas.style.display = 'block';
+        document.getElementById('mensalistasPatioSaidaCount').textContent = mensalistas.length;
+
+        var mHtml = '';
+        const agora = new Date();
+        for (var j = 0; j < mensalistas.length; j++) {
+          var mItem = mensalistas[j];
+          const mEntrada = new Date(mItem.entrada);
+          const mMinutos = Math.floor((agora - mEntrada) / 60000);
+          const mHoras = Math.floor(mMinutos / 60);
+          const mRestoMin = mMinutos % 60;
+          const tempoFormatado = mHoras > 0 ? `${mHoras}h ${mRestoMin}m` : `${mMinutos} min`;
+
+          const isAviso = !!mItem.aviso_saida_solicitado;
+          const rowClass = isAviso ? 'class="row-saida-aviso"' : '';
+          const btnAcao = isAviso
+            ? `<button class="btn btn-primary btn-sm btn-saida-chamativo" onclick="confirmarSaidaMensalista('${mItem.id}', '${mItem.placa}')">🔔 CONFIRMAR SAÍDA E LIBERAR VAGA</button>`
+            : `<button class="btn btn-ghost btn-sm" style="color: var(--gold-400); border-color: var(--border);" onclick="confirmarSaidaMensalista('${mItem.id}', '${mItem.placa}')">LIBERAR SAÍDA</button>`;
+
+          mHtml += `<tr ${rowClass}>` +
+            `<td><strong style="font-family: var(--font-display); letter-spacing: 1px; color: var(--gold-300);">${mItem.placa}</strong></td>` +
+            `<td>${mEntrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>` +
+            `<td><span class="badge badge-gold">${tempoFormatado}</span></td>` +
+            `<td>${btnAcao}</td>` +
+          `</tr>`;
+        }
+        tbodyMensalistas.innerHTML = mHtml;
+      } else {
+        cardMensalistas.style.display = 'none';
+        tbodyMensalistas.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum mensalista no pátio.</td></tr>';
+      }
+
       document.getElementById('searchInput').focus();
+      lucide.createIcons();
+    }
+
+    async function confirmarSaidaMensalista(entryId, placa) {
+      if (!currentCashier) {
+        showAlert('Caixa Fechado', 'Por favor, abra o caixa para registrar saídas.', 'warning');
+        return;
+      }
+      const confirmed = await showConfirm(
+        'Confirmar Saída Mensalista',
+        `Confirmar a saída do mensalista [${placa}] e liberar a vaga no pátio?`
+      );
+      if (!confirmed) return;
+
+      try {
+        const saidaTime = new Date().toISOString();
+        const { error } = await sb.from('valet_entries').update({
+          saida: saidaTime,
+          status: 'finalizado',
+          valor_total: 0.00,
+          forma_pagamento: 'mensalista',
+          cashier_session_id: currentCashier.id,
+          operador_saida_id: currentUser.id
+        }).eq('id', entryId);
+
+        if (error) throw error;
+
+        showAlert('Saída Confirmada', `Veículo ${placa} liberado com sucesso! Vaga liberada no pátio.`, 'success');
+        await loadActive();
+      } catch (err) {
+        showAlert('Erro', 'Não foi possível confirmar a saída: ' + err.message, 'danger');
+      }
     }
 
     function calcularRotationHistory(entradaStr, saidaStr, isSegundaEntrada = false) {
@@ -894,7 +994,13 @@
 
     async function startCheckout(id) {
       const { data, error } = await sb.from('valet_entries').select('*').eq('id', id).single();
-      if (error) return;
+      if (error || !data) return;
+      
+      if (data.tipo_estadia === 'mensalista') {
+        confirmarSaidaMensalista(data.id, data.placa);
+        return;
+      }
+
       selectedEntry = data;
       const agora = new Date().toISOString();
       selectedEntry.saida = agora;

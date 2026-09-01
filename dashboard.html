@@ -199,7 +199,7 @@
         <!-- Card Ativos -->
         <div class="card anim-fadeInUp">
           <div class="card-header">
-            <h3 class="card-title">Veículos em Pátio</h3>
+            <h3 class="card-title">Veículos em Pátio (Rotativo)</h3>
             <a href="saida.html" class="btn btn-ghost btn-sm" id="btnVerTodosSaida">Ver Todos</a>
           </div>
           <div class="tw">
@@ -217,6 +217,31 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- Card Mensalistas no Pátio (PATCH 1.4.0) -->
+      <div class="card table-mensalista-card anim-fadeInUp" id="cardMensalistasDash" style="display: none; margin-top: 20px;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="card-title" style="color: var(--gold-400); display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="star" style="width: 18px; height: 18px;"></i> Veículos em Pátio (Mensalistas)
+          </h3>
+          <a href="mensalistas.html" class="btn btn-ghost btn-sm" style="color: var(--gold-400);">Ver Mensalistas</a>
+        </div>
+        <div class="tw">
+          <table class="tab">
+            <thead>
+              <tr>
+                <th>Placa</th>
+                <th>Entrada</th>
+                <th>Permanência</th>
+                <th class="col-acao">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="mensalistasDashTableBody">
+              <tr><td colspan="4" class="txt-center pd-lg">Nenhum mensalista no pátio.</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -376,27 +401,72 @@
         document.getElementById('statTime').textContent = avg + " min";
       }
 
-      const { data: activeList } = await sb.from('v_veiculos_ativos').select('*').eq('tenant_id', tenantId).limit(10);
-      renderActiveTable(activeList);
+      // Carregar veículos ativos do pátio
+      const { data: allActive } = await sb.from('valet_entries')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'ativo')
+        .is('saida', null)
+        .order('entrada', { ascending: false });
+
+      const rotativos = (allActive || []).filter(e => e.tipo_estadia !== 'mensalista');
+      const mensalistas = (allActive || []).filter(e => e.tipo_estadia === 'mensalista');
+
+      renderActiveTable(rotativos);
+      renderMensalistasTable(mensalistas);
     }
 
     function renderActiveTable(list) {
       const tbody = document.getElementById('activeTableBody');
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Pátio vazio</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum rotativo no pátio</td></tr>';
         return;
       }
       var html = '';
+      const agora = new Date();
       for (var i = 0; i < list.length; i++) {
         var item = list[i];
+        const entrada = new Date(item.entrada);
+        const minutos = Math.floor((agora - entrada) / 60000);
         html += '<tr>' +
           '<td><strong style="font-family: var(--font-display); letter-spacing: 1px;">' + item.placa + '</strong></td>' +
-          '<td>' + new Date(item.entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
-          '<td><span class="badge badge-gold">' + Math.floor(item.minutos_estacionado) + ' min</span></td>' +
+          '<td>' + entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td><span class="badge badge-gold">' + minutos + ' min</span></td>' +
           '<td><a href="saida.html?id=' + item.id + '" class="btn btn-ghost btn-sm">SAÍDA</a></td>' +
         '</tr>';
       }
       tbody.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function renderMensalistasTable(list) {
+      const card = document.getElementById('cardMensalistasDash');
+      const tbody = document.getElementById('mensalistasDashTableBody');
+      if (!list || list.length === 0) {
+        card.style.display = 'none';
+        tbody.innerHTML = '<tr><td colspan="4" class="txt-center pd-lg">Nenhum mensalista no pátio.</td></tr>';
+        return;
+      }
+      card.style.display = 'block';
+      const agora = new Date();
+      var html = '';
+      for (var i = 0; i < list.length; i++) {
+        var item = list[i];
+        const entrada = new Date(item.entrada);
+        const minutos = Math.floor((agora - entrada) / 60000);
+        const horas = Math.floor(minutos / 60);
+        const restoMin = minutos % 60;
+        const tempoFormatado = horas > 0 ? `${horas}h ${restoMin}m` : `${minutos} min`;
+
+        html += '<tr>' +
+          '<td><strong style="font-family: var(--font-display); letter-spacing: 1px; color: var(--gold-300);">' + item.placa + '</strong></td>' +
+          '<td>' + entrada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</td>' +
+          '<td><span class="badge badge-gold">' + tempoFormatado + '</span></td>' +
+          '<td><a href="saida.html" class="btn btn-ghost btn-sm">LIBERAR</a></td>' +
+        '</tr>';
+      }
+      tbody.innerHTML = html;
+      lucide.createIcons();
     }
 
     init();
