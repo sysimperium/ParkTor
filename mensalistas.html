@@ -871,7 +871,10 @@
           dia_vencimento,
           cobrar_como_rotativo,
           observacoes,
-          status: 'ativo'
+          status: 'ativo',
+          placa: veiculos[0]?.placa || null,
+          marca: veiculos[0]?.marca || null,
+          modelo: veiculos[0]?.modelo || null
         };
 
         let mensalistaId = id;

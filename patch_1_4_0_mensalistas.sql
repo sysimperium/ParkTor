@@ -37,6 +37,23 @@ ADD COLUMN IF NOT EXISTS observacoes TEXT,
 ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
 
+-- REMOVER RESTRIÇÕES NOT NULL DE COLUNAS LEGADAS CASO EXISTAM NA TABELA MENSALISTAS ANTIGA
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mensalistas' AND column_name = 'placa') THEN
+    ALTER TABLE public.mensalistas ALTER COLUMN placa DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mensalistas' AND column_name = 'marca') THEN
+    ALTER TABLE public.mensalistas ALTER COLUMN marca DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mensalistas' AND column_name = 'modelo') THEN
+    ALTER TABLE public.mensalistas ALTER COLUMN modelo DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mensalistas' AND column_name = 'cor') THEN
+    ALTER TABLE public.mensalistas ALTER COLUMN cor DROP NOT NULL;
+  END IF;
+END $$;
+
 -- 2. TABELA DE VEÍCULOS DOS MENSALISTAS (MÚLTIPLAS PLACAS)
 CREATE TABLE IF NOT EXISTS public.mensalista_veiculos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
