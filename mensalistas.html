@@ -450,6 +450,31 @@
     </div>
   </div>
 
+  <!-- MODAL DE ALERTA CUSTOMIZADO (PADRÃO PARKTOR) -->
+  <div class="modal-overlay" id="modalCustomAlert" style="z-index: 10000;">
+    <div class="modal card modal-alert anim-fadeInUp">
+      <div class="modal-icon warning" id="alertIcon"><i data-lucide="alert-triangle"></i></div>
+      <h3 class="modal-title" id="alertTitle">Aviso</h3>
+      <p class="modal-text" id="alertText">Mensagem de alerta...</p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn btn-primary" onclick="closeAlert()">ENTENDIDO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO CUSTOMIZADO (PADRÃO PARKTOR) -->
+  <div class="modal-overlay" id="modalCustomConfirm" style="z-index: 10000;">
+    <div class="modal card modal-alert anim-fadeInUp">
+      <div class="modal-icon gold"><i data-lucide="help-circle"></i></div>
+      <h3 class="modal-title" id="confirmTitle">Confirmar Ação</h3>
+      <p class="modal-text" id="confirmText">Tem certeza que deseja prosseguir?</p>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn btn-ghost" onclick="closeConfirm(false)">CANCELAR</button>
+        <button class="btn btn-primary" id="btnConfirmAction">CONFIRMAR</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
@@ -458,6 +483,37 @@
 
     let currentUser = null, tenantId = null, tenantConfig = null;
     let allMensalistas = [], activeHistMensalistaId = null;
+
+    /* --- NOTIFICAÇÕES NATIVAS DO PARKTOR --- */
+    function showAlert(title, text, type = 'warning') {
+      document.getElementById('alertTitle').innerText = title;
+      document.getElementById('alertText').innerText = text;
+      const iconDiv = document.getElementById('alertIcon');
+      iconDiv.className = 'modal-icon ' + type;
+      iconDiv.innerHTML = '<i data-lucide="' + (type === 'success' ? 'check-circle' : (type === 'danger' ? 'x-circle' : 'alert-triangle')) + '"></i>';
+      document.getElementById('modalCustomAlert').classList.add('show');
+      lucide.createIcons();
+    }
+
+    function closeAlert() {
+      document.getElementById('modalCustomAlert').classList.remove('show');
+    }
+
+    let confirmResolve;
+    function showConfirm(title, text) {
+      document.getElementById('confirmTitle').innerText = title;
+      document.getElementById('confirmText').innerText = text;
+      document.getElementById('modalCustomConfirm').classList.add('show');
+      return new Promise((resolve) => {
+        confirmResolve = resolve;
+        document.getElementById('btnConfirmAction').onclick = () => closeConfirm(true);
+      });
+    }
+
+    function closeConfirm(result) {
+      document.getElementById('modalCustomConfirm').classList.remove('show');
+      if (confirmResolve) confirmResolve(result);
+    }
 
     function openMenu() { document.getElementById('sb').classList.add('open'); document.getElementById('overlay').classList.add('open'); }
     function closeMenu() { document.getElementById('sb').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
@@ -798,7 +854,7 @@
         });
 
         if (veiculos.length === 0) {
-          alert('Por favor, adicione pelo menos 1 placa válida com 7 dígitos.');
+          showAlert('Placa Obrigatória', 'Por favor, adicione pelo menos 1 placa válida com 7 dígitos.', 'warning');
           saveBtn.disabled = false;
           saveBtn.innerText = 'SALVAR MENSALISTA';
           return;
@@ -847,10 +903,11 @@
         });
 
         closeModalMensalista();
+        showAlert('Sucesso', 'Mensalista salvo com sucesso!', 'success');
         await loadMensalistas();
 
       } catch (err) {
-        alert('Erro ao salvar mensalista: ' + err.message);
+        showAlert('Erro ao Salvar', 'Não foi possível salvar o mensalista: ' + err.message, 'danger');
       } finally {
         saveBtn.disabled = false;
         saveBtn.innerText = 'SALVAR MENSALISTA';
@@ -858,13 +915,19 @@
     }
 
     async function deleteMensalista(id, nome) {
-      if (!confirm(`Tem certeza que deseja excluir o cadastro de ${nome}? Todo o histórico será removido.`)) return;
+      const confirmed = await showConfirm(
+        'Excluir Mensalista',
+        `Tem certeza que deseja excluir o cadastro de "${nome}"? Todo o histórico de vagas e contratos será removido.`
+      );
+      if (!confirmed) return;
+
       try {
         const { error } = await sb.from('mensalistas').delete().eq('id', id);
         if (error) throw error;
+        showAlert('Sucesso', `Cadastro de "${nome}" excluído com sucesso!`, 'success');
         await loadMensalistas();
       } catch (err) {
-        alert('Erro ao excluir: ' + err.message);
+        showAlert('Erro ao Excluir', 'Não foi possível excluir: ' + err.message, 'danger');
       }
     }
 
@@ -1000,12 +1063,12 @@
       const input = document.getElementById('pixCopiaColaInput');
       input.select();
       navigator.clipboard.writeText(input.value);
-      alert('Código PIX copiado com sucesso!');
+      showAlert('PIX Copiado', 'Código PIX Copia e Cola copiado com sucesso para a área de transferência!', 'success');
     }
 
     function sendWhatsAppPix() {
       if (!currentPixMensalista || !currentPixMensalista.telefone) {
-        alert('Telefone do cliente não cadastrado.');
+        showAlert('Telefone Ausente', 'O mensalista selecionado não possui telefone cadastrado.', 'warning');
         return;
       }
       const rawPhone = currentPixMensalista.telefone.replace(/\D/g, '');
