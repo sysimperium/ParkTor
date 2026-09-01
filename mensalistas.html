@@ -538,6 +538,22 @@
         document.getElementById('btnNovoMensalista').style.display = 'none';
       }
 
+      if (profile.nivel_acesso === 'manobrista') {
+        document.getElementById('navDashboard')?.remove();
+        document.getElementById('navSaida')?.remove();
+        document.getElementById('navFinanceiro')?.remove();
+        document.getElementById('navChecklist')?.remove();
+        document.getElementById('navRelatorios')?.remove();
+        document.getElementById('navConfig')?.remove();
+      } else if (profile.nivel_acesso === 'operador') {
+        document.getElementById('navDashboard')?.remove();
+        document.getElementById('navEntrada')?.remove();
+        document.getElementById('navFinanceiro')?.remove();
+        document.getElementById('navChecklist')?.remove();
+        document.getElementById('navRelatorios')?.remove();
+        document.getElementById('navConfig')?.remove();
+      }
+
       document.getElementById('userNameSidebar').innerText = profile.nome || 'Usuário';
       document.getElementById('userRoleSidebar').innerText = profile.nivel_acesso?.toUpperCase() || 'OPERADOR';
       document.getElementById('sb-av-sidebar').innerText = (profile.nome || 'U')[0].toUpperCase();
