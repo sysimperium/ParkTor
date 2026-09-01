@@ -240,7 +240,7 @@
 
           <div class="tw">
             <table class="tab">
-              <thead>
+              <thead id="mensalistasTableHead">
                 <tr>
                   <th>Nome do Titular</th>
                   <th>Placas Vinculadas</th>
@@ -649,14 +649,43 @@
       }
     }
 
+    function renderTableHead() {
+      const thead = document.getElementById('mensalistasTableHead');
+      if (!thead) return;
+      const isAdmin = currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root');
+      if (isAdmin) {
+        thead.innerHTML = `
+          <tr>
+            <th>Nome do Titular</th>
+            <th>Placas Vinculadas</th>
+            <th>Vagas</th>
+            <th>Mensalidade</th>
+            <th>Vencimento</th>
+            <th>Status</th>
+            <th style="text-align: right;">Ações</th>
+          </tr>
+        `;
+      } else {
+        thead.innerHTML = `
+          <tr>
+            <th>Nome do Titular</th>
+            <th>Placas Vinculadas</th>
+            <th>Vagas</th>
+            <th>Status</th>
+          </tr>
+        `;
+      }
+    }
+
     function renderTable(list) {
+      renderTableHead();
       const tbody = document.getElementById('mensalistasTableBody');
+      const isAdmin = currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root');
+
       if (!list || list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-secondary);">Nenhum mensalista encontrado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 4}" style="text-align: center; padding: 30px; color: var(--text-secondary);">Nenhum mensalista encontrado.</td></tr>`;
         return;
       }
-
-      const isAdmin = currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root');
 
       tbody.innerHTML = list.map(m => {
         const veiculos = m.mensalista_veiculos || [];
@@ -673,11 +702,29 @@
           statusBadge = '<span class="status-badge sem-valor">SEM VALOR</span>';
         }
 
+        if (!isAdmin) {
+          // Visualização simplificada e restrita para Operador e Manobrista
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 700; color: var(--text-primary);">${m.nome}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${m.telefone || 'Sem telefone'}</div>
+              </td>
+              <td>
+                <div class="placas-tag-container">${placasHtml}</div>
+              </td>
+              <td><strong>${m.vagas_contratadas || 1}</strong> vaga(s)</td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        }
+
+        // Visualização completa para Administrador
         const valorFormatado = m.valor_mensalidade && Number(m.valor_mensalidade) > 0 
           ? `R$ ${Number(m.valor_mensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
           : '<span style="color: #93c5fd; font-weight: 700; font-size: 0.8rem;">A Definir</span>';
 
-        const actionButtons = isAdmin ? `
+        const actionButtons = `
           <div style="display: flex; gap: 6px; justify-content: flex-end;">
             <button class="btn btn-ghost btn-sm" title="Histórico de Uso" onclick="openModalHistorico('${m.id}', '${m.nome}')">
               <i data-lucide="bar-chart-2"></i>
@@ -692,7 +739,7 @@
               <i data-lucide="trash-2"></i>
             </button>
           </div>
-        ` : `<div style="color: var(--text-muted); font-size: 0.8rem; text-align: right; padding-right: 8px;">—</div>`;
+        `;
 
         return `
           <tr>
