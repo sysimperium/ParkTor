@@ -477,13 +477,35 @@
     </div>
   </div>
 
+  <!-- BOTTOM NAV (Mobile) -->
+  <nav class="bnav">
+    <div class="bnis">
+      <a href="dashboard.html" class="bni" id="mobNavDash">
+        <span class="bnico"><i data-lucide="layout-dashboard"></i></span>
+        <span class="bnlb">Dash</span>
+      </a>
+      <a href="entrada.html" class="bni" id="mobNavEntrada">
+        <span class="bnico"><i data-lucide="log-in"></i></span>
+        <span class="bnlb">Entrada</span>
+      </a>
+      <a href="saida.html" class="bni" id="mobNavSaida">
+        <span class="bnico"><i data-lucide="log-out"></i></span>
+        <span class="bnlb">Saída</span>
+      </a>
+      <a href="mensalistas.html" class="bni active" id="mobNavMensalistas">
+        <span class="bnico"><i data-lucide="calendar-days"></i></span>
+        <span class="bnlb">Mensalistas</span>
+      </a>
+    </div>
+  </nav>
+
   <script>
     const SUPABASE_URL = 'https://oncrmxipujcydzggxdks.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uY3JteGlwdWpjeWR6Z2d4ZGtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTUzMjcsImV4cCI6MjA5NDg5MTMyN30.8DB7OHZoV6fd8lmnWAQEwKO6BV6E_TltI6oH20Dhff4';
     const { createClient } = supabase;
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let currentUser = null, tenantId = null, tenantConfig = null;
+    let currentUser = null, currentUserProfile = null, tenantId = null, tenantConfig = null;
     let allMensalistas = [], activeHistMensalistaId = null;
 
     /* --- NOTIFICAÇÕES NATIVAS DO PARKTOR --- */
@@ -517,8 +539,8 @@
       if (confirmResolve) confirmResolve(result);
     }
 
-    function openMenu() { document.getElementById('sb').classList.add('open'); document.getElementById('overlay').classList.add('open'); }
-    function closeMenu() { document.getElementById('sb').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+    function openMenu() { document.getElementById('sb').classList.add('show'); document.getElementById('overlay').classList.add('show'); }
+    function closeMenu() { document.getElementById('sb').classList.remove('show'); document.getElementById('overlay').classList.remove('show'); }
 
     async function checkAuth() {
       const { data: { session } } = await sb.auth.getSession();
@@ -528,6 +550,7 @@
       const { data: profile } = await sb.from('users').select('*, tenants(*)').eq('id', currentUser.id).single();
       if (!profile || profile.status === 'inativo') { await sb.auth.signOut(); window.location.href = 'index.html'; return; }
 
+      currentUserProfile = profile;
       tenantId = profile.tenant_id;
       tenantConfig = profile.tenants;
 
@@ -545,6 +568,8 @@
         document.getElementById('navChecklist')?.remove();
         document.getElementById('navRelatorios')?.remove();
         document.getElementById('navConfig')?.remove();
+        document.getElementById('mobNavDash')?.remove();
+        document.getElementById('mobNavSaida')?.remove();
       } else if (profile.nivel_acesso === 'operador') {
         document.getElementById('navDashboard')?.remove();
         document.getElementById('navEntrada')?.remove();
@@ -552,6 +577,8 @@
         document.getElementById('navChecklist')?.remove();
         document.getElementById('navRelatorios')?.remove();
         document.getElementById('navConfig')?.remove();
+        document.getElementById('mobNavDash')?.remove();
+        document.getElementById('mobNavEntrada')?.remove();
       }
 
       document.getElementById('userNameSidebar').innerText = profile.nome || 'Usuário';
@@ -603,6 +630,7 @@
     }
 
     function renderKPICards(vagasOcupadas) {
+      const isAdmin = currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root');
       const total = allMensalistas.length;
       const emDia = allMensalistas.filter(m => m.status === 'ativo' && !m.cobrar_como_rotativo && m.valor_mensalidade > 0).length;
       const atrasados = allMensalistas.filter(m => m.status === 'atrasado').length;
@@ -613,7 +641,7 @@
       document.getElementById('statAtrasados').innerText = atrasados;
       document.getElementById('statVagasPatio').innerText = vagasOcupadas;
 
-      if (semValor > 0) {
+      if (isAdmin && semValor > 0) {
         document.getElementById('alertSemValor').style.display = 'block';
         document.getElementById('alertSemValorText').innerText = `Existem ${semValor} mensalista(s) cadastrado(s) sem valor de mensalidade definido pelo Administrador.`;
       } else {
@@ -627,6 +655,8 @@
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-secondary);">Nenhum mensalista encontrado.</td></tr>`;
         return;
       }
+
+      const isAdmin = currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root');
 
       tbody.innerHTML = list.map(m => {
         const veiculos = m.mensalista_veiculos || [];
@@ -647,6 +677,23 @@
           ? `R$ ${Number(m.valor_mensalidade).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
           : '<span style="color: #93c5fd; font-weight: 700; font-size: 0.8rem;">A Definir</span>';
 
+        const actionButtons = isAdmin ? `
+          <div style="display: flex; gap: 6px; justify-content: flex-end;">
+            <button class="btn btn-ghost btn-sm" title="Histórico de Uso" onclick="openModalHistorico('${m.id}', '${m.nome}')">
+              <i data-lucide="bar-chart-2"></i>
+            </button>
+            <button class="btn btn-ghost btn-sm" title="Cobrar WhatsApp" style="color: var(--green-300);" onclick="openModalPix('${m.id}')">
+              <i data-lucide="message-circle"></i>
+            </button>
+            <button class="btn btn-ghost btn-sm" title="Editar" onclick="editMensalista('${m.id}')">
+              <i data-lucide="edit-2"></i>
+            </button>
+            <button class="btn btn-ghost btn-sm" title="Excluir" style="color: var(--danger);" onclick="deleteMensalista('${m.id}', '${m.nome}')">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        ` : `<div style="color: var(--text-muted); font-size: 0.8rem; text-align: right; padding-right: 8px;">—</div>`;
+
         return `
           <tr>
             <td>
@@ -661,20 +708,7 @@
             <td>Dia ${m.dia_vencimento || 10}</td>
             <td>${statusBadge}</td>
             <td style="text-align: right;">
-              <div style="display: flex; gap: 6px; justify-content: flex-end;">
-                <button class="btn btn-ghost btn-sm" title="Histórico de Uso" onclick="openModalHistorico('${m.id}', '${m.nome}')">
-                  <i data-lucide="bar-chart-2"></i>
-                </button>
-                <button class="btn btn-ghost btn-sm" title="Cobrar WhatsApp" style="color: var(--green-300);" onclick="openModalPix('${m.id}')">
-                  <i data-lucide="message-circle"></i>
-                </button>
-                <button class="btn btn-ghost btn-sm" title="Editar" onclick="editMensalista('${m.id}')">
-                  <i data-lucide="edit-2"></i>
-                </button>
-                <button class="btn btn-ghost btn-sm" title="Excluir" style="color: var(--danger);" onclick="deleteMensalista('${m.id}', '${m.nome}')">
-                  <i data-lucide="trash-2"></i>
-                </button>
-              </div>
+              ${actionButtons}
             </td>
           </tr>
         `;
@@ -811,6 +845,10 @@
     }
 
     function editMensalista(id) {
+      if (!(currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root'))) {
+        showAlert('Acesso Restrito', 'Apenas o Administrador pode editar mensalistas.', 'warning');
+        return;
+      }
       const m = allMensalistas.find(item => item.id === id);
       if (!m) return;
 
@@ -933,6 +971,11 @@
     }
 
     async function deleteMensalista(id, nome) {
+      if (!(currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root'))) {
+        showAlert('Acesso Restrito', 'Apenas o Administrador pode excluir mensalistas.', 'warning');
+        return;
+      }
+
       const confirmed = await showConfirm(
         'Excluir Mensalista',
         `Tem certeza que deseja excluir o cadastro de "${nome}"? Todo o histórico de vagas e contratos será removido.`
@@ -951,6 +994,11 @@
 
     /* --- HISTÓRICO DE USO DA VAGA --- */
     function openModalHistorico(id, nome) {
+      if (!(currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root'))) {
+        showAlert('Acesso Restrito', 'Apenas o Administrador pode visualizar o histórico de uso.', 'warning');
+        return;
+      }
+
       activeHistMensalistaId = id;
       document.getElementById('histTitle').innerText = 'Histórico de Uso — ' + nome;
       document.getElementById('modalHistoricoUso').classList.add('show');
@@ -1087,6 +1135,10 @@
     }
 
     function openModalPix(id) {
+      if (!(currentUserProfile && (currentUserProfile.nivel_acesso === 'admin' || currentUserProfile.nivel_acesso === 'root'))) {
+        showAlert('Acesso Restrito', 'Apenas o Administrador pode emitir cobranças PIX.', 'warning');
+        return;
+      }
       const m = allMensalistas.find(item => item.id === id);
       if (!m) return;
       currentPixMensalista = m;
