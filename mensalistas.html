@@ -9,6 +9,7 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link rel="stylesheet" href="style.css">
   <style>
     body { display: none; }
@@ -426,20 +427,21 @@
         <button class="btn-close" onclick="closeModalPix()"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="text-align: center;">
-        <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(34,197,94,0.1); color: var(--green-300); display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
-          <i data-lucide="qr-code" size="30"></i>
-        </div>
-        
         <h4 id="pixClienteNome" style="color: var(--text-primary); margin-bottom: 5px;">...</h4>
         <div id="pixValorDisplay" style="font-size: 1.6rem; font-weight: 800; color: var(--gold-400); margin-bottom: 15px;">R$ 0,00</div>
 
-        <div class="form-group" style="text-align: left;">
+        <!-- CONTAINER QR CODE PIX -->
+        <div id="pixQrContainer" style="display: flex; justify-content: center; margin-bottom: 15px;">
+          <div id="pixQrCode" style="display: inline-block; padding: 12px; background: #fff; border-radius: 8px;"></div>
+        </div>
+
+        <div class="form-group" id="pixCopiaColaGroup" style="text-align: left;">
           <label class="form-label">Código PIX Copia e Cola</label>
           <input type="text" id="pixCopiaColaInput" class="form-input" readonly onclick="this.select()" style="font-size: 0.8rem; text-align: center;">
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-          <button class="btn btn-secondary btn-full" onclick="copyPixCode()">
+          <button class="btn btn-secondary btn-full" id="btnCopyMensalistaPix" onclick="copyPixCode()">
             <i data-lucide="copy"></i> COPIAR CÓDIGO PIX
           </button>
           <button class="btn btn-primary btn-full" id="btnEnviarWhatsApp" onclick="sendWhatsAppPix()">
@@ -1033,8 +1035,40 @@
       }
     }
 
-    /* --- COBRANÇA PIX & WHATSAPP --- */
+    /* --- COBRANÇA PIX & WHATSAPP (PADRÃO IDÊNTICO AO CAIXA/SAÍDA) --- */
     let currentPixMensalista = null;
+
+    // PIX PAYLOAD GENERATOR (EMV QRCPS)
+    function generatePixPayload(key, description, name, amount, city) {
+      const pad = (id, val) => id + String(val.length).padStart(2, '0') + val;
+      
+      let payload = '000201'; // Payload Indicator
+      const pixInfo = pad('00', 'br.gov.bcb.pix') + pad('01', key) + (description ? pad('02', description.substring(0, 25)) : '');
+      payload += pad('26', pixInfo);
+      payload += '52040000'; // Merchant Category Code
+      payload += '5303986'; // Transaction Currency (Real)
+      payload += pad('54', amount.toFixed(2)); // Amount
+      payload += '5802BR'; // Country Code
+      payload += pad('59', name.substring(0, 25).toUpperCase()); // Merchant Name
+      payload += pad('60', city.substring(0, 15).toUpperCase()); // Merchant City
+      payload += pad('62', pad('05', '***')); // Transaction ID
+      payload += '6304'; // CRC16 Placeholder
+
+      function crc16(data) {
+        let crc = 0xFFFF;
+        for (let i = 0; i < data.length; i++) {
+          crc ^= data.charCodeAt(i) << 8;
+          for (let j = 0; j < 8; j++) {
+            if ((crc & 0x8000) !== 0) crc = (crc << 1) ^ 0x1021;
+            else crc <<= 1;
+          }
+        }
+        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+      }
+
+      payload += crc16(payload);
+      return payload;
+    }
 
     function openModalPix(id) {
       const m = allMensalistas.find(item => item.id === id);
@@ -1045,10 +1079,41 @@
       const valor = m.valor_mensalidade ? Number(m.valor_mensalidade) : 0;
       document.getElementById('pixValorDisplay').innerText = `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-      // Gerar PIX Copia e Cola Estático/Dinâmico básico
-      const chavePix = tenantConfig?.pix_chave || 'PARKTOR_CHAVE';
-      const pixCode = `00020126360014BR.GOV.BCB.PIX0114${chavePix}520400005303986540${valor.toFixed(2)}5802BR5913${(tenantConfig?.nome || 'PARKTOR').substring(0,13)}6008SAOPAULO62070503***6304`;
-      document.getElementById('pixCopiaColaInput').value = pixCode;
+      const t = tenantConfig || {};
+      const pixKey = t.pix_key || '';
+      const pixName = t.pix_name || t.nome || 'ESTABELECIMENTO';
+      const pixCity = t.pix_city || 'SAO PAULO';
+      const pixQrEl = document.getElementById('pixQrCode');
+      const pixCcInput = document.getElementById('pixCopiaColaInput');
+      const pixCcGroup = document.getElementById('pixCopiaColaGroup');
+      const btnCopy = document.getElementById('btnCopyMensalistaPix');
+      const btnWhats = document.getElementById('btnEnviarWhatsApp');
+
+      if (!pixKey) {
+        pixQrEl.innerHTML = '<div style="color: var(--danger); font-weight: 600; padding: 15px; font-size: 0.85rem; text-align: center;">Chave PIX não cadastrada nas Configurações do Estacionamento.</div>';
+        pixCcInput.value = '';
+        if (pixCcGroup) pixCcGroup.style.display = 'none';
+        if (btnCopy) btnCopy.style.display = 'none';
+        if (btnWhats) btnWhats.disabled = true;
+      } else {
+        pixQrEl.innerHTML = '';
+        if (pixCcGroup) pixCcGroup.style.display = 'block';
+        if (btnCopy) btnCopy.style.display = 'block';
+        if (btnWhats) btnWhats.disabled = false;
+
+        const description = `MENSALIDADE ${m.nome.substring(0, 10)}`;
+        const payload = generatePixPayload(pixKey, description, pixName, valor, pixCity);
+        pixCcInput.value = payload;
+
+        new QRCode(pixQrEl, {
+          text: payload,
+          width: 170,
+          height: 170,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
 
       document.getElementById('modalPixCobranca').classList.add('show');
       lucide.createIcons();
@@ -1062,8 +1127,13 @@
     function copyPixCode() {
       const input = document.getElementById('pixCopiaColaInput');
       input.select();
-      navigator.clipboard.writeText(input.value);
-      showAlert('PIX Copiado', 'Código PIX Copia e Cola copiado com sucesso para a área de transferência!', 'success');
+      input.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(input.value).then(() => {
+        showAlert('PIX Copiado', 'Código PIX Copia e Cola copiado com sucesso para a área de transferência!', 'success');
+      }).catch(() => {
+        document.execCommand('copy');
+        showAlert('PIX Copiado', 'Código PIX Copia e Cola copiado com sucesso!', 'success');
+      });
     }
 
     function sendWhatsAppPix() {
@@ -1076,7 +1146,7 @@
       const estName = tenantConfig?.nome || 'Estacionamento';
       const pixCode = document.getElementById('pixCopiaColaInput').value;
 
-      const msg = `Olá, ${currentPixMensalista.nome}! Segue o link de pagamento da mensalidade da sua vaga no *${estName}* no valor de *R$ ${valor}*.\n\n*Código PIX Copia e Cola:*\n${pixCode}\n\nAgradecemos a preferência! 🚗`;
+      const msg = `Olá, *${currentPixMensalista.nome}*!\n\nSegue o código PIX para pagamento da sua mensalidade no *${estName}*:\n\n💰 *Valor:* R$ ${valor}\n\n📲 *Código PIX Copia e Cola:*\n\`\`\`${pixCode}\`\`\`\n\nAgradecemos pela preferência! 🚗`;
       const url = `https://api.whatsapp.com/send?phone=55${rawPhone}&text=${encodeURIComponent(msg)}`;
       window.open(url, '_blank');
     }
