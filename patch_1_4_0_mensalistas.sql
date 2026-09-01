@@ -37,9 +37,15 @@ ADD COLUMN IF NOT EXISTS observacoes TEXT,
 ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
 
--- REMOVER COLUNAS LEGADAS DE VEÍCULOS DA TABELA MENSALISTAS (agora ficam em mensalista_veiculos)
+-- REMOVER COLUNAS E RESTRIÇÕES LEGADAS ANTIGAS DA TABELA MENSALISTAS
 DO $$ 
 BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mensalistas' AND column_name = 'valor') THEN
+    ALTER TABLE public.mensalistas DROP COLUMN valor CASCADE;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mensalistas' AND column_name = 'vencimento') THEN
+    ALTER TABLE public.mensalistas DROP COLUMN vencimento CASCADE;
+  END IF;
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'mensalistas' AND column_name = 'placa') THEN
     ALTER TABLE public.mensalistas DROP COLUMN placa CASCADE;
   END IF;
