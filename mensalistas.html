@@ -770,21 +770,40 @@
 
       const div = document.createElement('div');
       div.id = rowId;
+      div.className = 'vehicle-card-row';
+      div.style.background = 'rgba(0,0,0,0.2)';
+      div.style.padding = '12px';
+      div.style.borderRadius = '8px';
+      div.style.border = '1px solid var(--border)';
       div.style.display = 'flex';
+      div.style.flexDirection = 'column';
       div.style.gap = '8px';
-      div.style.alignItems = 'center';
+      div.style.position = 'relative';
 
       div.innerHTML = `
-        <div style="position: relative; width: 130px;">
-          <input type="text" class="form-input vehicle-placa" placeholder="PLACA" value="${placa}" maxlength="7" style="text-transform: uppercase; width: 100%; font-weight: 700; letter-spacing: 1px;" required>
-          <span class="placa-loading-spinner" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--gold-400);">⏳</span>
+        <!-- LINHA 1: PLACA, MARCA E EXCLUIR -->
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="position: relative; flex: 1.1;">
+            <input type="text" class="form-input vehicle-placa" placeholder="PLACA *" value="${placa}" maxlength="7" style="text-transform: uppercase; width: 100%; font-weight: 700; letter-spacing: 1px; font-size: 0.95rem;" required>
+            <span class="placa-loading-spinner" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--gold-400);">⏳</span>
+          </div>
+          <div style="flex: 1.4;">
+            <input type="text" class="form-input vehicle-marca" placeholder="Marca (ex: FIAT)" value="${marca}" style="text-transform: uppercase; width: 100%; font-size: 0.9rem;">
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" title="Remover Veículo" style="color: var(--danger); padding: 6px 10px; height: 38px; min-width: 38px; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('${rowId}').remove()">
+            <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+          </button>
         </div>
-        <input type="text" class="form-input vehicle-marca" placeholder="Marca (ex: FIAT)" value="${marca}" style="text-transform: uppercase; flex: 1;">
-        <input type="text" class="form-input vehicle-modelo" placeholder="Modelo (ex: UNO)" value="${modelo}" style="text-transform: uppercase; flex: 1;">
-        <input type="text" class="form-input vehicle-cor" placeholder="Cor" value="${cor}" style="width: 100px;">
-        <button type="button" class="btn btn-ghost btn-sm" style="color: var(--danger); padding: 8px;" onclick="document.getElementById('${rowId}').remove()">
-          <i data-lucide="x"></i>
-        </button>
+
+        <!-- LINHA 2: MODELO E COR -->
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div style="flex: 1.6;">
+            <input type="text" class="form-input vehicle-modelo" placeholder="Modelo (ex: UNO / ONIX)" value="${modelo}" style="text-transform: uppercase; width: 100%; font-size: 0.9rem;">
+          </div>
+          <div style="flex: 1;">
+            <input type="text" class="form-input vehicle-cor" placeholder="Cor (ex: PRETO)" value="${cor}" style="text-transform: uppercase; width: 100%; font-size: 0.9rem;">
+          </div>
+        </div>
       `;
 
       container.appendChild(div);
