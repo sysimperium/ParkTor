@@ -667,7 +667,10 @@
       div.style.alignItems = 'center';
 
       div.innerHTML = `
-        <input type="text" class="form-input vehicle-placa" placeholder="PLACA (ABC1234)" value="${placa}" maxlength="7" style="text-transform: uppercase; width: 130px;" required>
+        <div style="position: relative; width: 130px;">
+          <input type="text" class="form-input vehicle-placa" placeholder="PLACA" value="${placa}" maxlength="7" style="text-transform: uppercase; width: 100%; font-weight: 700; letter-spacing: 1px;" required>
+          <span class="placa-loading-spinner" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--gold-400);">⏳</span>
+        </div>
         <input type="text" class="form-input vehicle-marca" placeholder="Marca (ex: FIAT)" value="${marca}" style="text-transform: uppercase; flex: 1;">
         <input type="text" class="form-input vehicle-modelo" placeholder="Modelo (ex: UNO)" value="${modelo}" style="text-transform: uppercase; flex: 1;">
         <input type="text" class="form-input vehicle-cor" placeholder="Cor" value="${cor}" style="width: 100px;">
@@ -677,7 +680,60 @@
       `;
 
       container.appendChild(div);
+
+      const placaInput = div.querySelector('.vehicle-placa');
+      const marcaInput = div.querySelector('.vehicle-marca');
+      const modeloInput = div.querySelector('.vehicle-modelo');
+      const spinner = div.querySelector('.placa-loading-spinner');
+
+      const triggerLookup = async () => {
+        const val = placaInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        placaInput.value = val;
+        if (val.length === 7) {
+          if (spinner) spinner.style.display = 'block';
+          await autoFillVehicleDetails(val, marcaInput, modeloInput);
+          if (spinner) spinner.style.display = 'none';
+        }
+      };
+
+      placaInput.addEventListener('input', triggerLookup);
+      placaInput.addEventListener('blur', triggerLookup);
+
       lucide.createIcons();
+    }
+
+    async function autoFillVehicleDetails(plate, marcaInput, modeloInput) {
+      try {
+        // 1. Busca primeiro no banco de dados local (tabela global de veículos)
+        const { data: vLocal } = await sb.from('veiculos')
+          .select('marca, modelo')
+          .eq('placa', plate)
+          .maybeSingle();
+
+        if (vLocal && (vLocal.marca || vLocal.modelo)) {
+          if (vLocal.marca && !marcaInput.value) marcaInput.value = vLocal.marca.toUpperCase();
+          if (vLocal.modelo && !modeloInput.value) modeloInput.value = vLocal.modelo.toUpperCase();
+          return;
+        }
+
+        // 2. Se não encontrar na base local, consulta a API online
+        let apiHost = '';
+        if (window.location.protocol === 'file:') {
+          apiHost = 'https://parktor.vercel.app';
+        }
+        const response = await fetch(`${apiHost}/api/consulta-placa?placa=${plate}`);
+        if (response.ok) {
+          const apiData = await response.json();
+          if (apiData.marca && !marcaInput.value) {
+            marcaInput.value = apiData.marca.toUpperCase();
+          }
+          if (apiData.modelo && !modeloInput.value) {
+            modeloInput.value = apiData.modelo.toUpperCase();
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao consultar dados da placa:', err);
+      }
     }
 
     function editMensalista(id) {
@@ -733,9 +789,9 @@
         const veiculos = [];
         vehicleRows.forEach(row => {
           const placa = row.querySelector('.vehicle-placa').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-          const marca = row.querySelector('.vehicle-marca').value.trim().toUpperCase();
-          const modelo = row.querySelector('.vehicle-modelo').value.trim().toUpperCase();
-          const cor = row.querySelector('.vehicle-cor').value.trim().toUpperCase();
+          const marca = row.querySelector('.vehicle-marca').value.trim().toUpperCase() || null;
+          const modelo = row.querySelector('.vehicle-modelo').value.trim().toUpperCase() || null;
+          const cor = row.querySelector('.vehicle-cor').value.trim().toUpperCase() || null;
           if (placa.length >= 6) {
             veiculos.push({ placa, marca, modelo, cor, tenant_id: tenantId });
           }
@@ -772,11 +828,23 @@
           mensalistaId = data.id;
         }
 
-        // Atualizar veículos
+        // Atualizar veículos associados
         await sb.from('mensalista_veiculos').delete().eq('mensalista_id', mensalistaId);
         const veiculosToInsert = veiculos.map(v => ({ ...v, mensalista_id: mensalistaId }));
         const { error: vError } = await sb.from('mensalista_veiculos').insert(veiculosToInsert);
         if (vError) throw vError;
+
+        // Salvar/atualizar na base global de veículos
+        veiculos.forEach(v => {
+          if (v.marca || v.modelo) {
+            sb.from('veiculos').upsert({
+              placa: v.placa,
+              marca: v.marca,
+              modelo: v.modelo,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'placa' }).then(() => {}).catch(err => console.error(err));
+          }
+        });
 
         closeModalMensalista();
         await loadMensalistas();

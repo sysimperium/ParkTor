@@ -21,6 +21,15 @@ CREATE TABLE IF NOT EXISTS public.mensalistas (
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Garantir que todas as colunas existam caso a tabela mensalistas já tenha sido criada anteriormente
+ALTER TABLE public.mensalistas 
+ADD COLUMN IF NOT EXISTS cobrar_como_rotativo BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS valor_mensalidade DECIMAL(10,2) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS dia_vencimento INTEGER NOT NULL DEFAULT 10,
+ADD COLUMN IF NOT EXISTS vagas_contratadas INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN IF NOT EXISTS observacoes TEXT,
+ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ativo';
+
 -- 2. TABELA DE VEÍCULOS DOS MENSALISTAS (MÚLTIPLAS PLACAS)
 CREATE TABLE IF NOT EXISTS public.mensalista_veiculos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -121,6 +130,9 @@ ON public.mensalistas
 FOR SELECT 
 TO anon 
 USING (true);
+
+-- 9. RECARREGAR SCHEMA CACHE DO POSTGREST / SUPABASE
+NOTIFY pgrst, 'reload schema';
 
 -- =============================================================
 -- MIGRATION 1.4.0 CONCLUÍDA COM SUCESSO
